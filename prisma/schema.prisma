@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Internal staffing ONLY — never store commercial customers here.
+model User {
+  id           Int           @id @default(autoincrement())
+  email        String        @unique
+  password     String
+  role         String          @default("EMPLOYEE")
+  employeeName String
+  activeStatus Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  assignedJobs JobMetadata[]
+  gmailAccount GmailAccount?
+}
+
+/// Gmail OAuth connection and sync tracking.
+model GmailAccount {
+  id             Int       @id @default(autoincrement())
+  userId         Int       @unique
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gmailEmail     String    @unique
+  accessToken    String
+  refreshToken   String
+  expiryDate     BigInt
+  syncedAt       DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  syncedEmailIds String    @default("[]")
+  tickets        Ticket[]
+}
+
+/// Automated Gmail ingestion stream.
+model Ticket {
+  id             Int          @id @default(autoincrement())
+  gmailAccountId Int?
+  gmailAccount   GmailAccount? @relation(fields: [gmailAccountId], references: [id], onDelete: SetNull)
+  gmailMessageId String       @unique
+  serialNo       String       @unique
+  exactDate      DateTime
+  time           String
+  subject        String
+  sender         String
+  createdAt      DateTime     @default(now())
+  jobMetadata    JobMetadata?
+}
+
+/// Commercial customers and site branches live here — NOT in User.
+model JobMetadata {
+  id                 Int                @id @default(autoincrement())
+  ticketId           Int                @unique
+  ticket             Ticket             @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  clientName         String
+  branchName         String
+  personOfContact    String
+  workNature         String
+  assignedEmployeeId Int?
+  assignedEmployee   User?              @relation(fields: [assignedEmployeeId], references: [id], onDelete: SetNull)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  surveyReport       SurveyReport?
+  quotationInvoices  QuotationInvoice[]
+  expenses           Expense[]
+}
+
+model SurveyReport {
+  id            Int         @id @default(autoincrement())
+  jobMetadataId Int         @unique
+  jobMetadata   JobMetadata @relation(fields: [jobMetadataId], references: [id], onDelete: Cascade)
+  reportText    String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model QuotationInvoice {
+  id            Int             @id @default(autoincrement())
+  jobMetadataId Int
+  jobMetadata   JobMetadata     @relation(fields: [jobMetadataId], references: [id], onDelete: Cascade)
+  poNumber      String?
+  status        String          @default("PENDING")
+  documentType  String          @default("QUOTATION")
+  lineItems     String          @default("[]")
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model Expense {
+  id            Int         @id @default(autoincrement())
+  jobMetadataId Int
+  jobMetadata   JobMetadata @relation(fields: [jobMetadataId], references: [id], onDelete: Cascade)
+  amount        Float
+  imageUrl      String?
+  summaryNotes  String
+  createdAt     DateTime    @default(now())
+}

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Seed Database</title>
+</head>
+<body>
+    <h1>Seeding Database...</h1>
+    <button onclick="seedDB()">Click to Seed</button>
+    <pre id="result"></pre>
+    <script>
+        async function seedDB() {
+            try {
+                const res = await fetch('http://localhost:3001/api/seed', {
+                    method: 'POST'
+                });
+                const data = await res.json();
+                document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+            } catch (err) {
+                document.getElementById('result').textContent = 'Error: ' + err.message;
+            }
+        }
+    </script>
+</body>
+</html>

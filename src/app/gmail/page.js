@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mail, RefreshCw, Link, X } from 'lucide-react';
+import { Mail, RefreshCw, Link, X, Filter, Shield } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
 
@@ -172,6 +172,17 @@ export default function GmailConnectionPage() {
               </button>
             </div>
 
+            <div style={{ padding: 16, background: 'rgba(0, 242, 254, 0.05)', borderRadius: 12, border: '1px solid rgba(0, 242, 254, 0.15)', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <Filter size={16} color="#00f2fe" />
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#00f2fe' }}>Complaint Filter Active</span>
+              </div>
+              <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
+                Only emails matching complaint keywords (issue, problem, urgent, repair, fault, breakdown, etc.) are synced. 
+                System emails from LinkedIn, Google Security, and other non-complaint senders are automatically excluded.
+              </p>
+            </div>
+
             <button 
               type="button" 
               className="nexus-btn nexus-btn-primary" 
@@ -180,18 +191,30 @@ export default function GmailConnectionPage() {
               disabled={syncing}
             >
               <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} /> 
-              {syncing ? 'Syncing...' : 'Sync Emails Now'}
+              {syncing ? 'Syncing...' : 'Sync Complaint Emails Now'}
             </button>
           </div>
         ) : (
-          <button 
-            type="button" 
-            className="nexus-btn nexus-btn-primary" 
-            style={{ width: '100%', padding: 16 }}
-            onClick={handleConnect}
-          >
-            <Link size={18} /> Connect Gmail
-          </button>
+          <div>
+            <div style={{ padding: 16, background: 'rgba(0, 242, 254, 0.05)', borderRadius: 12, border: '1px solid rgba(0, 242, 254, 0.15)', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <Shield size={16} color="#00f2fe" />
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#00f2fe' }}>Complaint-Only Sync</span>
+              </div>
+              <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
+                After connecting, the app will only fetch and store complaint-related emails. 
+                LinkedIn, Google Security, newsletters, and other non-complaint emails are filtered out automatically.
+              </p>
+            </div>
+            <button 
+              type="button" 
+              className="nexus-btn nexus-btn-primary" 
+              style={{ width: '100%', padding: 16 }}
+              onClick={handleConnect}
+            >
+              <Link size={18} /> Connect Gmail
+            </button>
+          </div>
         )}
       </div>
 

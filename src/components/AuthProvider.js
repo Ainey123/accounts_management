@@ -20,15 +20,32 @@ export default function AuthProvider({ children }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    const stored = localStorage.getItem('nexus_user');
-    if (stored) {
+    const init = async () => {
       try {
-        setUser(JSON.parse(stored));
-      } catch {
-        localStorage.removeItem('nexus_user');
+        const cookie = document.cookie.split('; ').find((c) => c.startsWith('nexus_user='));
+        if (cookie) {
+          const value = decodeURIComponent(cookie.split('=')[1]);
+          const parsed = JSON.parse(value);
+          if (parsed && parsed.email) {
+            setUser(parsed);
+            localStorage.setItem('nexus_user', JSON.stringify(parsed));
+            setIsHydrated(true);
+            return;
+          }
+        }
+      } catch {}
+
+      const stored = localStorage.getItem('nexus_user');
+      if (stored) {
+        try {
+          setUser(JSON.parse(stored));
+        } catch {
+          localStorage.removeItem('nexus_user');
+        }
       }
-    }
-    setIsHydrated(true);
+      setIsHydrated(true);
+    };
+    init();
   }, []);
 
   useEffect(() => {
@@ -60,6 +77,7 @@ export default function AuthProvider({ children }) {
     setUser(null);
     localStorage.removeItem('nexus_user');
     localStorage.removeItem('nexus_active_job');
+    document.cookie = 'nexus_user=; path=/; max-age=0';
     router.push('/');
   }, [router]);
 

@@ -1,19 +1,22 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { prisma } from '@/lib/prisma';
+import { isComplaintEmail } from '@/lib/complaintFilter';
+
+function getBaseUrl() {
+  if (process.env.APP_URL) return process.env.APP_URL;
+  if (process.env.NODE_ENV === 'production' && process.env.VERCEL_URL) return process.env.VERCEL_URL;
+  return 'http://localhost:3000';
+}
 
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  process.env.NODE_ENV === 'production'
-    ? `${process.env.VERCEL_URL}/api/gmail/callback`
-    : 'http://localhost:3000/api/gmail/callback'
+  `${getBaseUrl()}/api/gmail/callback`
 );
 
 async function postToGmailApi(emails, accountId) {
-  const baseUrl = process.env.NODE_ENV === 'production'
-    ? process.env.VERCEL_URL
-    : 'http://localhost:3000';
+  const baseUrl = getBaseUrl();
   if (!baseUrl) throw new Error('Server URL not configured');
   
   const controller = new AbortController();
@@ -66,11 +69,11 @@ export async function POST() {
     // Parse synced IDs
     const syncedIds = JSON.parse(account.syncedEmailIds || '[]');
 
-    // Fetch recent messages
+    // Fetch recent messages - use complaint-focused search query
     const response = await gmail.users.messages.list({
       userId: 'me',
-      maxResults: 50,
-      q: 'newer_than:1d',
+      maxResults: 100,
+      q: 'newer_than:7d (complaint OR issue OR problem OR fault OR urgent OR repair OR maintenance OR breakdown OR error OR not working OR service OR assistance OR help OR ticket OR work order) -from:linkedin.com -from:google.com -subject:"security alert" -subject:"new sign-in" -subject:"password changed"',
     });
 
     const messages = response.data.messages || [];
@@ -104,13 +107,18 @@ export async function POST() {
         hour12: true
       });
 
-      newEmails.push({
+      const emailData = {
         gmailMessageId: message.id,
         sender: from,
         subject,
         exactDate: date,
         time,
-      });
+      };
+
+      // Only include complaint emails
+      if (isComplaintEmail(emailData)) {
+        newEmails.push(emailData);
+      }
 
       updatedSyncedIds.push(message.id);
     }

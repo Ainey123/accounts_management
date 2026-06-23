@@ -1,17 +1,22 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
+import { isComplaintEmail } from '@/lib/complaintFilter';
 
 function googleConfigured() {
   return process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET;
+}
+
+function getBaseUrl() {
+  if (process.env.APP_URL) return process.env.APP_URL;
+  if (process.env.NODE_ENV === 'production' && process.env.VERCEL_URL) return process.env.VERCEL_URL;
+  return 'http://localhost:3000';
 }
 
 const oauth2Client = googleConfigured()
   ? new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.NODE_ENV === 'production'
-        ? `${process.env.VERCEL_URL}/api/gmail/callback`
-        : 'http://localhost:3000/api/gmail/callback'
+      `${getBaseUrl()}/api/gmail/callback`
     )
   : null;
 
@@ -86,11 +91,11 @@ export async function PUT(request) {
     
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
     
-    // Fetch recent messages
+    // Fetch recent messages - complaint focused
     const response = await gmail.users.messages.list({
       userId: 'me',
-      maxResults: 50,
-      q: 'is:unread OR newer_than:1d',
+      maxResults: 100,
+      q: 'newer_than:7d (complaint OR issue OR problem OR fault OR urgent OR repair OR maintenance OR breakdown OR error OR not working OR service OR assistance OR help OR ticket OR work order) -from:linkedin.com -from:google.com -subject:"security alert" -subject:"new sign-in" -subject:"password changed"',
     });
     
     const messages = response.data.messages || [];
@@ -124,13 +129,17 @@ export async function PUT(request) {
         hour12: true 
       });
       
-      newEmails.push({
+      const emailData = {
         gmailMessageId: message.id,
         sender: from,
         subject,
         exactDate: date,
         time,
-      });
+      };
+      
+      if (isComplaintEmail(emailData)) {
+        newEmails.push(emailData);
+      }
       
       updatedSyncedIds.push(message.id);
     }

@@ -21,7 +21,15 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    return NextResponse.json({ user: sanitizeUser(user) });
+    const safe = sanitizeUser(user);
+    const response = NextResponse.json({ user: safe });
+    response.cookies.set('nexus_user', JSON.stringify(safe), {
+      httpOnly: false,
+      path: '/',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7,
+    });
+    return response;
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json({ error: 'Authentication failed' }, { status: 500 });

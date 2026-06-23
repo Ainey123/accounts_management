@@ -67,6 +67,7 @@ export default function SiteExpensePage() {
         const blob = await fetch(capturedImage).then((r) => r.blob());
         finalUrl = await uploadToCloudinary(blob);
         setImageUrl(finalUrl);
+        setCapturedImage(finalUrl);
       }
       await apiFetch('/api/expenses', {
         method: 'POST',

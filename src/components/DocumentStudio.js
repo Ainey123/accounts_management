@@ -14,6 +14,7 @@ const DEFAULT_LINE = { sr: 1, description: '', unit: 'Nos', qty: 1, rate: 0, amo
 export default function DocumentStudio({ documentType = 'QUOTATION' }) {
   const { activeJob, activeJobId } = useJob();
   const pdfRef = useRef(null);
+  const genRef = useRef(0);
   const [isLocked, setIsLocked] = useState(false);
   const [documentId, setDocumentId] = useState(null);
   const [lineItems, setLineItems] = useState([{ ...DEFAULT_LINE }]);
@@ -26,11 +27,13 @@ export default function DocumentStudio({ documentType = 'QUOTATION' }) {
       : 'QUOTATION FOR MAINTENANCE WORK';
 
   const loadDocument = useCallback(async () => {
+    const gen = ++genRef.current;
     if (!activeJobId) return;
     try {
       const { documents } = await apiFetch(
         `/api/quotations?jobMetadataId=${activeJobId}&documentType=${documentType}`
       );
+      if (gen !== genRef.current) return;
       if (documents.length) {
         const doc = documents[0];
         setDocumentId(doc.id);
@@ -41,6 +44,7 @@ export default function DocumentStudio({ documentType = 'QUOTATION' }) {
         setLineItems([{ ...DEFAULT_LINE }]);
       }
     } catch (err) {
+      if (gen !== genRef.current) return;
       console.error(err);
     }
   }, [activeJobId, documentType]);

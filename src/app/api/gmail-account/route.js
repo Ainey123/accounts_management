@@ -24,23 +24,38 @@ export async function GET() {
 // Save Gmail account tokens
 export async function POST(request) {
   try {
-    const { email, accessToken, refreshToken, expiryDate } = await request.json();
+    const { email, accessToken, refreshToken, expiryDate, userId } = await request.json();
 
-    // Upsert - update if exists, create if new
+    if (!email || !accessToken || !refreshToken) {
+      return NextResponse.json({ error: 'email, accessToken, and refreshToken are required' }, { status: 400 });
+    }
+
+    let targetUserId = userId;
+    if (!targetUserId) {
+      const firstUser = await prisma.user.findFirst();
+      if (!firstUser) {
+        return NextResponse.json({ error: 'No user found. Create a user first.' }, { status: 400 });
+      }
+      targetUserId = firstUser.id;
+    }
+
+    const parsedExpiry = expiryDate ? BigInt(expiryDate) : BigInt(Date.now() + 3600000);
+
     const account = await prisma.gmailAccount.upsert({
       where: { gmailEmail: email },
       update: {
         accessToken,
         refreshToken,
-        expiryDate: BigInt(expiryDate),
+        expiryDate: parsedExpiry,
         syncedAt: new Date(),
+        userId: targetUserId,
       },
       create: {
-        userId: 1, // Default to first user
+        userId: targetUserId,
         gmailEmail: email,
         accessToken,
         refreshToken,
-        expiryDate: BigInt(expiryDate),
+        expiryDate: parsedExpiry,
         syncedEmailIds: '[]',
       },
     });

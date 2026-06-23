@@ -1,16 +1,25 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.NODE_ENV === 'production'
-    ? `${process.env.VERCEL_URL}/api/gmail/callback`
-    : 'http://localhost:3000/api/gmail/callback'
-);
+function googleConfigured() {
+  return process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET;
+}
+
+const oauth2Client = googleConfigured()
+  ? new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.NODE_ENV === 'production'
+        ? `${process.env.VERCEL_URL}/api/gmail/callback`
+        : 'http://localhost:3000/api/gmail/callback'
+    )
+  : null;
 
 // Start OAuth connection
 export async function GET() {
+  if (!googleConfigured()) {
+    return NextResponse.json({ error: 'Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.' }, { status: 500 });
+  }
   const scopes = [
     'https://www.googleapis.com/auth/gmail.readonly',
     'https://www.googleapis.com/auth/userinfo.email',
@@ -27,6 +36,9 @@ export async function GET() {
 
 // OAuth callback - save tokens
 export async function POST(request) {
+  if (!googleConfigured()) {
+    return NextResponse.json({ error: 'Google OAuth not configured.' }, { status: 500 });
+  }
   try {
     const { code } = await request.json();
     
@@ -55,8 +67,15 @@ export async function POST(request) {
 
 // Sync emails from Gmail
 export async function PUT(request) {
+  if (!googleConfigured()) {
+    return NextResponse.json({ error: 'Google OAuth not configured.' }, { status: 500 });
+  }
   try {
     const { accessToken, refreshToken, expiryDate, syncedEmailIds } = await request.json();
+    
+    if (!accessToken || !refreshToken) {
+      return NextResponse.json({ error: 'Missing access or refresh token' }, { status: 400 });
+    }
     
     // Set up OAuth client with stored tokens
     oauth2Client.setCredentials({

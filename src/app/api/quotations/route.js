@@ -27,7 +27,12 @@ export async function GET(request) {
       },
     });
 
-    return NextResponse.json({ documents });
+    const parsed = documents.map((doc) => ({
+      ...doc,
+      lineItems: JSON.parse(doc.lineItems || '[]'),
+    }));
+
+    return NextResponse.json({ documents: parsed });
   } catch (error) {
     console.error('Quotation fetch error:', error);
     return NextResponse.json({ error: 'Failed to fetch documents' }, { status: 500 });
@@ -53,7 +58,7 @@ export async function POST(request) {
       data: {
         jobMetadataId: Number(jobMetadataId),
         documentType,
-        lineItems,
+        lineItems: JSON.stringify(lineItems),
         poNumber: poNumber || null,
         status,
       },
@@ -81,7 +86,7 @@ export async function PATCH(request) {
     }
 
     const data = {};
-    if (lineItems !== undefined) data.lineItems = lineItems;
+    if (lineItems !== undefined) data.lineItems = JSON.stringify(lineItems);
     if (poNumber !== undefined) data.poNumber = poNumber || null;
     if (status !== undefined) data.status = status;
 

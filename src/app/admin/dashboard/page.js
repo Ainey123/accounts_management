@@ -13,6 +13,7 @@ export default function AdminCommandCenter() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form, setForm] = useState({ employeeName: '', email: '', password: '' });
   const [message, setMessage] = useState('');
+  const [registering, setRegistering] = useState(false);
 
   const loadAll = async () => {
     const [userRes, statsRes, finRes] = await Promise.all([
@@ -31,6 +32,7 @@ export default function AdminCommandCenter() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    setRegistering(true);
     try {
       await apiFetch('/api/users', {
         method: 'POST',
@@ -42,6 +44,8 @@ export default function AdminCommandCenter() {
       await loadAll();
     } catch (err) {
       setMessage(err.message);
+    } finally {
+      setRegistering(false);
     }
   };
 
@@ -194,7 +198,7 @@ export default function AdminCommandCenter() {
                 <label className="field-label">Temporary Password</label>
                 <input className="nexus-input" type="password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
               </div>
-              <button type="submit" className="nexus-btn nexus-btn-primary">Generate User Account</button>
+              <button type="submit" className="nexus-btn nexus-btn-primary" disabled={registering}>{registering ? 'Creating...' : 'Generate User Account'}</button>
             </form>
           </div>
         </div>

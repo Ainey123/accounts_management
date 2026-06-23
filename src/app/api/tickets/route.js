@@ -25,3 +25,31 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Failed to fetch tickets' }, { status: 500 });
   }
 }
+
+export async function POST(request) {
+  try {
+    const { subject, sender } = await request.json();
+
+    if (!subject) {
+      return NextResponse.json({ error: 'Subject is required' }, { status: 400 });
+    }
+
+    const serialNo = await nextTicketSerialNo();
+    const now = new Date();
+    const ticket = await prisma.ticket.create({
+      data: {
+        serialNo,
+        subject,
+        sender: sender || 'Manual Entry',
+        exactDate: now,
+        time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+        gmailMessageId: `manual-${Date.now()}`,
+      },
+    });
+
+    return NextResponse.json({ ticket }, { status: 201 });
+  } catch (error) {
+    console.error('Ticket create error:', error);
+    return NextResponse.json({ error: 'Failed to create ticket' }, { status: 500 });
+  }
+}

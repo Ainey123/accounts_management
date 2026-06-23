@@ -6,13 +6,47 @@ const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
   process.env.NODE_ENV === 'production'
-    ? `${process.env.VERCEL_URL}/api/gmail-oauth/callback`
-    : 'http://localhost:3000/api/gmail-oauth/callback'
+    ? `${process.env.VERCEL_URL}/api/gmail/callback`
+    : 'http://localhost:3000/api/gmail/callback'
 );
+
+async function postToGmailApi(emails, accountId) {
+  const baseUrl = process.env.NODE_ENV === 'production'
+    ? process.env.VERCEL_URL
+    : 'http://localhost:3000';
+  if (!baseUrl) throw new Error('Server URL not configured');
+  
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  
+  try {
+    const res = await fetch(`${baseUrl}/api/gmail`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emails, gmailAccountId: accountId }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`Gmail API responded ${res.status}: ${text}`);
+    }
+    return res;
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err.name === 'AbortError') {
+      throw new Error('Gmail API request timed out');
+    }
+    throw err;
+  }
+}
 
 // Sync emails from connected Gmail account
 export async function POST() {
   try {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      return NextResponse.json({ error: 'Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.' }, { status: 500 });
+    }
     // Get connected account
     const account = await prisma.gmailAccount.findFirst();
     
@@ -83,14 +117,7 @@ export async function POST() {
 
     // Save new emails to database
     if (newEmails.length > 0) {
-      await fetch(`${process.env.NODE_ENV === 'production' ? process.env.VERCEL_URL : 'http://localhost:3000'}/api/gmail`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          emails: newEmails,
-          gmailAccountId: account.id,
-        }),
-      });
+      await postToGmailApi(newEmails, account.id);
     }
 
     // Update synced IDs

@@ -12,6 +12,7 @@ export default function BankApprovalPage() {
   const [status, setStatus] = useState('PENDING');
   const [poNumber, setPoNumber] = useState('');
   const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!activeJobId) return;
@@ -36,7 +37,8 @@ export default function BankApprovalPage() {
       setMessage('Create a quotation for this job first.');
       return;
     }
-    setStatus(newStatus);
+    setSaving(true);
+    setMessage('');
     try {
       await apiFetch('/api/quotations', {
         method: 'PATCH',
@@ -46,15 +48,19 @@ export default function BankApprovalPage() {
           poNumber: newStatus === 'APPROVED' ? poNumber : null,
         }),
       });
+      setStatus(newStatus);
       if (newStatus !== 'APPROVED') setPoNumber('');
       setMessage(`Status updated to ${newStatus}.`);
     } catch (err) {
       setMessage(err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
   const savePo = async () => {
     if (!documentId || status !== 'APPROVED') return;
+    setSaving(true);
     try {
       await apiFetch('/api/quotations', {
         method: 'PATCH',
@@ -63,6 +69,8 @@ export default function BankApprovalPage() {
       setMessage('PO number saved.');
     } catch (err) {
       setMessage(err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -85,13 +93,13 @@ export default function BankApprovalPage() {
       <div className="glass-card">
         <label className="field-label">Current Status</label>
         <div className="status-segment" style={{ marginBottom: 28 }}>
-          <button type="button" className={`status-segment-btn ${status === 'PENDING' ? statusClass.PENDING : ''}`} onClick={() => updateStatus('PENDING')}>
+          <button type="button" className={`status-segment-btn ${status === 'PENDING' ? statusClass.PENDING : ''}`} onClick={() => updateStatus('PENDING')} disabled={saving}>
             <Clock size={16} /> Pending
           </button>
-          <button type="button" className={`status-segment-btn ${status === 'APPROVED' ? statusClass.APPROVED : ''}`} onClick={() => updateStatus('APPROVED')}>
+          <button type="button" className={`status-segment-btn ${status === 'APPROVED' ? statusClass.APPROVED : ''}`} onClick={() => updateStatus('APPROVED')} disabled={saving}>
             <CheckCircle size={16} /> Approved
           </button>
-          <button type="button" className={`status-segment-btn ${status === 'CANCELLED' ? statusClass.CANCELLED : ''}`} onClick={() => updateStatus('CANCELLED')}>
+          <button type="button" className={`status-segment-btn ${status === 'CANCELLED' ? statusClass.CANCELLED : ''}`} onClick={() => updateStatus('CANCELLED')} disabled={saving}>
             <XCircle size={16} /> Cancelled
           </button>
         </div>
@@ -107,7 +115,7 @@ export default function BankApprovalPage() {
               onChange={(e) => setPoNumber(e.target.value)}
               onBlur={savePo}
               placeholder="Enter official PO number..."
-              disabled={status !== 'APPROVED'}
+              disabled={status !== 'APPROVED' || saving}
             />
           </div>
         </div>

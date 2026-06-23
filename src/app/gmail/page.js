@@ -1,20 +1,28 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Mail, RefreshCw, Link, X } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { useAuth } from '@/components/AuthProvider';
 
 export default function GmailConnectionPage() {
+  const { user } = useAuth();
   const [connected, setConnected] = useState(false);
   const [email, setEmail] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [tickets, setTickets] = useState([]);
+  const oauthHandlerRef = useRef(null);
 
   useEffect(() => {
     checkConnection();
     loadTickets();
+    return () => {
+      if (oauthHandlerRef.current) {
+        window.removeEventListener('message', oauthHandlerRef.current);
+      }
+    };
   }, []);
 
   const checkConnection = async () => {
@@ -40,42 +48,67 @@ export default function GmailConnectionPage() {
     }
   };
 
-  const handleConnect = async () => {
+  const handleConnect = useCallback(async () => {
+    const popup = window.open('', 'gmail-oauth', 'width=600,height=700');
+    if (!popup) {
+      setMessage('Popup blocked. Please allow popups and try again.');
+      return;
+    }
+    popup.document.write('<p>Loading Gmail connection...</p>');
     try {
-      // Get OAuth URL
       const { authUrl } = await apiFetch('/api/gmail-oauth');
-      
-      // Open OAuth popup
-      const popup = window.open(authUrl, 'gmail-oauth', 'width=600,height=700');
-      
-      // Listen for message from callback
-      window.addEventListener('message', async (event) => {
+      popup.location.href = authUrl;
+      setMessage('');
+
+      const handler = async (event) => {
         if (event.data?.type === 'gmail-oauth-success') {
-          const { email, tokens } = event.data;
-          
-          // Save tokens
+          window.removeEventListener('message', handler);
+          oauthHandlerRef.current = null;
+          clearTimeout(timeoutId);
+          popup.close();
+          const { email: connectedEmail, tokens } = event.data;
           await apiFetch('/api/gmail-account', {
             method: 'POST',
             body: JSON.stringify({
-              email,
+              email: connectedEmail,
               accessToken: tokens.access_token,
               refreshToken: tokens.refresh_token,
               expiryDate: tokens.expiry_date,
+              userId: user?.id,
             }),
           });
-          
           setConnected(true);
-          setEmail(email);
+          setEmail(connectedEmail);
           setMessage('Gmail connected successfully!');
-          
-          // Auto-sync
           await handleSync();
+        } else if (event.data?.type === 'gmail-oauth-error') {
+          window.removeEventListener('message', handler);
+          oauthHandlerRef.current = null;
+          clearTimeout(timeoutId);
+          popup.close();
+          const errorMsg = event.data.error || 'Unknown error';
+          if (errorMsg.includes('403') || errorMsg.includes('access_denied') || errorMsg.includes('not completed')) {
+            setMessage('Google OAuth "Testing" mode active. Fix: Go to cloud.google.com → APIs & Services → OAuth consent screen → Add your Gmail as a "Test user". Or switch the app to "Production" at the top of that page.');
+          } else {
+            setMessage('Connection failed: ' + errorMsg);
+          }
         }
-      });
+      };
+
+      oauthHandlerRef.current = handler;
+      window.addEventListener('message', handler);
+
+      const timeoutId = setTimeout(() => {
+        window.removeEventListener('message', handler);
+        oauthHandlerRef.current = null;
+        popup.close();
+        setMessage('Connection timed out. If you see "has not completed verification", add your Gmail as a Test user in Google Cloud Console → OAuth consent screen.');
+      }, 120000);
     } catch (err) {
-      setMessage('Connection failed: ' + err.message);
+      popup.close();
+      setMessage('Failed to start OAuth: ' + err.message);
     }
-  };
+  }, [user]);
 
   const handleDisconnect = async () => {
     try {
@@ -114,7 +147,7 @@ export default function GmailConnectionPage() {
       </header>
 
       {message && (
-        <div className={message.includes('failed') ? 'alert-error' : 'alert-success'} style={{ marginBottom: 20 }}>
+        <div className={message.includes('failed') || message.includes('failed') ? 'alert-error' : 'alert-success'} style={{ marginBottom: 20 }}>
           {message}
         </div>
       )}

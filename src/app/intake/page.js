@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Send, Building, User, Briefcase } from 'lucide-react';
+import { Send, Building, User, Briefcase, X } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useJob } from '@/components/JobContext';
 
@@ -26,26 +26,54 @@ export default function IntakeGridPage() {
   });
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualSubject, setManualSubject] = useState('');
+  const [manualSender, setManualSender] = useState('');
+  const [creatingTicket, setCreatingTicket] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      apiFetch('/api/tickets?pending=true'),
-      apiFetch('/api/users'),
-    ]).then(([ticketRes, userRes]) => {
-      setTickets(ticketRes.tickets);
-      setEmployees(userRes.users.filter((u) => u.role === 'EMPLOYEE'));
-      if (ticketRes.tickets.length) setSelectedTicketId(String(ticketRes.tickets[0].id));
-    }).catch(console.error);
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const [ticketRes, userRes] = await Promise.all([
+          apiFetch('/api/tickets?pending=true'),
+          apiFetch('/api/users'),
+        ]);
+        if (cancelled) return;
+        const tickets = ticketRes.tickets || [];
+        const employees = (userRes.users || []).filter((u) => u.role === 'EMPLOYEE');
+        setTickets(tickets);
+        setEmployees(employees);
+        if (tickets.length) setSelectedTicketId(String(tickets[0].id));
+      } catch (err) {
+        if (!cancelled) console.error(err);
+      } finally {
+        if (!cancelled) setLoadingData(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
   }, []);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const handleTicketChange = (ticketId) => {
+    setSelectedTicketId(ticketId);
+    if (!ticketId) return;
+    const ticket = tickets.find((t) => String(t.id) === String(ticketId));
+    if (ticket && !form.clientName) {
+      const senderName = ticket.sender?.split('@')[0] || '';
+      setForm((prev) => ({ ...prev, clientName: senderName }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedTicketId) {
-      setMessage('Select an incoming ticket first.');
+      setMessage('Select or create an incoming ticket first.');
       return;
     }
     setSubmitting(true);
@@ -76,6 +104,32 @@ export default function IntakeGridPage() {
     }
   };
 
+  const handleCreateManualTicket = async (e) => {
+    e.preventDefault();
+    setCreatingTicket(true);
+    setMessage('');
+    try {
+      const { ticket } = await apiFetch('/api/tickets', {
+        method: 'POST',
+        body: JSON.stringify({
+          subject: manualSubject,
+          sender: manualSender || 'Manual Entry',
+        }),
+      });
+      setTickets((prev) => [ticket, ...prev]);
+      setSelectedTicketId(String(ticket.id));
+      setShowManualForm(false);
+      setManualSubject('');
+      setManualSender('');
+      setMessage('Manual ticket created.');
+      await refreshJobs();
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setCreatingTicket(false);
+    }
+  };
+
   return (
     <div>
       <header className="page-header">
@@ -84,17 +138,25 @@ export default function IntakeGridPage() {
       </header>
 
       <div className="glass-card" style={{ marginBottom: 28 }}>
-        <label className="field-label">Link to Incoming Ticket</label>
-        <select className="nexus-select" value={selectedTicketId} onChange={(e) => setSelectedTicketId(e.target.value)}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <label className="field-label" style={{ marginBottom: 0 }}>Link to Incoming Ticket</label>
+          <button type="button" className="nexus-btn nexus-btn-ghost" style={{ padding: '8px 12px', fontSize: 12 }} onClick={() => setShowManualForm(true)}>
+            + Manual Ticket
+          </button>
+        </div>
+        <select className="nexus-select" value={selectedTicketId} onChange={(e) => handleTicketChange(e.target.value)} disabled={loadingData}>
           <option value="">Select ticket...</option>
           {tickets.map((t) => (
             <option key={t.id} value={t.id}>{t.serialNo} — {t.subject}</option>
           ))}
         </select>
+        {tickets.length === 0 && !loadingData && (
+          <p style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>No Gmail tickets. Click "+ Manual Ticket" to create one.</p>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="glass-card">
-        <div className="intake-grid">
+        <div className="intake-grid" style={{ opacity: loadingData ? 0.5 : 1, pointerEvents: loadingData ? 'none' : 'auto' }}>
           <div>
             <label className="field-label"><User size={12} style={{ display: 'inline', marginRight: 4 }} />Client Name</label>
             <input className="nexus-input" name="clientName" value={form.clientName} onChange={handleChange} required placeholder="Commercial client" />
@@ -133,8 +195,8 @@ export default function IntakeGridPage() {
           </div>
         )}
 
-        <button type="submit" className="nexus-btn nexus-btn-primary" style={{ width: '100%', marginTop: 24, padding: 16 }} disabled={submitting}>
-          <Send size={18} /> {submitting ? 'Saving...' : 'Generate Serial & Save Metadata'}
+        <button type="submit" className="nexus-btn nexus-btn-primary" style={{ width: '100%', marginTop: 24, padding: 16 }} disabled={submitting || loadingData}>
+          <Send size={18} /> {loadingData ? 'Loading...' : submitting ? 'Saving...' : 'Generate Serial & Save Metadata'}
         </button>
       </form>
 
@@ -169,6 +231,32 @@ export default function IntakeGridPage() {
           </tbody>
         </table>
       </section>
+
+      {showManualForm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }} onClick={() => setShowManualForm(false)}>
+          <div className="glass-card" style={{ width: '100%', maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <h3 style={{ margin: 0 }}>Create Manual Ticket</h3>
+              <button type="button" className="nexus-btn nexus-btn-ghost" onClick={() => setShowManualForm(false)} style={{ padding: 8 }}>
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleCreateManualTicket} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label className="field-label">Subject / Work Description</label>
+                <input className="nexus-input" required value={manualSubject} onChange={(e) => setManualSubject(e.target.value)} placeholder="e.g. Electrical maintenance at Branch X" />
+              </div>
+              <div>
+                <label className="field-label">Sender (Optional)</label>
+                <input className="nexus-input" value={manualSender} onChange={(e) => setManualSender(e.target.value)} placeholder="Client name or email" />
+              </div>
+              <button type="submit" className="nexus-btn nexus-btn-primary" disabled={creatingTicket}>
+                {creatingTicket ? 'Creating...' : 'Create Ticket'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

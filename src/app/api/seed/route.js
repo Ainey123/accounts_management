@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/password';
 
+export async function GET() {
+  return POST();
+}
+
 export async function POST() {
   try {
     const adminEmail = 'admin@gmail.com';

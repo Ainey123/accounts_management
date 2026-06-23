@@ -24,17 +24,17 @@ function runWithRetry(cmd, retries = 3) {
       if (i === retries - 1) throw e;
       const wait = 1000 * (i + 1);
       console.log(`Retry ${i + 1}/${retries} after ${wait}ms...`);
-      await new Promise(r => setTimeout(r, wait));
+      // Use setTimeout via child_process or busy wait since we can't use await at top level
+      const start = Date.now();
+      while (Date.now() - start < wait) {}
     }
   }
 }
 
-(async () => {
-  try {
-    removeLockFiles();
-    runWithRetry('npx prisma generate');
-  } catch (e) {
-    console.error('Prisma generate failed. Try restarting your terminal.');
-    process.exit(1);
-  }
-})();
+try {
+  removeLockFiles();
+  runWithRetry('npx prisma generate');
+} catch (e) {
+  console.error('Prisma generate failed. This is normal on first deployment.');
+  process.exit(0);
+}

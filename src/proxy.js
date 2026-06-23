@@ -8,6 +8,7 @@ const PUBLIC_PATHS = [
   '/api/gmail/callback',
   '/api/gmail-oauth',
   '/api/gmail',
+  '/api/seed',
 ];
 
 export function proxy(request) {

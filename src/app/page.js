@@ -20,6 +20,9 @@ export default function LoginPage() {
       await login(email, password, activeTab);
     } catch (err) {
       setError(err.message || 'Access denied.');
+      if (err.message?.includes('Failed to fetch') || err.message?.includes('Invalid credentials')) {
+        setError('Database not initialized. Please visit /api/seed to create default users, then try again.');
+      }
     } finally {
       setLoading(false);
     }

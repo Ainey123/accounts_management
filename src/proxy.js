@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server';
 
 const PUBLIC_PATHS = [
   '/',
+  '/favicon.ico',
   '/api/auth/login',
   '/api/gmail/callback',
   '/api/gmail-oauth',

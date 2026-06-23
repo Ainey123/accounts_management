@@ -37,8 +37,8 @@ export default function JobProvider({ children }) {
     setLoading(true);
     try {
       const { jobs: fetched } = await apiFetch('/api/jobs');
-      setJobs(fetched);
-      if (fetched.length && !activeJobId) {
+      setJobs(fetched || []);
+      if ((fetched || []).length && !activeJobId) {
         setActiveJobId(fetched[0].id);
       }
     } catch (err) {
@@ -52,7 +52,7 @@ export default function JobProvider({ children }) {
     refreshJobs();
   }, []);
 
-  const activeJob = jobs.find((j) => j.id === activeJobId) || null;
+  const activeJob = (jobs || []).find((j) => j.id === activeJobId) || null;
 
   return (
     <JobContext.Provider

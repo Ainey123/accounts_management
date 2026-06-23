@@ -63,7 +63,7 @@ export default function IntakeGridPage() {
   const handleTicketChange = (ticketId) => {
     setSelectedTicketId(ticketId);
     if (!ticketId) return;
-    const ticket = tickets.find((t) => String(t.id) === String(ticketId));
+    const ticket = (tickets || []).find((t) => String(t.id) === String(ticketId));
     if (ticket && !form.clientName) {
       const senderName = ticket.sender?.split('@')[0] || '';
       setForm((prev) => ({ ...prev, clientName: senderName }));

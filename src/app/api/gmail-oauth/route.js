@@ -8,7 +8,8 @@ function googleConfigured() {
 
 function getBaseUrl() {
   if (process.env.APP_URL) return process.env.APP_URL;
-  if (process.env.NODE_ENV === 'production' && process.env.VERCEL_URL) return process.env.VERCEL_URL;
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   return 'http://localhost:3000';
 }
 
@@ -95,7 +96,7 @@ export async function PUT(request) {
     const response = await gmail.users.messages.list({
       userId: 'me',
       maxResults: 100,
-      q: 'newer_than:7d (complaint OR issue OR problem OR fault OR urgent OR repair OR maintenance OR breakdown OR error OR not working OR service OR assistance OR help OR ticket OR work order) -from:linkedin.com -from:google.com -subject:"security alert" -subject:"new sign-in" -subject:"password changed"',
+      q: 'after:2026/01/01 before:2027/01/01 (complaint OR issue OR problem OR fault OR urgent OR repair OR maintenance OR breakdown OR error OR not working OR service OR assistance OR help OR ticket OR work order) -from:linkedin.com -from:google.com -subject:"security alert" -subject:"new sign-in" -subject:"password changed"',
     });
     
     const messages = response.data.messages || [];

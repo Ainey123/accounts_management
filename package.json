@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "DATABASE_URL=\"postgresql://postgres.cheqzrvucqlrdtlvfirk:anie%401234%231234@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require&pool_mode=session\" npx prisma db push && next build",
+    "build": "DATABASE_URL=\"postgresql://postgres.cheqzrvucqlrdtlvfirk:anie%401234%231234@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require&pool_mode=session\" npx prisma db push --accept-data-loss && next build",
     "start": "next start",
     "lint": "next lint",
     "setup": "node scripts/check-env.js && npx prisma db push && npm run seed",

@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "npx prisma db push && next build",
+    "build": "DATABASE_URL=\"postgresql://postgres.cheqzrvucqlrdtlvfirk:anie%401234%231234@db.cheqzrvucqlrdtlvfirk.supabase.co:5432/postgres?sslmode=require\" npx prisma db push && next build",
     "start": "next start",
     "lint": "next lint",
     "setup": "node scripts/check-env.js && npx prisma db push && npm run seed",

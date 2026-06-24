@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider          = "postgresql"
-  url               = env("DATABASE_URL")
-  prepare_statement = false
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 /// Internal staffing ONLY — never store commercial customers here.

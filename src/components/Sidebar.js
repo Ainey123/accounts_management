@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
   BarChart2, FileEdit, FileText, Briefcase, Landmark,
   Camera, DollarSign, Settings, LogOut, Receipt, Mail, Download,
+  Users, Eye, FileSearch, ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 
@@ -27,9 +28,13 @@ export default function Sidebar() {
   const router = useRouter();
   const { user, logout } = useAuth();
 
-  const visibleItems = NAV_ITEMS.filter(
-    (item) => !item.adminOnly || user?.role === 'ADMIN'
-  );
+  const visibleItems = user?.role === 'ADMIN' ? [
+    { name: 'Admin Dashboard', href: '/admin/dashboard', icon: Settings },
+    { name: 'All Tickets Inbox', href: '/admin/dashboard', icon: Mail },
+    { name: 'Employee Monitor', href: '/admin/dashboard', icon: Users },
+    { name: 'Financial Overview', href: '/ledger', icon: DollarSign },
+    { name: 'All Documents', href: '/quotation', icon: FileText },
+  ] : NAV_ITEMS.filter(item => !item.adminOnly);
 
   return (
     <aside className="sidebar">
@@ -40,10 +45,10 @@ export default function Sidebar() {
       <nav className="sidebar-nav">
         {visibleItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href;
+          const isActive = pathname === item.href || (item.href === '/admin/dashboard' && pathname.startsWith('/admin'));
           return (
             <button
-              key={item.href}
+              key={item.name}
               type="button"
               className={`nav-panel ${isActive ? 'active' : ''}`}
               onClick={() => router.push(item.href)}

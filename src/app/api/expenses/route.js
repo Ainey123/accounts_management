@@ -12,6 +12,7 @@ export async function GET(request) {
       where,
       orderBy: { createdAt: 'desc' },
       include: {
+        createdBy: { select: { id: true, employeeName: true, email: true } },
         jobMetadata: {
           include: { ticket: true },
         },
@@ -28,24 +29,48 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const { jobMetadataId, amount, imageUrl, summaryNotes } = await request.json();
+    const authCookie = request.headers.get('x-user-id') || request.cookies.get('nexus_user')?.value;
+    let userId = null;
+    if (authCookie) {
+      try {
+        const parsed = typeof authCookie === 'string' && authCookie.startsWith('{') ? JSON.parse(authCookie) : null;
+        userId = parsed?.id || null;
+      } catch {}
+    }
 
     if (!jobMetadataId || amount === undefined || !summaryNotes) {
       return NextResponse.json({ error: 'jobMetadataId, amount, and summaryNotes are required' }, { status: 400 });
     }
 
-    const expense = await prisma.expense.create({
-      data: {
-        jobMetadataId: Number(jobMetadataId),
-        amount: Number(amount),
-        imageUrl: imageUrl || null,
-        summaryNotes,
-      },
-      include: {
-        jobMetadata: { include: { ticket: true } },
-      },
-    });
-
-    return NextResponse.json({ expense }, { status: 201 });
+    try {
+      const expense = await prisma.expense.create({
+        data: {
+          jobMetadataId: Number(jobMetadataId),
+          amount: Number(amount),
+          imageUrl: imageUrl || null,
+          summaryNotes,
+          createdById: userId,
+        },
+        include: {
+          createdBy: { select: { id: true, employeeName: true, email: true } },
+          jobMetadata: { include: { ticket: true } },
+        },
+      });
+      return NextResponse.json({ expense }, { status: 201 });
+    } catch (e) {
+      const expense = await prisma.expense.create({
+        data: {
+          jobMetadataId: Number(jobMetadataId),
+          amount: Number(amount),
+          imageUrl: imageUrl || null,
+          summaryNotes,
+        },
+        include: {
+          jobMetadata: { include: { ticket: true } },
+        },
+      });
+      return NextResponse.json({ expense }, { status: 201 });
+    }
   } catch (error) {
     console.error('Expense create error:', error);
     return NextResponse.json({ error: 'Failed to create expense' }, { status: 500 });

@@ -3,12 +3,26 @@ import { prisma } from '@/lib/prisma';
 
 const WORK_NATURES = ['ELECTRICAL', 'WAPDA', 'MAINTENANCE', 'PROJECT'];
 
-export async function GET() {
+function getUserId(request) {
+  const authCookie = request.headers.get('x-user-id') || request.cookies.get('nexus_user')?.value;
+  if (!authCookie) return null;
   try {
+    const parsed = typeof authCookie === 'string' && authCookie.startsWith('{') ? JSON.parse(authCookie) : null;
+    return parsed?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function GET(request) {
+  try {
+    const userId = getUserId(request);
     const jobs = await prisma.jobMetadata.findMany({
+      where: userId ? { createdById: userId } : undefined,
       orderBy: { id: 'desc' },
       include: {
         ticket: true,
+        createdBy: { select: { id: true, employeeName: true, email: true } },
         assignedEmployee: { select: { id: true, employeeName: true, email: true } },
         surveyReport: { select: { id: true } },
         quotationInvoices: { select: { id: true, documentType: true, status: true } },
@@ -26,6 +40,7 @@ export async function POST(request) {
   try {
     const { ticketId, clientName, branchName, personOfContact, workNature, assignedEmployeeId } =
       await request.json();
+    const userId = getUserId(request);
 
     if (!ticketId || !clientName || !branchName || !personOfContact || !workNature) {
       return NextResponse.json({ error: 'All job metadata fields are required' }, { status: 400 });
@@ -55,9 +70,11 @@ export async function POST(request) {
         personOfContact,
         workNature,
         assignedEmployeeId: assignedEmployeeId ? Number(assignedEmployeeId) : null,
+        createdById: userId,
       },
       include: {
         ticket: true,
+        createdBy: { select: { id: true, employeeName: true, email: true } },
         assignedEmployee: { select: { id: true, employeeName: true, email: true } },
       },
     });

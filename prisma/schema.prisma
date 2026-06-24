@@ -63,11 +63,50 @@ model JobMetadata {
   workNature         String
   assignedEmployeeId Int?
   assignedEmployee   User?              @relation(fields: [assignedEmployeeId], references: [id], onDelete: SetNull)
+  createdById        Int?
+  createdBy          User?              @relation("CreatedJobs", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   surveyReport       SurveyReport?
   quotationInvoices  QuotationInvoice[]
   expenses           Expense[]
+}
+
+model SurveyReport {
+  id            Int         @id @default(autoincrement())
+  jobMetadataId Int         @unique
+  jobMetadata   JobMetadata @relation(fields: [jobMetadataId], references: [id], onDelete: Cascade)
+  createdById   Int?
+  createdBy     User?       @relation("CreatedSurveys", fields: [createdById], references: [id], onDelete: SetNull)
+  reportText    String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model QuotationInvoice {
+  id            Int             @id @default(autoincrement())
+  jobMetadataId Int
+  jobMetadata   JobMetadata     @relation(fields: [jobMetadataId], references: [id], onDelete: Cascade)
+  createdById   Int?
+  createdBy     User?           @relation("CreatedQuotations", fields: [createdById], references: [id], onDelete: SetNull)
+  poNumber      String?
+  status        String          @default("PENDING")
+  documentType  String          @default("QUOTATION")
+  lineItems     String          @default("[]")
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model Expense {
+  id            Int         @id @default(autoincrement())
+  jobMetadataId Int
+  jobMetadata   JobMetadata @relation(fields: [jobMetadataId], references: [id], onDelete: Cascade)
+  createdById   Int?
+  createdBy     User?       @relation("CreatedExpenses", fields: [createdById], references: [id], onDelete: SetNull)
+  amount        Float
+  imageUrl      String?
+  summaryNotes  String
+  createdAt     DateTime    @default(now())
 }
 
 model SurveyReport {

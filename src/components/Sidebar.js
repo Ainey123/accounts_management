@@ -4,7 +4,7 @@ import React from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   BarChart2, FileEdit, FileText, Briefcase, Landmark,
-  Camera, DollarSign, Settings, LogOut, Receipt, Mail,
+  Camera, DollarSign, Settings, LogOut, Receipt, Mail, Download,
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 
@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { name: 'Quotation Studio', href: '/quotation', icon: Briefcase },
   { name: 'Bank Approval Console', href: '/approval', icon: Landmark },
   { name: 'Invoice Studio', href: '/invoice', icon: Receipt },
+  { name: 'Documents Download', href: '/quotation', icon: Download },
   { name: 'Site Expense Log', href: '/site', icon: Camera },
   { name: 'Financial Ledger', href: '/ledger', icon: DollarSign, adminOnly: true },
   { name: 'Admin Command Center', href: '/admin/dashboard', icon: Settings, adminOnly: true },

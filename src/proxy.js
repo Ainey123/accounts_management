@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { NextRequest } from 'next/server';
 
-export function proxy(request: NextRequest) {
+export function proxy(request) {
   const authCookie = request.cookies.get('nexus_user');
   if (!authCookie) {
     const { pathname } = request.nextUrl;

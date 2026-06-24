@@ -121,7 +121,13 @@ export default function GmailConnectionPage() {
     try {
       const result = await apiFetch('/api/gmail-sync', { method: 'POST' });
       const syncedCount = result.results?.reduce((sum, r) => sum + (r.synced || 0), 0) || result.synced || 0;
-      setMessage(`Synced ${syncedCount} new complaint emails across ${result.results?.length || accounts.length} account(s)!`);
+      const errors = (result.results || []).filter((r) => r.error).map((r) => `${r.email}: ${r.error}`).join(' | ');
+      if (errors) {
+        setMessage(`Errors: ${errors}`);
+      } else {
+        setMessage(`Synced ${syncedCount} email(s) across ${result.results?.length || accounts.length} account(s)!`);
+      }
+      await loadAccounts();
       await loadTickets();
     } catch (err) {
       setMessage('Sync failed: ' + err.message);

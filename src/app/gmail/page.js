@@ -1,14 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mail, RefreshCw, Link, X, Filter, Shield } from 'lucide-react';
+import { Mail, RefreshCw, Link, X, Filter, Shield, Plus, Trash2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
 
 export default function GmailConnectionPage() {
   const { user } = useAuth();
-  const [connected, setConnected] = useState(false);
-  const [email, setEmail] = useState('');
+  const [accounts, setAccounts] = useState([]);
   const [syncing, setSyncing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -16,7 +15,7 @@ export default function GmailConnectionPage() {
   const oauthHandlerRef = useRef(null);
 
   useEffect(() => {
-    checkConnection();
+    loadAccounts();
     loadTickets();
     return () => {
       if (oauthHandlerRef.current) {
@@ -25,13 +24,10 @@ export default function GmailConnectionPage() {
     };
   }, []);
 
-  const checkConnection = async () => {
+  const loadAccounts = async () => {
     try {
       const data = await apiFetch('/api/gmail-account');
-      setConnected(data.connected);
-      if (data.connected) {
-        setEmail(data.email);
-      }
+      setAccounts(data.accounts || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -77,21 +73,20 @@ export default function GmailConnectionPage() {
               userId: user?.id,
             }),
           });
-          setConnected(true);
-          setEmail(connectedEmail);
-          setMessage('Gmail connected successfully!');
+          setMessage(`Gmail ${connectedEmail} connected successfully!`);
+          await loadAccounts();
           await handleSync();
         } else if (event.data?.type === 'gmail-oauth-error') {
           window.removeEventListener('message', handler);
           oauthHandlerRef.current = null;
           clearTimeout(timeoutId);
           popup.close();
-      const errorMsg = event.data.error || 'Unknown error';
-      if (errorMsg.includes('403') || errorMsg.includes('access_denied') || errorMsg.includes('not completed') || errorMsg.includes('400')) {
-        setMessage('Google OAuth setup incomplete. Go to cloud.google.com → APIs & Services → OAuth consent screen → Fill ALL required fields (App name, Support email, Developer contact) → Add your Gmail as a "Test user" under Audience → Add redirect URI: https://accounts-management-eight.vercel.app/api/gmail/callback → Publish app. Then try again.');
-      } else {
-        setMessage('Connection failed: ' + errorMsg);
-      }
+          const errorMsg = event.data.error || 'Unknown error';
+          if (errorMsg.includes('403') || errorMsg.includes('access_denied') || errorMsg.includes('not completed') || errorMsg.includes('400')) {
+            setMessage('Google OAuth setup incomplete. Go to cloud.google.com → APIs & Services → OAuth consent screen → Fill ALL required fields (App name, Support email, Developer contact) → Add your Gmail as a "Test user" under Audience → Add redirect URI: https://accounts-management-eight.vercel.app/api/gmail/callback → Publish app. Then try again.');
+          } else {
+            setMessage('Connection failed: ' + errorMsg);
+          }
         }
       };
 
@@ -110,12 +105,11 @@ export default function GmailConnectionPage() {
     }
   }, [user]);
 
-  const handleDisconnect = async () => {
+  const handleDisconnect = async (accountId) => {
     try {
-      await apiFetch('/api/gmail-account', { method: 'DELETE' });
-      setConnected(false);
-      setEmail('');
-      setMessage('Gmail disconnected');
+      await apiFetch(`/api/gmail-account?accountId=${accountId}`, { method: 'DELETE' });
+      setMessage('Gmail account disconnected');
+      await loadAccounts();
     } catch (err) {
       setMessage('Disconnect failed');
     }
@@ -126,7 +120,8 @@ export default function GmailConnectionPage() {
     setMessage('');
     try {
       const result = await apiFetch('/api/gmail-sync', { method: 'POST' });
-      setMessage(`Synced ${result.synced} new emails!`);
+      const syncedCount = result.results?.reduce((sum, r) => sum + (r.synced || 0), 0) || result.synced || 0;
+      setMessage(`Synced ${syncedCount} new complaint emails across ${result.results?.length || accounts.length} account(s)!`);
       await loadTickets();
     } catch (err) {
       setMessage('Sync failed: ' + err.message);
@@ -143,7 +138,7 @@ export default function GmailConnectionPage() {
     <div>
       <header className="page-header">
         <h1>Gmail Integration</h1>
-        <p>Connect your Gmail to automatically sync emails.</p>
+        <p>Connect multiple Gmail accounts to automatically sync complaint emails.</p>
       </header>
 
       {message && (
@@ -153,77 +148,81 @@ export default function GmailConnectionPage() {
       )}
 
       <div className="glass-card" style={{ marginBottom: 28 }}>
-        <h2 style={{ fontSize: 20, marginBottom: 16 }}>Connection Status</h2>
-        
-        {connected ? (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 20, background: 'rgba(34, 197, 94, 0.1)', borderRadius: 12, border: '1px solid rgba(34, 197, 94, 0.2)', marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 40, height: 40, background: 'rgba(34, 197, 94, 0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Mail size={20} color="#22c55e" />
-                </div>
-                <div>
-                  <div style={{ fontSize: 14, color: '#94a3b8' }}>Connected</div>
-                  <div style={{ fontSize: 16, fontWeight: 600 }}>{email}</div>
-                </div>
-              </div>
-              <button type="button" className="nexus-btn nexus-btn-ghost" onClick={handleDisconnect}>
-                <X size={16} /> Disconnect
-              </button>
-            </div>
+        <h2 style={{ fontSize: 20, marginBottom: 16 }}>Connected Accounts ({accounts.length})</h2>
 
-            <div style={{ padding: 16, background: 'rgba(0, 242, 254, 0.05)', borderRadius: 12, border: '1px solid rgba(0, 242, 254, 0.15)', marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <Filter size={16} color="#00f2fe" />
-                <span style={{ fontSize: 14, fontWeight: 600, color: '#00f2fe' }}>Complaint Filter Active</span>
-              </div>
-              <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
-                Only emails matching complaint keywords (issue, problem, urgent, repair, fault, breakdown, etc.) are synced. 
-                System emails from LinkedIn, Google Security, and other non-complaint senders are automatically excluded.
-              </p>
-            </div>
-
-            <button 
-              type="button" 
-              className="nexus-btn nexus-btn-primary" 
-              style={{ width: '100%', padding: 16 }}
-              onClick={handleSync}
-              disabled={syncing}
-            >
-              <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} /> 
-              {syncing ? 'Syncing...' : 'Sync Complaint Emails Now'}
-            </button>
+        {accounts.length === 0 ? (
+          <div style={{ padding: 24, textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)' }}>
+            <Mail size={40} color="#475569" style={{ marginBottom: 12 }} />
+            <p style={{ color: '#94a3b8', marginBottom: 16 }}>No Gmail accounts connected yet.</p>
           </div>
         ) : (
-          <div>
-            <div style={{ padding: 16, background: 'rgba(0, 242, 254, 0.05)', borderRadius: 12, border: '1px solid rgba(0, 242, 254, 0.15)', marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <Shield size={16} color="#00f2fe" />
-                <span style={{ fontSize: 14, fontWeight: 600, color: '#00f2fe' }}>Complaint-Only Sync</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {accounts.map((account) => (
+              <div key={account.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16, background: 'rgba(34, 197, 94, 0.05)', borderRadius: 12, border: '1px solid rgba(34, 197, 94, 0.15)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 36, height: 36, background: 'rgba(34, 197, 94, 0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Mail size={16} color="#22c55e" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>{account.gmailEmail}</div>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>
+                      Last synced: {account.syncedAt ? new Date(account.syncedAt).toLocaleString() : 'Never'}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="nexus-btn nexus-btn-ghost"
+                  onClick={() => handleDisconnect(account.id)}
+                  style={{ color: '#ef4444' }}
+                >
+                  <Trash2 size={14} /> Disconnect
+                </button>
               </div>
-              <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
-                After connecting, the app will only fetch and store complaint-related emails. 
-                LinkedIn, Google Security, newsletters, and other non-complaint emails are filtered out automatically.
-              </p>
-            </div>
-            <button 
-              type="button" 
-              className="nexus-btn nexus-btn-primary" 
-              style={{ width: '100%', padding: 16 }}
-              onClick={handleConnect}
-            >
-              <Link size={18} /> Connect Gmail
-            </button>
+            ))}
           </div>
+        )}
+
+        <div style={{ padding: 16, background: 'rgba(0, 242, 254, 0.05)', borderRadius: 12, border: '1px solid rgba(0, 242, 254, 0.15)', marginTop: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <Filter size={16} color="#00f2fe" />
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#00f2fe' }}>Complaint Filter Active</span>
+          </div>
+          <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
+            Only emails matching complaint keywords (issue, problem, urgent, repair, fault, breakdown, etc.) are synced. 
+            System emails from LinkedIn, Google Security, and other non-complaint senders are automatically excluded.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          className="nexus-btn nexus-btn-primary"
+          style={{ width: '100%', padding: 16, marginTop: 16 }}
+          onClick={handleConnect}
+        >
+          <Plus size={18} /> Connect Another Gmail
+        </button>
+
+        {accounts.length > 0 && (
+          <button
+            type="button"
+            className="nexus-btn nexus-btn-ghost"
+            style={{ width: '100%', padding: 16, marginTop: 8 }}
+            onClick={handleSync}
+            disabled={syncing}
+          >
+            <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} />
+            {syncing ? 'Syncing All Accounts...' : `Sync ${accounts.length} Gmail Account(s) Now`}
+          </button>
         )}
       </div>
 
       <section className="glass-card">
-        <h2 style={{ fontSize: 18, marginBottom: 20 }}>Synced Emails ({tickets.length})</h2>
-        
+        <h2 style={{ fontSize: 18, marginBottom: 20 }}>Synced Complaint Emails ({tickets.length})</h2>
+
         {tickets.length === 0 ? (
           <p style={{ color: '#94a3b8', textAlign: 'center', padding: 32 }}>
-            No emails synced yet. {connected ? 'Click "Sync Emails Now" to fetch emails.' : 'Connect your Gmail account first.'}
+            No complaint emails synced yet. {accounts.length > 0 ? 'Click "Sync Gmail Account(s) Now" to fetch emails.' : 'Connect a Gmail account first.'}
           </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

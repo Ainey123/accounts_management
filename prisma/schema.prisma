@@ -24,7 +24,7 @@ model User {
 /// Gmail OAuth connection and sync tracking.
 model GmailAccount {
   id             Int       @id @default(autoincrement())
-  userId         Int       @unique
+  userId         Int
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   gmailEmail     String    @unique
   accessToken    String

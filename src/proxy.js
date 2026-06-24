@@ -2,27 +2,21 @@ import { NextResponse } from 'next/server';
 
 export function proxy(request) {
   const authCookie = request.cookies.get('nexus_user');
+  const { pathname } = request.nextUrl;
+
+  const isPublic =
+    pathname === '/' ||
+    pathname.startsWith('/api/auth/') ||
+    pathname.startsWith('/api/seed') ||
+    pathname.startsWith('/api/gmail/callback');
+
   if (!authCookie) {
-    const { pathname } = request.nextUrl;
-    if (
-      pathname === '/' ||
-      pathname.startsWith('/intake') ||
-      pathname.startsWith('/survey') ||
-      pathname.startsWith('/quotation') ||
-      pathname.startsWith('/approval') ||
-      pathname.startsWith('/invoice') ||
-      pathname.startsWith('/site') ||
-      pathname.startsWith('/ledger') ||
-      pathname.startsWith('/dashboard')
-    ) {
-      return NextResponse.redirect(new URL('/admin', request.url));
-    }
-    return NextResponse.next();
+    if (isPublic) return NextResponse.next();
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
   try {
     const user = JSON.parse(authCookie.value);
-    const { pathname } = request.nextUrl;
 
     if (pathname.startsWith('/admin') && user.role !== 'ADMIN') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
@@ -30,14 +24,12 @@ export function proxy(request) {
 
     if (
       user.role === 'ADMIN' &&
-      (pathname === '/' ||
-        pathname.startsWith('/intake') ||
+      (pathname.startsWith('/intake') ||
         pathname.startsWith('/survey') ||
         pathname.startsWith('/quotation') ||
         pathname.startsWith('/approval') ||
         pathname.startsWith('/invoice') ||
         pathname.startsWith('/site') ||
-        pathname.startsWith('/ledger') ||
         pathname.startsWith('/dashboard'))
     ) {
       return NextResponse.redirect(new URL('/admin/dashboard', request.url));
@@ -45,21 +37,8 @@ export function proxy(request) {
 
     return NextResponse.next();
   } catch (e) {
-    const { pathname } = request.nextUrl;
-    if (
-      pathname === '/' ||
-      pathname.startsWith('/intake') ||
-      pathname.startsWith('/survey') ||
-      pathname.startsWith('/quotation') ||
-      pathname.startsWith('/approval') ||
-      pathname.startsWith('/invoice') ||
-      pathname.startsWith('/site') ||
-      pathname.startsWith('/ledger') ||
-      pathname.startsWith('/dashboard')
-    ) {
-      return NextResponse.redirect(new URL('/admin', request.url));
-    }
-    return NextResponse.next();
+    if (isPublic) return NextResponse.next();
+    return NextResponse.redirect(new URL('/', request.url));
   }
 }
 

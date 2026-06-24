@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { prisma } from '@/lib/prisma';
-import { isComplaintEmail } from '@/lib/complaintFilter';
+import { nextTicketSerialNo } from '@/lib/serial';
 
 function getBaseUrl() {
   if (process.env.APP_URL) return process.env.APP_URL;
@@ -26,7 +26,7 @@ async function syncAccount(account) {
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
   const syncedIds = JSON.parse(account.syncedEmailIds || '[]');
   const updatedSyncedIds = [...syncedIds];
-  const newEmails = [];
+  const savedTickets = [];
 
   let messages = [];
   let pageToken = null;
@@ -61,48 +61,34 @@ async function syncAccount(account) {
     const dateStr = headers.find(h => h.name === 'Date')?.value || '';
 
     const dateObj = new Date(dateStr);
-    const date = dateObj.toISOString().split('T')[0];
-    const time = dateObj.toLocaleTimeString('en-US', {
+    const exactDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
+    const date = exactDate.toISOString().split('T')[0];
+    const time = exactDate.toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,
     });
 
-    const emailData = {
-      gmailMessageId: message.id,
-      sender: from,
-      subject,
-      exactDate: date,
-      time,
-    };
+    const serialNo = await nextTicketSerialNo();
 
-    if (isComplaintEmail(emailData)) {
-      newEmails.push(emailData);
+    try {
+      const ticket = await prisma.ticket.create({
+        data: {
+          gmailAccountId: account.id,
+          gmailMessageId: message.id,
+          serialNo,
+          exactDate,
+          time,
+          subject,
+          sender: from,
+        },
+      });
+      savedTickets.push(ticket);
+    } catch (e) {
+      console.error(`Failed to save ticket for ${message.id}:`, e.message);
     }
 
     updatedSyncedIds.push(message.id);
-  }
-
-  if (newEmails.length > 0) {
-    const baseUrl = getBaseUrl();
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60000);
-
-    try {
-      const res = await fetch(`${baseUrl}/api/gmail`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emails: newEmails, gmailAccountId: account.id }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (!res.ok) {
-        console.error(`Failed to save emails for ${account.gmailEmail}: ${res.status}`);
-      }
-    } catch (err) {
-      clearTimeout(timeout);
-      console.error(`Failed to save emails for ${account.gmailEmail}:`, err);
-    }
   }
 
   await prisma.gmailAccount.update({
@@ -113,7 +99,7 @@ async function syncAccount(account) {
     },
   });
 
-  return { email: account.gmailEmail, synced: newEmails.length };
+  return { email: account.gmailEmail, synced: savedTickets.length };
 }
 
 export async function POST() {

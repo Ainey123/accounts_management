@@ -8,7 +8,8 @@ export function proxy(request) {
     pathname === '/' ||
     pathname.startsWith('/api/auth/') ||
     pathname.startsWith('/api/seed') ||
-    pathname.startsWith('/api/gmail/callback');
+    pathname.startsWith('/api/gmail/callback') ||
+    pathname === '/api/fix-db';
 
   if (!authCookie) {
     if (isPublic) return NextResponse.next();

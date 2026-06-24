@@ -7,7 +7,8 @@ function getUserId(request) {
   const authCookie = request.headers.get('x-user-id') || request.cookies.get('nexus_user')?.value;
   if (!authCookie) return null;
   try {
-    const parsed = typeof authCookie === 'string' && authCookie.startsWith('{') ? JSON.parse(authCookie) : null;
+    const decoded = typeof authCookie === 'string' ? decodeURIComponent(authCookie) : authCookie;
+    const parsed = decoded.startsWith('{') ? JSON.parse(decoded) : null;
     return parsed?.id || null;
   } catch {
     return null;
@@ -82,6 +83,7 @@ export async function POST(request) {
     return NextResponse.json({ job }, { status: 201 });
   } catch (error) {
     console.error('Job create error:', error);
-    return NextResponse.json({ error: 'Failed to create job metadata' }, { status: 500 });
+    const message = error.message || 'Failed to create job metadata';
+    return NextResponse.json({ error: message, details: error.message }, { status: 500 });
   }
 }

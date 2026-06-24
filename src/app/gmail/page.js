@@ -83,7 +83,7 @@ export default function GmailConnectionPage() {
           popup.close();
           const errorMsg = event.data.error || 'Unknown error';
           if (errorMsg.includes('403') || errorMsg.includes('access_denied') || errorMsg.includes('not completed') || errorMsg.includes('400')) {
-            setMessage('Google OAuth setup incomplete. Go to cloud.google.com → APIs & Services → OAuth consent screen → Fill ALL required fields (App name, Support email, Developer contact) → Add your Gmail as a "Test user" under Audience → Add redirect URI: https://accounts-management-eight.vercel.app/api/gmail/callback → Publish app. Then try again.');
+            setMessage('Google OAuth setup incomplete. Go to cloud.google.com → APIs & Services → OAuth consent screen → Fill ALL required fields (App name, Support email, Developer contact) → Add your Gmail as a "Test user" under Audience → Add redirect URI: https://accounts-management-ainey123s-projects.vercel.app/api/gmail/callback → Publish app. Then try again.');
           } else {
             setMessage('Connection failed: ' + errorMsg);
           }

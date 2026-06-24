@@ -37,7 +37,7 @@ export default function IntakeGridPage() {
     const load = async () => {
       try {
         const [ticketRes, userRes] = await Promise.all([
-          apiFetch('/api/tickets?pending=true'),
+          apiFetch('/api/tickets'),
           apiFetch('/api/users'),
         ]);
         if (cancelled) return;

@@ -93,13 +93,13 @@ function matchesPattern(text, patterns) {
 }
 
 function isExcludedSender(sender) {
-  if (!sender) return true;
+  if (!sender) return false;
   const lower = sender.toLowerCase();
   return EXCLUDED_SENDER_PATTERNS.some((pattern) => lower.includes(pattern));
 }
 
 function isExcludedSubject(subject) {
-  if (!subject) return true;
+  if (!subject) return false;
   const lower = subject.toLowerCase();
   return EXCLUDED_SUBJECT_PATTERNS.some((pattern) => lower.includes(pattern));
 }

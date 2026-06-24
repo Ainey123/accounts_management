@@ -11,6 +11,7 @@ export async function GET(request) {
       where: pending ? { jobMetadata: null } : undefined,
       orderBy: { id: 'desc' },
       include: {
+        gmailAccount: { select: { id: true, gmailEmail: true } },
         jobMetadata: {
           include: {
             assignedEmployee: { select: { id: true, employeeName: true, email: true } },

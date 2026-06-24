@@ -11,7 +11,7 @@ export default function OperationsFeedPage() {
   const loadTickets = async () => {
     setLoading(true);
     try {
-      const { tickets: data } = await apiFetch('/api/tickets?pending=true');
+      const { tickets: data } = await apiFetch('/api/tickets');
       setTickets(data);
     } catch (err) {
       console.error(err);

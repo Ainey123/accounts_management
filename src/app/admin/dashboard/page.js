@@ -3,27 +3,44 @@
 import React, { useState, useEffect } from 'react';
 import {
   Users, Activity, UserPlus, Trash2, X, UserCheck, ShieldAlert,
+  Settings, Mail, FileText, RefreshCw, Filter, Search,
+  DollarSign, Globe, Phone, MapPin, Save, Eye,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+
+type Tab = 'overview' | 'employees' | 'tickets' | 'gmail' | 'settings';
 
 export default function AdminCommandCenter() {
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState(null);
   const [financials, setFinancials] = useState(null);
+  const [tickets, setTickets] = useState([]);
+  const [gmailAccounts, setGmailAccounts] = useState([]);
+  const [settings, setSettings] = useState(null);
+  const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form, setForm] = useState({ employeeName: '', email: '', password: '' });
+  const [form, setForm] = useState({ employeeName: '', email: '', password: '', role: 'EMPLOYEE' });
   const [message, setMessage] = useState('');
   const [registering, setRegistering] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [ticketFilter, setTicketFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadAll = async () => {
-    const [userRes, statsRes, finRes] = await Promise.all([
+    const [userRes, statsRes, finRes, ticketsRes, gmailRes, settingsRes] = await Promise.all([
       apiFetch('/api/users'),
       apiFetch('/api/admin/stats'),
       apiFetch('/api/admin/financials'),
+      apiFetch('/api/tickets'),
+      apiFetch('/api/gmail-account'),
+      apiFetch('/api/admin/settings'),
     ]);
-    setUsers(userRes.users);
+    setUsers(userRes.users || []);
     setStats(statsRes.stats);
     setFinancials(finRes.financials);
+    setTickets(ticketsRes.tickets || []);
+    setGmailAccounts(gmailRes.accounts || []);
+    setSettings(settingsRes.settings);
   };
 
   useEffect(() => {
@@ -36,11 +53,11 @@ export default function AdminCommandCenter() {
     try {
       await apiFetch('/api/users', {
         method: 'POST',
-        body: JSON.stringify({ ...form, role: 'EMPLOYEE' }),
+        body: JSON.stringify(form),
       });
-      setForm({ employeeName: '', email: '', password: '' });
+      setForm({ employeeName: '', email: '', password: '', role: 'EMPLOYEE' });
       setIsModalOpen(false);
-      setMessage('Employee registered in User table.');
+      setMessage('User registered successfully.');
       await loadAll();
     } catch (err) {
       setMessage(err.message);
@@ -51,20 +68,82 @@ export default function AdminCommandCenter() {
 
   const handleDelete = async (id, role) => {
     if (role === 'ADMIN') return;
-    if (!confirm('Revoke this employee\'s system access?')) return;
+    if (!confirm('Revoke this user\'s system access?')) return;
     try {
       await apiFetch(`/api/users/${id}`, { method: 'DELETE' });
+      setMessage('User deleted.');
       await loadAll();
     } catch (err) {
       setMessage(err.message);
     }
   };
 
+  const handleSaveSettings = async (e) => {
+    e.preventDefault();
+    setSavingSettings(true);
+    try {
+      await apiFetch('/api/admin/settings', {
+        method: 'POST',
+        body: JSON.stringify(settings),
+      });
+      setMessage('Settings saved successfully.');
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleDisconnectGmail = async (accountId) => {
+    if (!confirm('Disconnect this Gmail account?')) return;
+    try {
+      await apiFetch(`/api/gmail-account?accountId=${accountId}`, { method: 'DELETE' });
+      setMessage('Gmail disconnected.');
+      await loadAll();
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
+  const handleSyncAllGmail = async () => {
+    try {
+      setMessage('Syncing all Gmail accounts...');
+      const result = await apiFetch('/api/gmail-sync', { method: 'POST' });
+      const count = result.results?.reduce((sum, r) => sum + (r.synced || 0), 0) || result.synced || 0;
+      setMessage(`Synced ${count} new complaint emails.`);
+      await loadAll();
+    } catch (err) {
+      setMessage('Sync failed: ' + err.message);
+    }
+  };
+
+  const filteredTickets = tickets.filter((t) => {
+    if (ticketFilter === 'pending') return !t.jobMetadata;
+    if (ticketFilter === 'intake') return !!t.jobMetadata;
+    return true;
+  }).filter((t) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      t.subject?.toLowerCase().includes(q) ||
+      t.sender?.toLowerCase().includes(q) ||
+      t.serialNo?.toLowerCase().includes(q)
+    );
+  });
+
   const employees = users.filter((u) => u.role === 'EMPLOYEE');
+
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: Activity },
+    { id: 'employees', label: 'Employees', icon: Users },
+    { id: 'tickets', label: 'All Tickets', icon: FileText },
+    { id: 'gmail', label: 'Gmail Accounts', icon: Mail },
+    { id: 'settings', label: 'Settings', icon: Settings },
+  ] as const;
 
   return (
     <div className="admin-grid">
-      <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)', padding: 12, borderRadius: 12 }}>
             <ShieldAlert size={28} color="#fff" />
@@ -74,112 +153,332 @@ export default function AdminCommandCenter() {
             <p style={{ color: '#a78bfa' }}>Level 5 Authorization Active</p>
           </div>
         </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                className={`nav-panel ${activeTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+                style={{ fontSize: 13 }}
+              >
+                <Icon size={16} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </header>
 
       {message && <div className="alert-success">{message}</div>}
 
-      {/* Section B: Strategic Workflow Matrix */}
-      <section className="glass-card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-          <Activity size={20} color="#f59e0b" />
-          <h2 style={{ fontSize: 18, margin: 0 }}>Strategic Workflow Matrix</h2>
-        </div>
-        {stats && (
-          <div className="admin-metrics-row">
-            {[
-              { label: 'Pending Gmail', value: stats.pendingTickets },
-              { label: 'Intake Forms', value: stats.intakeForms },
-              { label: 'Surveys', value: stats.surveys },
-              { label: 'Unsigned Quotes', value: stats.pendingQuotations },
-              { label: 'Pending Invoices', value: stats.pendingInvoices },
-            ].map((m) => (
-              <div key={m.label} className="metric-tile">
-                <div className="metric-digit">{m.value}</div>
-                <div className="metric-tile-label">{m.label}</div>
+      {/* OVERVIEW TAB */}
+      {activeTab === 'overview' && (
+        <>
+          <section className="glass-card">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+              <Activity size={20} color="#f59e0b" />
+              <h2 style={{ fontSize: 18, margin: 0 }}>Strategic Workflow Matrix</h2>
+            </div>
+            {stats && (
+              <div className="admin-metrics-row">
+                {[
+                  { label: 'Pending Gmail', value: stats.pendingTickets, color: '#f59e0b' },
+                  { label: 'Intake Forms', value: stats.intakeForms, color: '#00f2fe' },
+                  { label: 'Surveys', value: stats.surveys, color: '#a78bfa' },
+                  { label: 'Unsigned Quotes', value: stats.pendingQuotations, color: '#f87171' },
+                  { label: 'Pending Invoices', value: stats.pendingInvoices, color: '#34d399' },
+                  { label: 'Approved Quotes', value: stats.approvedQuotations, color: '#22c55e' },
+                ].map((m) => (
+                  <div key={m.label} className="metric-tile">
+                    <div className="metric-digit" style={{ color: m.color }}>{m.value}</div>
+                    <div className="metric-tile-label">{m.label}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-      </section>
+            )}
+          </section>
 
-      {/* Section A: Live Employee Tracker */}
-      <section className="glass-card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Users size={20} color="#00f2fe" />
-            <h2 style={{ fontSize: 18, margin: 0 }}>Live Employee Tracker</h2>
-          </div>
-          <button type="button" className="nexus-btn nexus-btn-primary" onClick={() => setIsModalOpen(true)}>
-            <UserPlus size={16} /> Register Employee
-          </button>
-        </div>
+          <section className="glass-card">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+              <DollarSign size={20} color="#10b981" />
+              <h2 style={{ fontSize: 18, margin: 0 }}>Financial Overview</h2>
+            </div>
+            {financials && (
+              <div className="financial-row">
+                <div className="financial-tile">
+                  <span className="field-label">Gross Revenue</span>
+                  <div className="financial-value" style={{ color: '#00f2fe' }}>Rs. {financials.grossRevenue.toLocaleString()}</div>
+                </div>
+                <div className="financial-tile">
+                  <span className="field-label">Total Expenses</span>
+                  <div className="financial-value" style={{ color: '#f87171' }}>Rs. {financials.totalExpenses.toLocaleString()}</div>
+                </div>
+                <div className="financial-tile">
+                  <span className="field-label">Tax Deduction ({(financials.taxRate * 100).toFixed(0)}%)</span>
+                  <div className="financial-value" style={{ color: '#f59e0b' }}>Rs. {financials.taxDeduction.toLocaleString()}</div>
+                </div>
+                <div className="financial-tile net">
+                  <span className="field-label">Net Cash Flow</span>
+                  <div className="financial-value" style={{ color: '#34d399' }}>Rs. {financials.netCashFlow.toLocaleString()}</div>
+                </div>
+              </div>
+            )}
+          </section>
+        </>
+      )}
 
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Employee</th>
-              <th>Email</th>
-              <th>Active Serial</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {employees.map((emp) => {
-              const serial = emp.assignedJobs?.[0]?.ticket?.serialNo;
-              return (
-                <tr key={emp.id}>
-                  <td style={{ fontWeight: 600 }}>{emp.employeeName}</td>
-                  <td>{emp.email}</td>
-                  <td style={{ fontFamily: 'monospace', color: '#00f2fe' }}>{serial || '—'}</td>
+      {/* EMPLOYEES TAB */}
+      {activeTab === 'employees' && (
+        <section className="glass-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Users size={20} color="#00f2fe" />
+              <h2 style={{ fontSize: 18, margin: 0 }}>Live Employee Tracker ({employees.length})</h2>
+            </div>
+            <button type="button" className="nexus-btn nexus-btn-primary" onClick={() => setIsModalOpen(true)}>
+              <UserPlus size={16} /> Register User
+            </button>
+          </div>
+
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Active Job</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((u) => {
+                const serial = u.assignedJobs?.[0]?.ticket?.serialNo;
+                return (
+                  <tr key={u.id}>
+                    <td style={{ fontWeight: 600 }}>{u.employeeName}</td>
+                    <td>{u.email}</td>
+                    <td>
+                      <span className={`status-pill ${u.role === 'ADMIN' ? 'active' : ''}`} style={u.role === 'ADMIN' ? { background: 'rgba(167,139,250,0.2)', color: '#a78bfa' } : {}}>
+                        {u.role}
+                      </span>
+                    </td>
+                    <td style={{ fontFamily: 'monospace', color: '#00f2fe' }}>{serial || '—'}</td>
+                    <td>
+                      <span className={`status-pill ${u.activeStatus ? 'active' : 'inactive'}`}>
+                        {u.activeStatus ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button type="button" className="nexus-btn nexus-btn-ghost" style={{ padding: 6 }} title="View">
+                          <Eye size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="nexus-btn nexus-btn-ghost"
+                          onClick={() => handleDelete(u.id, u.role)}
+                          style={{ color: '#ef4444', padding: 6 }}
+                          title="Delete"
+                          disabled={u.role === 'ADMIN'}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      {/* TICKETS TAB */}
+      {activeTab === 'tickets' && (
+        <section className="glass-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <FileText size={20} color="#00f2fe" />
+              <h2 style={{ fontSize: 18, margin: 0 }}>All Tickets ({tickets.length})</h2>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <select className="nexus-select" value={ticketFilter} onChange={(e) => setTicketFilter(e.target.value)} style={{ width: 'auto' }}>
+                <option value="all">All</option>
+                <option value="pending">Pending Only</option>
+                <option value="intake">Intake Only</option>
+              </select>
+              <div style={{ position: 'relative' }}>
+                <Search size={16} style={{ position: 'absolute', left: 10, top: 10, color: '#64748b' }} />
+                <input
+                  className="nexus-input"
+                  style={{ paddingLeft: 32, width: 220 }}
+                  placeholder="Search tickets..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Serial</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Sender</th>
+                <th>Subject</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTickets.map((t) => (
+                <tr key={t.id}>
+                  <td style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 600 }}>{t.serialNo}</td>
+                  <td>{new Date(t.exactDate).toLocaleDateString()}</td>
+                  <td>{t.time}</td>
+                  <td>{t.sender}</td>
+                  <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject}</td>
                   <td>
-                    <span className={`status-pill ${emp.activeStatus ? 'active' : 'inactive'}`}>
-                      {emp.activeStatus ? 'Active' : 'Inactive'}
+                    <span className={`status-pill ${t.jobMetadata ? 'active' : ''}`} style={!t.jobMetadata ? { background: 'rgba(248,113,113,0.2)', color: '#f87171' } : {}}>
+                      {t.jobMetadata ? 'Intake Done' : 'Pending'}
                     </span>
                   </td>
-                  <td>
-                    <button type="button" className="nexus-btn nexus-btn-ghost" onClick={() => handleDelete(emp.id, emp.role)} style={{ color: '#ef4444', padding: 8 }}>
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </section>
+              ))}
+              {filteredTickets.length === 0 && (
+                <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No tickets found.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </section>
+      )}
 
-      {/* Section C: Financial Ledger Terminal */}
-      <section className="glass-card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-          <Activity size={20} color="#10b981" />
-          <h2 style={{ fontSize: 18, margin: 0 }}>Financial Ledger Terminal</h2>
-        </div>
-        {financials && (
-          <div className="financial-row">
-            <div className="financial-tile">
-              <span className="field-label">Total Site Expenses</span>
-              <div className="financial-value">Rs. {financials.totalExpenses.toLocaleString()}</div>
+      {/* GMAIL TAB */}
+      {activeTab === 'gmail' && (
+        <section className="glass-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Mail size={20} color="#22c55e" />
+              <h2 style={{ fontSize: 18, margin: 0 }}>Connected Gmail Accounts ({gmailAccounts.length})</h2>
             </div>
-            <div className="financial-tile">
-              <span className="field-label">Tax Deductions</span>
-              <div className="financial-value" style={{ color: '#f87171' }}>Rs. {financials.taxDeduction.toLocaleString()}</div>
-            </div>
-            <div className="financial-tile net">
-              <span className="field-label">Net Final Cash Flow</span>
-              <div className="financial-value" style={{ color: '#34d399' }}>Rs. {financials.netCashFlow.toLocaleString()}</div>
-            </div>
+            <button type="button" className="nexus-btn nexus-btn-primary" onClick={handleSyncAllGmail}>
+              <RefreshCw size={16} /> Sync All Accounts
+            </button>
           </div>
-        )}
-      </section>
 
+          {gmailAccounts.length === 0 ? (
+            <div style={{ padding: 32, textAlign: 'center', color: '#64748b' }}>
+              No Gmail accounts connected. Go to Gmail Connection page to add one.
+            </div>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Connected</th>
+                  <th>Last Synced</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gmailAccounts.map((acc) => (
+                  <tr key={acc.id}>
+                    <td style={{ fontWeight: 600 }}>{acc.gmailEmail}</td>
+                    <td>{new Date(acc.createdAt).toLocaleDateString()}</td>
+                    <td>{acc.syncedAt ? new Date(acc.syncedAt).toLocaleString() : 'Never'}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="nexus-btn nexus-btn-ghost"
+                        onClick={() => handleDisconnectGmail(acc.id)}
+                        style={{ color: '#ef4444' }}
+                      >
+                        <Trash2 size={14} /> Disconnect
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      )}
+
+      {/* SETTINGS TAB */}
+      {activeTab === 'settings' && settings && (
+        <section className="glass-card">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+            <Settings size={20} color="#a78bfa" />
+            <h2 style={{ fontSize: 18, margin: 0 }}>System Settings</h2>
+          </div>
+
+          <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div>
+                <label className="field-label"><Globe size={12} style={{ display: 'inline', marginRight: 4 }} />App Name</label>
+                <input className="nexus-input" value={settings.appName} onChange={(e) => setSettings({ ...settings, appName: e.target.value })} />
+              </div>
+              <div>
+                <label className="field-label"><Globe size={12} style={{ display: 'inline', marginRight: 4 }} />Company Name</label>
+                <input className="nexus-input" value={settings.companyName} onChange={(e) => setSettings({ ...settings, companyName: e.target.value })} />
+              </div>
+              <div>
+                <label className="field-label"><Mail size={12} style={{ display: 'inline', marginRight: 4 }} />Company Email</label>
+                <input className="nexus-input" type="email" value={settings.companyEmail} onChange={(e) => setSettings({ ...settings, companyEmail: e.target.value })} />
+              </div>
+              <div>
+                <label className="field-label"><Phone size={12} style={{ display: 'inline', marginRight: 4 }} />Company Phone</label>
+                <input className="nexus-input" value={settings.companyPhone} onChange={(e) => setSettings({ ...settings, companyPhone: e.target.value })} />
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label className="field-label"><MapPin size={12} style={{ display: 'inline', marginRight: 4 }} />Company Address</label>
+                <input className="nexus-input" value={settings.companyAddress} onChange={(e) => setSettings({ ...settings, companyAddress: e.target.value })} />
+              </div>
+              <div>
+                <label className="field-label">Tax Rate (%)</label>
+                <input className="nexus-input" type="number" step="0.01" value={settings.taxRate * 100} onChange={(e) => setSettings({ ...settings, taxRate: Number(e.target.value) / 100 })} />
+              </div>
+              <div>
+                <label className="field-label">Currency</label>
+                <select className="nexus-select" value={settings.currency} onChange={(e) => setSettings({ ...settings, currency: e.target.value })}>
+                  <option value="PKR">PKR (Rs)</option>
+                  <option value="USD">USD ($)</option>
+                  <option value="EUR">EUR (€)</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', padding: 16, background: 'rgba(0,0,0,0.2)', borderRadius: 12 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <input type="checkbox" checked={settings.emailFilterEnabled} onChange={(e) => setSettings({ ...settings, emailFilterEnabled: e.target.checked })} />
+                <span>Enable complaint email filter</span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <input type="checkbox" checked={settings.autoSyncEnabled} onChange={(e) => setSettings({ ...settings, autoSyncEnabled: e.target.checked })} />
+                <span>Enable auto-sync Gmail</span>
+              </label>
+            </div>
+
+            <button type="submit" className="nexus-btn nexus-btn-primary" disabled={savingSettings}>
+              <Save size={16} /> {savingSettings ? 'Saving...' : 'Save Settings'}
+            </button>
+          </form>
+        </section>
+      )}
+
+      {/* EMPLOYEE MODAL */}
       {isModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}>
-          <div className="glass-card" style={{ width: '100%', maxWidth: 480 }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }} onClick={() => setIsModalOpen(false)}>
+          <div className="glass-card" style={{ width: '100%', maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <UserCheck size={20} color="#00f2fe" />
-                <h3 style={{ margin: 0 }}>Create Employee Account</h3>
+                <h3 style={{ margin: 0 }}>Create User Account</h3>
               </div>
               <button type="button" className="nexus-btn nexus-btn-ghost" onClick={() => setIsModalOpen(false)} style={{ padding: 8 }}>
                 <X size={18} />
@@ -187,7 +486,7 @@ export default function AdminCommandCenter() {
             </div>
             <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label className="field-label">Full Legal Name</label>
+                <label className="field-label">Full Name</label>
                 <input className="nexus-input" required value={form.employeeName} onChange={(e) => setForm({ ...form, employeeName: e.target.value })} />
               </div>
               <div>
@@ -195,10 +494,19 @@ export default function AdminCommandCenter() {
                 <input className="nexus-input" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
               </div>
               <div>
-                <label className="field-label">Temporary Password</label>
+                <label className="field-label">Password</label>
                 <input className="nexus-input" type="password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
               </div>
-              <button type="submit" className="nexus-btn nexus-btn-primary" disabled={registering}>{registering ? 'Creating...' : 'Generate User Account'}</button>
+              <div>
+                <label className="field-label">Role</label>
+                <select className="nexus-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+                  <option value="EMPLOYEE">Employee</option>
+                  <option value="ADMIN">Admin</option>
+                </select>
+              </div>
+              <button type="submit" className="nexus-btn nexus-btn-primary" disabled={registering}>
+                {registering ? 'Creating...' : 'Create Account'}
+              </button>
             </form>
           </div>
         </div>

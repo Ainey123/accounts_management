@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Users, Activity, UserPlus, Trash2, X, UserCheck, ShieldAlert,
   Settings, Mail, FileText, RefreshCw, Filter, Search,
-  DollarSign, Globe, Phone, MapPin, Save, Eye,
+  DollarSign, Globe, Phone, MapPin, Save, Eye, Key,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
@@ -25,6 +25,11 @@ export default function AdminCommandCenter() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [ticketFilter, setTicketFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [passwordUserId, setPasswordUserId] = useState(null);
+  const [passwordForm, setPasswordForm] = useState({ password: '', confirmPassword: '' });
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [currentEmail, setCurrentEmail] = useState('');
 
   const loadAll = async () => {
     const [userRes, statsRes, finRes, ticketsRes, gmailRes, settingsRes] = await Promise.all([
@@ -45,6 +50,16 @@ export default function AdminCommandCenter() {
 
   useEffect(() => {
     loadAll().catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    const cookie = document.cookie.split('; ').find(c => c.startsWith('nexus_user='));
+    if (cookie) {
+      try {
+        const user = JSON.parse(decodeURIComponent(cookie.split('=')[1]));
+        setCurrentEmail(user.email);
+      } catch (e) { console.error(e); }
+    }
   }, []);
 
   const handleRegister = async (e) => {
@@ -102,6 +117,32 @@ export default function AdminCommandCenter() {
       await loadAll();
     } catch (err) {
       setMessage(err.message);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (!passwordUserId) return;
+    setChangingPassword(true);
+    try {
+      if (passwordForm.password !== passwordForm.confirmPassword) {
+        throw new Error('Passwords do not match');
+      }
+      if (passwordForm.password.length < 6) {
+        throw new Error('Password must be at least 6 characters');
+      }
+      await apiFetch(`/api/admin/users/${passwordUserId}/password`, {
+        method: 'PATCH',
+        body: JSON.stringify({ password: passwordForm.password }),
+      });
+      setPasswordForm({ password: '', confirmPassword: '' });
+      setPasswordModalOpen(false);
+      setPasswordUserId(null);
+      setMessage('Password changed successfully.');
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -277,6 +318,17 @@ export default function AdminCommandCenter() {
                         <button type="button" className="nexus-btn nexus-btn-ghost" style={{ padding: 6 }} title="View">
                           <Eye size={14} />
                         </button>
+                        {u.role !== 'ADMIN' && (
+                          <button
+                            type="button"
+                            className="nexus-btn nexus-btn-ghost"
+                            onClick={() => { setPasswordUserId(u.id); setPasswordForm({ password: '', confirmPassword: '' }); setPasswordModalOpen(true); }}
+                            style={{ padding: 6, color: '#f59e0b' }}
+                            title="Reset Password"
+                          >
+                            <Key size={14} />
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="nexus-btn nexus-btn-ghost"
@@ -464,6 +516,23 @@ export default function AdminCommandCenter() {
               </label>
             </div>
 
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignSelf: 'flex-start' }}>
+              <button
+                type="button"
+                className="nexus-btn nexus-btn-ghost"
+                onClick={() => {
+                  const admin = users.find(u => u.email === currentEmail);
+                  if (admin) {
+                    setPasswordUserId(admin.id);
+                    setPasswordForm({ password: '', confirmPassword: '' });
+                    setPasswordModalOpen(true);
+                  }
+                }}
+              >
+                <Key size={16} /> Change My Password
+              </button>
+            </div>
+
             <button type="submit" className="nexus-btn nexus-btn-primary" disabled={savingSettings}>
               <Save size={16} /> {savingSettings ? 'Saving...' : 'Save Settings'}
             </button>
@@ -506,6 +575,36 @@ export default function AdminCommandCenter() {
               </div>
               <button type="submit" className="nexus-btn nexus-btn-primary" disabled={registering}>
                 {registering ? 'Creating...' : 'Create Account'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* PASSWORD CHANGE MODAL */}
+      {passwordModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }} onClick={() => setPasswordModalOpen(false)}>
+          <div className="glass-card" style={{ width: '100%', maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <Key size={20} color="#f59e0b" />
+                <h3 style={{ margin: 0 }}>Change Password</h3>
+              </div>
+              <button type="button" className="nexus-btn nexus-btn-ghost" onClick={() => setPasswordModalOpen(false)} style={{ padding: 8 }}>
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label className="field-label">New Password</label>
+                <input className="nexus-input" type="password" required value={passwordForm.password} onChange={(e) => setPasswordForm({ ...passwordForm, password: e.target.value })} />
+              </div>
+              <div>
+                <label className="field-label">Confirm Password</label>
+                <input className="nexus-input" type="password" required value={passwordForm.confirmPassword} onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })} />
+              </div>
+              <button type="submit" className="nexus-btn nexus-btn-primary" disabled={changingPassword}>
+                {changingPassword ? 'Updating...' : 'Update Password'}
               </button>
             </form>
           </div>

@@ -73,7 +73,10 @@ export default function AuthProvider({ children }) {
     return authenticated;
   }, [router]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {}
     setUser(null);
     localStorage.removeItem('nexus_user');
     localStorage.removeItem('nexus_active_job');

@@ -18,6 +18,10 @@ model User {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   assignedJobs JobMetadata[]
+  createdJobs  JobMetadata[]       @relation("CreatedJobs")
+  createdSurveys SurveyReport[]   @relation("CreatedSurveys")
+  createdQuotations QuotationInvoice[] @relation("CreatedQuotations")
+  createdExpenses Expense[]       @relation("CreatedExpenses")
   gmailAccounts GmailAccount[]
 }
 

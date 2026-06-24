@@ -108,34 +108,3 @@ model Expense {
   summaryNotes  String
   createdAt     DateTime    @default(now())
 }
-
-model SurveyReport {
-  id            Int         @id @default(autoincrement())
-  jobMetadataId Int         @unique
-  jobMetadata   JobMetadata @relation(fields: [jobMetadataId], references: [id], onDelete: Cascade)
-  reportText    String
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-}
-
-model QuotationInvoice {
-  id            Int             @id @default(autoincrement())
-  jobMetadataId Int
-  jobMetadata   JobMetadata     @relation(fields: [jobMetadataId], references: [id], onDelete: Cascade)
-  poNumber      String?
-  status        String          @default("PENDING")
-  documentType  String          @default("QUOTATION")
-  lineItems     String          @default("[]")
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-}
-
-model Expense {
-  id            Int         @id @default(autoincrement())
-  jobMetadataId Int
-  jobMetadata   JobMetadata @relation(fields: [jobMetadataId], references: [id], onDelete: Cascade)
-  amount        Float
-  imageUrl      String?
-  summaryNotes  String
-  createdAt     DateTime    @default(now())
-}

@@ -8,8 +8,6 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
-type Tab = 'overview' | 'employees' | 'tickets' | 'gmail' | 'settings';
-
 export default function AdminCommandCenter() {
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState(null);
@@ -17,7 +15,7 @@ export default function AdminCommandCenter() {
   const [tickets, setTickets] = useState([]);
   const [gmailAccounts, setGmailAccounts] = useState([]);
   const [settings, setSettings] = useState(null);
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [activeTab, setActiveTab] = useState('overview');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form, setForm] = useState({ employeeName: '', email: '', password: '', role: 'EMPLOYEE' });
   const [message, setMessage] = useState('');
@@ -180,7 +178,7 @@ export default function AdminCommandCenter() {
     { id: 'tickets', label: 'All Tickets', icon: FileText },
     { id: 'gmail', label: 'Gmail Accounts', icon: Mail },
     { id: 'settings', label: 'Settings', icon: Settings },
-  ] as const;
+  ];
 
   return (
     <div className="admin-grid">

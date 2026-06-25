@@ -11,14 +11,16 @@ export async function POST() {
     const adminEmail = 'admin@gmail.com';
     const employeeEmail = 'user@gmail.com';
 
-    const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
-
-    if (existingAdmin) {
-      return NextResponse.json({ message: 'Seed data already exists' });
-    }
-
-    await prisma.user.create({
-      data: {
+    // Upsert admin — always reset password to known value
+    await prisma.user.upsert({
+      where: { email: adminEmail },
+      update: {
+        password: hashPassword('password123'),
+        role: 'ADMIN',
+        employeeName: 'System Administrator',
+        activeStatus: true,
+      },
+      create: {
         email: adminEmail,
         password: hashPassword('password123'),
         role: 'ADMIN',
@@ -27,8 +29,16 @@ export async function POST() {
       },
     });
 
-    await prisma.user.create({
-      data: {
+    // Upsert employee — always reset password to known value
+    await prisma.user.upsert({
+      where: { email: employeeEmail },
+      update: {
+        password: hashPassword('user123'),
+        role: 'EMPLOYEE',
+        employeeName: 'Default User',
+        activeStatus: true,
+      },
+      create: {
         email: employeeEmail,
         password: hashPassword('user123'),
         role: 'EMPLOYEE',
@@ -38,7 +48,7 @@ export async function POST() {
     });
 
     return NextResponse.json({
-      message: 'Seed complete',
+      message: 'Seed complete — users created/reset successfully',
       credentials: {
         admin: { email: adminEmail, password: 'password123' },
         employee: { email: employeeEmail, password: 'user123' },

@@ -18,15 +18,14 @@ export default function SiteExpensePage() {
   const webcamRef = useRef(null);
 
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
   const uploadToCloudinary = async (file) => {
-    if (!cloudName || !uploadPreset) {
-      throw new Error('Cloudinary not configured. Set NEXT_PUBLIC_CLOUDINARY_* env vars.');
+    if (!cloudName) {
+      throw new Error('Cloudinary not configured. Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME env var.');
     }
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('upload_preset', uploadPreset);
+    formData.append('upload_preset', 'unsigned-preset');
     const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
       method: 'POST',
       body: formData,

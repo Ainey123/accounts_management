@@ -3,39 +3,46 @@ import { hashPassword } from './src/lib/password.js';
 
 async function main() {
   try {
-    const adminEmail = 'admin@fes.com';
-    const employeeEmail = 'employee@fes.com';
+    const adminEmail = 'admin@gmail.com';
+    const employeeEmail = 'user@gmail.com';
 
-    const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
-
-    if (existingAdmin) {
-      console.log('Seed data already exists');
-      process.exit(0);
-    }
-
-    await prisma.user.create({
-      data: {
+    await prisma.user.upsert({
+      where: { email: adminEmail },
+      update: {
+        password: hashPassword('password123'),
+        role: 'ADMIN',
+        employeeName: 'System Administrator',
+        activeStatus: true,
+      },
+      create: {
         email: adminEmail,
-        password: hashPassword('admin123'),
+        password: hashPassword('password123'),
         role: 'ADMIN',
         employeeName: 'System Administrator',
         activeStatus: true,
       },
     });
 
-    await prisma.user.create({
-      data: {
-        email: employeeEmail,
-        password: hashPassword('employee123'),
+    await prisma.user.upsert({
+      where: { email: employeeEmail },
+      update: {
+        password: hashPassword('user123'),
         role: 'EMPLOYEE',
-        employeeName: 'Default Employee',
+        employeeName: 'Default User',
+        activeStatus: true,
+      },
+      create: {
+        email: employeeEmail,
+        password: hashPassword('user123'),
+        role: 'EMPLOYEE',
+        employeeName: 'Default User',
         activeStatus: true,
       },
     });
 
     console.log('Seed complete!');
-    console.log('Admin credentials:', { email: adminEmail, password: 'admin123' });
-    console.log('Employee credentials:', { email: employeeEmail, password: 'employee123' });
+    console.log('Admin credentials:', { email: adminEmail, password: 'password123' });
+    console.log('Employee credentials:', { email: employeeEmail, password: 'user123' });
   } catch (error) {
     console.error('Seed error:', error);
     process.exit(1);

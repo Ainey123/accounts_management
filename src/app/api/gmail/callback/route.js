@@ -24,13 +24,13 @@ export async function GET(request) {
         (async () => {
           try {
             ${error 
-              ? `window.opener?.postMessage({ type: 'gmail-oauth-error', error: '${error}' }, '*');`
+              ? `window.opener?.postMessage({ type: 'gmail-oauth-error', error: ${JSON.stringify(error)} }, '*');`
               : code 
                 ? `
                   const response = await fetch('/api/gmail-oauth', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code: '${code}' }),
+                    body: JSON.stringify({ code: ${JSON.stringify(code)} }),
                   });
                   const data = await response.json();
                   if (data.success) {

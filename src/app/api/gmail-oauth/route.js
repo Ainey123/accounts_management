@@ -7,25 +7,29 @@ function googleConfigured() {
 }
 
 function getBaseUrl() {
-  if (process.env.APP_URL) return process.env.APP_URL;
-  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  if (process.env.NODE_ENV === 'production') {
+    if (process.env.APP_URL) return process.env.APP_URL;
+    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+    if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+  }
   return 'http://localhost:3000';
 }
 
-const oauth2Client = googleConfigured()
-  ? new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      `${getBaseUrl()}/api/gmail/callback`
-    )
-  : null;
+function createOAuth2Client() {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) return null;
+  return new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    `${getBaseUrl()}/api/gmail/callback`
+  );
+}
 
 // Start OAuth connection
 export async function GET() {
   if (!googleConfigured()) {
     return NextResponse.json({ error: 'Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.' }, { status: 500 });
   }
+  const oauth2Client = createOAuth2Client();
   const scopes = [
     'https://www.googleapis.com/auth/gmail.readonly',
     'https://www.googleapis.com/auth/userinfo.email',
@@ -47,15 +51,15 @@ export async function POST(request) {
   }
   try {
     const { code } = await request.json();
-    
+    const oauth2Client = createOAuth2Client();
     const { tokens } = await oauth2Client.getToken(code);
-    
+
     oauth2Client.setCredentials(tokens);
-    
+
     // Get user's email
     const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
     const userInfo = await oauth2.userinfo.get();
-    
+
     return NextResponse.json({
       success: true,
       email: userInfo.data.email,
@@ -78,18 +82,18 @@ export async function PUT(request) {
   }
   try {
     const { accessToken, refreshToken, expiryDate, syncedEmailIds } = await request.json();
-    
+
     if (!accessToken || !refreshToken) {
       return NextResponse.json({ error: 'Missing access or refresh token' }, { status: 400 });
     }
-    
-    // Set up OAuth client with stored tokens
+
+    const oauth2Client = createOAuth2Client();
     oauth2Client.setCredentials({
       access_token: accessToken,
       refresh_token: refreshToken,
       expiry_date: expiryDate,
     });
-    
+
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
     
     // Fetch recent messages - complaint focused

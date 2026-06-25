@@ -5,12 +5,13 @@ import { prisma } from '@/lib/prisma';
 export async function GET(request) {
   try {
     const userId = request.headers.get('x-user-id');
+    let accounts;
     if (!userId) {
       const firstUser = await prisma.user.findFirst();
       if (!firstUser) {
         return NextResponse.json({ accounts: [] });
       }
-      var accounts = await prisma.gmailAccount.findMany({
+      accounts = await prisma.gmailAccount.findMany({
         where: { userId: firstUser.id },
         orderBy: { createdAt: 'desc' },
       });

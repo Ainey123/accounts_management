@@ -2,11 +2,14 @@ import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { prisma } from '@/lib/prisma';
 import { nextTicketSerialNo } from '@/lib/serial';
+import { isComplaintEmail } from '@/lib/complaintFilter';
 
 function getBaseUrl() {
-  if (process.env.APP_URL) return process.env.APP_URL;
-  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  if (process.env.NODE_ENV === 'production') {
+    if (process.env.APP_URL) return process.env.APP_URL;
+    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+    if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+  }
   return 'http://localhost:3000';
 }
 
@@ -69,23 +72,33 @@ async function syncAccount(account) {
       hour12: true,
     });
 
-    const serialNo = await nextTicketSerialNo();
+    const emailData = {
+      gmailMessageId: message.id,
+      sender: from,
+      subject,
+      exactDate: date,
+      time,
+    };
 
-    try {
-      const ticket = await prisma.ticket.create({
-        data: {
-          gmailAccountId: account.id,
-          gmailMessageId: message.id,
-          serialNo,
-          exactDate,
-          time,
-          subject,
-          sender: from,
-        },
-      });
-      savedTickets.push(ticket);
-    } catch (e) {
-      console.error(`Failed to save ticket for ${message.id}:`, e.message);
+    if (isComplaintEmail(emailData)) {
+      const serialNo = await nextTicketSerialNo();
+
+      try {
+        const ticket = await prisma.ticket.create({
+          data: {
+            gmailAccountId: account.id,
+            gmailMessageId: message.id,
+            serialNo,
+            exactDate,
+            time,
+            subject,
+            sender: from,
+          },
+        });
+        savedTickets.push(ticket);
+      } catch (e) {
+        console.error(`Failed to save ticket for ${message.id}:`, e.message);
+      }
     }
 
     updatedSyncedIds.push(message.id);

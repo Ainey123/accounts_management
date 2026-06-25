@@ -32,6 +32,7 @@ export async function POST(request) {
     return response;
   } catch (error) {
     console.error('Login error:', error);
-    return NextResponse.json({ error: 'Authentication failed' }, { status: 500 });
+    const message = error.message || 'Authentication failed';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

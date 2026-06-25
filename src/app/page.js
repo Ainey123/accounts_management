@@ -75,7 +75,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              placeholder={activeTab === 'ADMIN' ? 'admin@fes.com' : 'employee@fes.com'}
+              placeholder={activeTab === 'ADMIN' ? 'admin@gmail.com' : 'user@gmail.com'}
             />
           </div>
         </div>

@@ -45,16 +45,14 @@ export default function GmailConnectionPage() {
   };
 
   const handleConnect = useCallback(async () => {
-    const popup = window.open('', 'gmail-oauth', 'width=600,height=700');
-    if (!popup) {
-      setMessage('Popup blocked. Please allow popups and try again.');
-      return;
-    }
-    popup.document.write('<p>Loading Gmail connection...</p>');
+    setMessage('');
     try {
       const { authUrl } = await apiFetch('/api/gmail-oauth');
-      popup.location.href = authUrl;
-      setMessage('');
+      const popup = window.open(authUrl, 'gmail-oauth', 'width=600,height=700');
+      if (!popup) {
+        setMessage('Popup blocked. Please allow popups and try again.');
+        return;
+      }
 
       const handler = async (event) => {
         if (event.data?.type === 'gmail-oauth-success') {
@@ -63,19 +61,23 @@ export default function GmailConnectionPage() {
           clearTimeout(timeoutId);
           popup.close();
           const { email: connectedEmail, tokens } = event.data;
-          await apiFetch('/api/gmail-account', {
-            method: 'POST',
-            body: JSON.stringify({
-              email: connectedEmail,
-              accessToken: tokens.access_token,
-              refreshToken: tokens.refresh_token,
-              expiryDate: tokens.expiry_date,
-              userId: user?.id,
-            }),
-          });
-          setMessage(`Gmail ${connectedEmail} connected successfully!`);
-          await loadAccounts();
-          await handleSync();
+          try {
+            await apiFetch('/api/gmail-account', {
+              method: 'POST',
+              body: JSON.stringify({
+                email: connectedEmail,
+                accessToken: tokens.access_token,
+                refreshToken: tokens.refresh_token,
+                expiryDate: tokens.expiry_date,
+                userId: user?.id,
+              }),
+            });
+            setMessage(`Gmail ${connectedEmail} connected successfully!`);
+            await loadAccounts();
+            await handleSync();
+          } catch (err) {
+            setMessage('Gmail connected but failed to save account: ' + err.message);
+          }
         } else if (event.data?.type === 'gmail-oauth-error') {
           window.removeEventListener('message', handler);
           oauthHandlerRef.current = null;

@@ -2,23 +2,39 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { nextTicketSerialNo } from '@/lib/serial';
 
+async function withRetry(fn, retries = 3, delay = 500) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (i === retries - 1) throw e;
+      if (e.message?.includes('max clients reached') || e.code?.includes('EMAXCONNSESSION')) {
+        await new Promise(r => setTimeout(r, delay * (i + 1)));
+        continue;
+      }
+      throw e;
+    }
+  }
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const pending = searchParams.get('pending') === 'true';
 
-    const tickets = await prisma.ticket.findMany({
+    const tickets = await withRetry(() => prisma.ticket.findMany({
       where: pending ? { jobMetadata: null } : undefined,
       orderBy: { id: 'desc' },
       include: {
         gmailAccount: { select: { id: true, gmailEmail: true } },
+        createdBy: { select: { id: true, employeeName: true, email: true } },
         jobMetadata: {
           include: {
             assignedEmployee: { select: { id: true, employeeName: true, email: true } },
           },
         },
       },
-    });
+    }));
 
     return NextResponse.json({ tickets });
   } catch (error) {
@@ -29,15 +45,15 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const { subject, sender } = await request.json();
+    const { subject, sender, createdById } = await request.json();
 
     if (!subject) {
       return NextResponse.json({ error: 'Subject is required' }, { status: 400 });
     }
 
-    const serialNo = await nextTicketSerialNo();
+    const serialNo = await withRetry(() => nextTicketSerialNo());
     const now = new Date();
-    const ticket = await prisma.ticket.create({
+    const ticket = await withRetry(() => prisma.ticket.create({
       data: {
         serialNo,
         subject,
@@ -45,8 +61,12 @@ export async function POST(request) {
         exactDate: now,
         time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
         gmailMessageId: `manual-${Date.now()}`,
+        createdById: createdById ? Number(createdById) : undefined,
       },
-    });
+      include: {
+        createdBy: { select: { id: true, employeeName: true, email: true } }
+      }
+    }));
 
     return NextResponse.json({ ticket }, { status: 201 });
   } catch (error) {

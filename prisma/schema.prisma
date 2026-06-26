@@ -9,20 +9,21 @@ datasource db {
 
 /// Internal staffing ONLY — never store commercial customers here.
 model User {
-  id           Int           @id @default(autoincrement())
-  email        String        @unique
-  password     String
-  role         String          @default("EMPLOYEE")
-  employeeName String
-  activeStatus Boolean       @default(true)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  assignedJobs JobMetadata[]
-  createdJobs  JobMetadata[]       @relation("CreatedJobs")
-  createdSurveys SurveyReport[]   @relation("CreatedSurveys")
+  id             Int               @id @default(autoincrement())
+  email          String            @unique
+  password       String
+  role           String            @default("EMPLOYEE")
+  employeeName   String
+  activeStatus   Boolean           @default(true)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  assignedJobs   JobMetadata[]
+  createdJobs    JobMetadata[]     @relation("CreatedJobs")
+  createdSurveys SurveyReport[]    @relation("CreatedSurveys")
   createdQuotations QuotationInvoice[] @relation("CreatedQuotations")
   createdExpenses Expense[]       @relation("CreatedExpenses")
-  gmailAccounts GmailAccount[]
+  gmailAccounts  GmailAccount[]
+  createdTickets Ticket[]        @relation("CreatedTickets")
 }
 
 /// Gmail OAuth connection and sync tracking.
@@ -54,6 +55,8 @@ model Ticket {
   sender         String
   createdAt      DateTime     @default(now())
   jobMetadata    JobMetadata?
+  createdById    Int?
+  createdBy      User?        @relation("CreatedTickets", fields: [createdById], references: [id], onDelete: SetNull)
 }
 
 /// Commercial customers and site branches live here — NOT in User.

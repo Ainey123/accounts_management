@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Send, Building, User, Briefcase, X } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useJob } from '@/components/JobContext';
+import { useAuth } from '@/components/AuthProvider';
 
 const WORK_NATURES = [
   { value: 'ELECTRICAL', label: 'Electrical' },
@@ -13,6 +14,7 @@ const WORK_NATURES = [
 ];
 
 export default function IntakeGridPage() {
+  const { user } = useAuth();
   const { refreshJobs, jobs } = useJob();
   const [tickets, setTickets] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -114,6 +116,7 @@ export default function IntakeGridPage() {
         body: JSON.stringify({
           subject: manualSubject,
           sender: manualSender || 'Manual Entry',
+          createdById: user?.id,
         }),
       });
       setTickets((prev) => [ticket, ...prev]);

@@ -383,25 +383,31 @@ export default function AdminCommandCenter() {
                 <th>Sender</th>
                 <th>Subject</th>
                 <th>Status</th>
+                <th>Created By</th>
               </tr>
             </thead>
             <tbody>
-              {filteredTickets.map((t) => (
-                <tr key={t.id}>
-                  <td style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 600 }}>{t.serialNo}</td>
-                  <td>{new Date(t.exactDate).toLocaleDateString()}</td>
-                  <td>{t.time}</td>
-                  <td>{t.sender}</td>
-                  <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject}</td>
-                  <td>
-                    <span className={`status-pill ${t.jobMetadata ? 'active' : ''}`} style={!t.jobMetadata ? { background: 'rgba(248,113,113,0.2)', color: '#f87171' } : {}}>
-                      {t.jobMetadata ? 'Intake Done' : 'Pending'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {filteredTickets.map((t) => {
+                const isManual = t.sender === 'Manual Entry' || t.gmailMessageId?.startsWith('manual-');
+                const creatorInfo = t.createdBy ? `${t.createdBy.employeeName}` : (isManual ? 'Unknown' : t.gmailAccount?.gmailEmail || '—');
+                return (
+                  <tr key={t.id}>
+                    <td style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 600 }}>{t.serialNo}</td>
+                    <td>{new Date(t.exactDate).toLocaleDateString()}</td>
+                    <td>{t.time}</td>
+                    <td>{t.sender}</td>
+                    <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject}</td>
+                    <td>
+                      <span className={`status-pill ${t.jobMetadata ? 'active' : ''}`} style={!t.jobMetadata ? { background: 'rgba(248,113,113,0.2)', color: '#f87171' } : {}}>
+                        {t.jobMetadata ? 'Intake Done' : 'Pending'}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: 12, color: '#a78bfa' }}>{creatorInfo}</td>
+                  </tr>
+                );
+              })}
               {filteredTickets.length === 0 && (
-                <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No tickets found.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No tickets found.</td></tr>
               )}
             </tbody>
           </table>

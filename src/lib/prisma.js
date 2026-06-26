@@ -3,12 +3,15 @@ import { PrismaClient } from '@prisma/client';
 const globalForPrisma = globalThis;
 
 function createPrismaClient() {
-  const client = new PrismaClient();
-  return client;
+  return new PrismaClient({
+    log: ['error', 'warn'],
+  });
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }
+
+export { prisma };

@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState } from 'react';
-import { ShieldCheck, User, KeyRound, Briefcase, Settings } from 'lucide-react';
+import { ShieldCheck, KeyRound, Briefcase, Settings } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
+import { apiFetch } from '@/lib/api';
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState('EMPLOYEE');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -17,12 +17,13 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await login(email, password, activeTab);
+      const { user } = await apiFetch('/api/auth/pin-login', {
+        method: 'POST',
+        body: JSON.stringify({ pin, role: activeTab }),
+      });
+      await login(user.email, user.tempPassword, user.role);
     } catch (err) {
       setError(err.message || 'Access denied.');
-      if (err.message?.includes('Failed to fetch') || err.message?.includes('Invalid credentials')) {
-        setError('Database not initialized. Please visit /api/seed to create default users, then try again.');
-      }
     } finally {
       setLoading(false);
     }
@@ -30,8 +31,7 @@ export default function LoginPage() {
 
   const switchTab = (tab) => {
     setActiveTab(tab);
-    setEmail('');
-    setPassword('');
+    setPin('');
     setError('');
   };
 
@@ -41,7 +41,8 @@ export default function LoginPage() {
         <div style={{ width: 64, height: 64, background: 'rgba(0,0,0,0.4)', borderRadius: 16, margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
           <ShieldCheck size={32} color={activeTab === 'ADMIN' ? '#a78bfa' : '#00f2fe'} />
         </div>
-        <h1 style={{ fontSize: 24 }}>NEXUS SECURE</h1>
+        <h1 style={{ fontSize: 24 }}>NEXUS ACCESS</h1>
+        <p style={{ fontSize: 13, color: '#64748b', marginTop: 8 }}>Enter PIN to access</p>
       </div>
 
       <div className="tab-segment">
@@ -50,14 +51,14 @@ export default function LoginPage() {
           className={`tab-segment-btn ${activeTab === 'EMPLOYEE' ? 'active-employee' : ''}`}
           onClick={() => switchTab('EMPLOYEE')}
         >
-          <Briefcase size={16} /> Employee Terminal
+          <Briefcase size={16} /> Employee
         </button>
         <button
           type="button"
           className={`tab-segment-btn ${activeTab === 'ADMIN' ? 'active-admin' : ''}`}
           onClick={() => switchTab('ADMIN')}
         >
-          <Settings size={16} /> Admin Command
+          <Settings size={16} /> Admin
         </button>
       </div>
 
@@ -65,33 +66,19 @@ export default function LoginPage() {
 
       <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         <div>
-          <label className="field-label">Email Address</label>
-          <div style={{ position: 'relative' }}>
-            <User size={18} style={{ position: 'absolute', left: 14, top: 13, color: '#64748b' }} />
-            <input
-              type="email"
-              className="nexus-input"
-              style={{ paddingLeft: 44 }}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder={activeTab === 'ADMIN' ? 'admin@gmail.com' : 'user@gmail.com'}
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="field-label">Passcode</label>
+          <label className="field-label">Security PIN</label>
           <div style={{ position: 'relative' }}>
             <KeyRound size={18} style={{ position: 'absolute', left: 14, top: 13, color: '#64748b' }} />
             <input
               type="password"
+              inputMode="numeric"
               className="nexus-input"
               style={{ paddingLeft: 44 }}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
               required
-              placeholder="Enter password"
+              placeholder="Enter 6-digit PIN"
+              maxLength={6}
             />
           </div>
         </div>

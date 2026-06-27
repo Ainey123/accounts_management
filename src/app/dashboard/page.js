@@ -16,7 +16,7 @@ export default function EmployeeRealTimeDashboard() {
   const [myStatus, setMyStatus] = useState(true);
   const [jobs, setJobs] = useState([]);
   const [tickets, setTickets] = useState([]);
-  const [stats, setStats] = useState({ assigned: 0, completed: 0, surveys: 0, expenses: 0 });
+  const [stats, setStats] = useState({ assigned: 0, completed: 0, surveys: 0, expenses: 0, payments: 0 });
   const [message, setMessage] = useState('');
   
   // Inline actions states
@@ -33,6 +33,13 @@ export default function EmployeeRealTimeDashboard() {
   const [expenseImg, setExpenseImg] = useState('');
   const [capturedImg, setCapturedImg] = useState(null);
   const [savingExpense, setSavingExpense] = useState(false);
+
+  // Payment form state
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentNotes, setPaymentNotes] = useState('');
+  const [paymentImg, setPaymentImg] = useState('');
+  const [capturedPaymentImg, setCapturedPaymentImg] = useState(null);
+  const [savingPayment, setSavingPayment] = useState(false);
   
   const webcamRef = useRef(null);
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dloxdnqfm';
@@ -63,8 +70,9 @@ export default function EmployeeRealTimeDashboard() {
       ).length;
       const surveys = (fetchedJobs || []).filter(j => j.surveyReport).length;
       const expenses = (fetchedJobs || []).reduce((sum, j) => sum + (j.expenses || []).reduce((s, e) => s + e.amount, 0), 0);
+      const payments = (fetchedJobs || []).reduce((sum, j) => sum + (j.payments || []).reduce((s, p) => s + p.amount, 0), 0);
 
-      setStats({ assigned, completed, surveys, expenses });
+      setStats({ assigned, completed, surveys, expenses, payments });
     } catch (err) {
       console.error('Dashboard load error:', err);
     } finally {
@@ -108,8 +116,66 @@ export default function EmployeeRealTimeDashboard() {
 
   const capturePhoto = useCallback(() => {
     const shot = webcamRef.current?.getScreenshot();
-    if (shot) setCapturedImg(shot);
-  }, []);
+    if (shot) {
+      if (actionType === 'expense') {
+        setCapturedImg(shot);
+      } else if (actionType === 'payment') {
+        setCapturedPaymentImg(shot);
+      }
+    }
+  }, [actionType]);
+
+  const handlePaymentFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setMessage('Uploading photo...');
+      const url = await uploadToCloudinary(file);
+      setPaymentImg(url);
+      setCapturedPaymentImg(url);
+      setMessage('Payment receipt photo uploaded successfully.');
+    } catch (err) {
+      setMessage('Upload error: ' + err.message);
+    }
+  };
+
+  const submitPayment = async (jobId) => {
+    if (!paymentAmount || !paymentNotes.trim()) {
+      setMessage('Payment amount and notes are required.');
+      return;
+    }
+    setSavingPayment(true);
+    setMessage('');
+    try {
+      let finalUrl = paymentImg;
+      if (capturedPaymentImg && capturedPaymentImg.startsWith('data:')) {
+        const blob = await fetch(capturedPaymentImg).then((r) => r.blob());
+        finalUrl = await uploadToCloudinary(blob);
+      }
+
+      await apiFetch('/api/payments', {
+        method: 'POST',
+        body: JSON.stringify({
+          jobMetadataId: jobId,
+          amount: parseFloat(paymentAmount),
+          imageUrl: finalUrl || null,
+          summaryNotes: paymentNotes,
+        }),
+      });
+
+      setMessage('Payment logged successfully!');
+      setPaymentAmount('');
+      setPaymentNotes('');
+      setPaymentImg('');
+      setCapturedPaymentImg(null);
+      setActionType(null);
+      await loadDashboardData();
+    } catch (err) {
+      setMessage('Failed to log payment: ' + err.message);
+    } finally {
+      setSavingPayment(false);
+    }
+  };
 
   const handleExpenseFileUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -225,12 +291,13 @@ export default function EmployeeRealTimeDashboard() {
 
       {/* METRICS ROW */}
       <section className="glass-card" style={{ padding: '24px 32px' }}>
-        <div className="admin-metrics-row" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
+        <div className="admin-metrics-row" style={{ gridTemplateColumns: 'repeat(5, 1fr)', gap: 16 }}>
           {[
             { label: 'Assigned Jobs', value: stats.assigned, color: '#00f2fe', icon: ClipboardList },
             { label: 'Completed Jobs', value: stats.completed, color: '#10b981', icon: CheckCircle },
             { label: 'Survey Reports', value: stats.surveys, color: '#a78bfa', icon: FileText },
-            { label: 'Logged Expenses', value: `Rs. ${stats.expenses.toLocaleString()}`, color: '#f59e0b', icon: DollarSign },
+            { label: 'Logged Expenses', value: `Rs. ${stats.expenses.toLocaleString()}`, color: '#f87171', icon: DollarSign },
+            { label: 'Collected Payments', value: `Rs. ${stats.payments.toLocaleString()}`, color: '#34d399', icon: Check },
           ].map((item, idx) => {
             const IconComponent = item.icon;
             return (
@@ -239,7 +306,7 @@ export default function EmployeeRealTimeDashboard() {
                   <span className="field-label" style={{ marginBottom: 0 }}>{item.label}</span>
                   <IconComponent size={18} color={item.color} />
                 </div>
-                <div className="metric-digit" style={{ color: item.color, fontSize: 28 }}>{item.value}</div>
+                <div className="metric-digit" style={{ color: item.color, fontSize: 24 }}>{item.value}</div>
               </div>
             );
           })}
@@ -289,6 +356,7 @@ export default function EmployeeRealTimeDashboard() {
               const quotationApproved = quotation?.status === 'APPROVED';
               
               const totalExpenses = (job.expenses || []).reduce((sum, e) => sum + e.amount, 0);
+              const totalPayments = (job.payments || []).reduce((sum, p) => sum + p.amount, 0);
 
               const isExpanded = expandedJobId === job.id;
 
@@ -329,7 +397,7 @@ export default function EmployeeRealTimeDashboard() {
                   </div>
 
                   {/* Task Checklist Tracker */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 24, padding: 16, background: 'rgba(0,0,0,0.15)', borderRadius: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginTop: 24, padding: 16, background: 'rgba(0,0,0,0.15)', borderRadius: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Check size={12} color="#000" />
@@ -373,6 +441,18 @@ export default function EmployeeRealTimeDashboard() {
                         </div>
                       </div>
                     </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: totalPayments > 0 ? '#22c55e' : 'rgba(255,255,255,0.05)', border: totalPayments > 0 ? 'none' : '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {totalPayments > 0 ? <Check size={12} color="#000" /> : <span style={{ fontSize: 10, color: '#64748b' }}>5</span>}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600 }}>5. Payments Collected</div>
+                        <div style={{ fontSize: 10, color: totalPayments > 0 ? '#22c55e' : '#64748b' }}>
+                          {totalPayments > 0 ? `Rs. ${totalPayments.toLocaleString()}` : 'Rs. 0 collected'}
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Expanded Task Panels */}
@@ -400,6 +480,14 @@ export default function EmployeeRealTimeDashboard() {
                           onClick={() => setActionType(actionType === 'expense' ? null : 'expense')}
                         >
                           <Camera size={14} /> Log On-site Expense
+                        </button>
+                        <button
+                          type="button"
+                          className={`nexus-btn ${actionType === 'payment' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
+                          style={{ padding: '8px 16px', fontSize: 13 }}
+                          onClick={() => setActionType(actionType === 'payment' ? null : 'payment')}
+                        >
+                          <DollarSign size={14} /> Log Client Payment
                         </button>
                       </div>
 
@@ -508,6 +596,76 @@ export default function EmployeeRealTimeDashboard() {
                         </div>
                       )}
 
+                      {/* Payment Panel */}
+                      {actionType === 'payment' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, padding: 20, background: 'rgba(0,0,0,0.2)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.04)' }}>
+                          <div>
+                            <h3 style={{ fontSize: 16, marginBottom: 12 }}>Log Client Payment</h3>
+                            <label className="field-label">Amount Received (Rs.)</label>
+                            <input
+                              className="nexus-input"
+                              type="number"
+                              required
+                              value={paymentAmount}
+                              onChange={(e) => setPaymentAmount(e.target.value)}
+                              placeholder="0.00"
+                              style={{ marginBottom: 16 }}
+                            />
+
+                            <label className="field-label">Payment Notes</label>
+                            <textarea
+                              className="nexus-textarea"
+                              required
+                              value={paymentNotes}
+                              onChange={(e) => setPaymentNotes(e.target.value)}
+                              placeholder="Describe payment collection details (e.g. cash, cheque, bank transfer reference)..."
+                              style={{ minHeight: 80, marginBottom: 16 }}
+                            />
+
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button type="button" className="nexus-btn nexus-btn-ghost" style={{ padding: '8px 12px', fontSize: 12, flex: 1 }} onClick={capturePhoto}>
+                                <Camera size={14} /> Capture Slip
+                              </button>
+                              <label className="nexus-btn nexus-btn-ghost" style={{ padding: '8px 12px', fontSize: 12, flex: 1, cursor: 'pointer', textAlign: 'center' }}>
+                                <Upload size={14} /> Upload Slip
+                                <input type="file" accept="image/*" hidden onChange={handlePaymentFileUpload} />
+                              </label>
+                            </div>
+
+                            <button
+                              type="button"
+                              className="nexus-btn nexus-btn-primary"
+                              style={{ width: '100%', marginTop: 16 }}
+                              onClick={() => submitPayment(job.id)}
+                              disabled={savingPayment}
+                            >
+                              <Save size={14} /> {savingPayment ? 'Logging Payment...' : 'Log Payment'}
+                            </button>
+                          </div>
+
+                          <div>
+                            <label className="field-label">Live Camera Feed / Captured Slip</label>
+                            <div style={{ borderRadius: 8, overflow: 'hidden', background: '#0a0a0c', height: 230, border: '1px dashed rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              {!capturedPaymentImg ? (
+                                <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ) : (
+                                <img src={capturedPaymentImg} alt="Captured receipt/slip" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                              )}
+                            </div>
+                            {capturedPaymentImg && (
+                              <button
+                                type="button"
+                                className="nexus-btn nexus-btn-ghost"
+                                style={{ marginTop: 8, padding: '4px 8px', fontSize: 11 }}
+                                onClick={() => { setCapturedPaymentImg(null); setPaymentImg(''); }}
+                              >
+                                Retake Slip Photo
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Logged Expenses List */}
                       {job.expenses && job.expenses.length > 0 && (
                         <div style={{ padding: 16, background: 'rgba(255,255,255,0.01)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
@@ -516,7 +674,22 @@ export default function EmployeeRealTimeDashboard() {
                             {job.expenses.map((e, index) => (
                               <div key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 12px', background: 'rgba(0,0,0,0.1)', borderRadius: 6, fontSize: 13 }}>
                                 <span>{e.summaryNotes}</span>
-                                <span style={{ fontWeight: 600, color: '#f59e0b' }}>Rs. {e.amount.toLocaleString()}</span>
+                                <span style={{ fontWeight: 600, color: '#f87171' }}>Rs. {e.amount.toLocaleString()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Logged Payments List */}
+                      {job.payments && job.payments.length > 0 && (
+                        <div style={{ padding: 16, background: 'rgba(255,255,255,0.01)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
+                          <h4 style={{ fontSize: 13, color: '#94a3b8', marginBottom: 8 }}>Payments History for this Job ({job.payments.length})</h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {job.payments.map((p, index) => (
+                              <div key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 12px', background: 'rgba(0,0,0,0.1)', borderRadius: 6, fontSize: 13 }}>
+                                <span>{p.summaryNotes}</span>
+                                <span style={{ fontWeight: 600, color: '#10b981' }}>Rs. {p.amount.toLocaleString()}</span>
                               </div>
                             ))}
                           </div>

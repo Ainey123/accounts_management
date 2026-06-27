@@ -1,54 +1,53 @@
 import { PrismaClient } from '@prisma/client';
 
-async function reindex() {
+async function fixSerials() {
   const prisma = new PrismaClient();
 
   try {
-    // Get all tickets sorted by email date (oldest first)
-    const tickets = await prisma.ticket.findMany({
-      orderBy: { exactDate: 'asc' },
+    // First check how many tickets have broken __TEMP__ serials
+    const broken = await prisma.ticket.count({
+      where: { serialNo: { startsWith: '__TEMP__' } }
     });
+    console.log(`Found ${broken} tickets with broken __TEMP__ serial numbers.`);
 
-    console.log(`Found ${tickets.length} tickets. Reindexing serial numbers by date (oldest = #001)...`);
-
-    // Pass 1: Assign temporary serial numbers to avoid unique constraint collisions
-    console.log('Pass 1: Assigning temporary serial numbers...');
-    for (let i = 0; i < tickets.length; i++) {
-      await prisma.ticket.update({
-        where: { id: tickets[i].id },
-        data: { serialNo: `__TEMP__${i}` },
-      });
+    if (broken === 0) {
+      console.log('No broken serials to fix. Proceeding to chronological reindex...');
+    } else {
+      // Fix broken serials with a single raw SQL UPDATE using row_number
+      console.log('Fixing broken serials with batch SQL...');
+      await prisma.$executeRawUnsafe(`
+        UPDATE "Ticket" 
+        SET "serialNo" = '#' || LPAD(sub.rn::text, 3, '0')
+        FROM (
+          SELECT id, ROW_NUMBER() OVER (ORDER BY "exactDate" ASC, id ASC) as rn
+          FROM "Ticket"
+        ) sub
+        WHERE "Ticket".id = sub.id
+      `);
+      console.log('All serial numbers reindexed in one query!');
     }
 
-    // Pass 2: Assign final chronological serial numbers
-    console.log('Pass 2: Assigning final chronological serial numbers...');
-    for (let i = 0; i < tickets.length; i++) {
-      const newSerial = `#${String(i + 1).padStart(3, '0')}`;
-      await prisma.ticket.update({
-        where: { id: tickets[i].id },
-        data: { serialNo: newSerial },
-      });
+    // Verify results
+    const oldest = await prisma.ticket.findMany({ orderBy: { exactDate: 'asc' }, take: 3 });
+    const newest = await prisma.ticket.findMany({ orderBy: { exactDate: 'desc' }, take: 3 });
+    const total = await prisma.ticket.count();
+
+    console.log(`\nTotal tickets: ${total}`);
+    console.log('\nOldest (should have lowest serial):');
+    for (const t of oldest) {
+      console.log(`  ${t.serialNo}  |  ${new Date(t.exactDate).toLocaleDateString()}  |  ${t.subject?.substring(0, 50)}`);
+    }
+    console.log('\nNewest (should have highest serial):');
+    for (const t of newest) {
+      console.log(`  ${t.serialNo}  |  ${new Date(t.exactDate).toLocaleDateString()}  |  ${t.subject?.substring(0, 50)}`);
     }
 
-    // Show first 10 and last 10
-    const final = await prisma.ticket.findMany({ orderBy: { exactDate: 'asc' }, take: 5 });
-    const finalLast = await prisma.ticket.findMany({ orderBy: { exactDate: 'desc' }, take: 5 });
-    
-    console.log('\nOldest tickets (should have lowest serial numbers):');
-    for (const t of final) {
-      console.log(`  ${t.serialNo}  |  ${new Date(t.exactDate).toLocaleDateString()}  |  ${t.subject.substring(0, 60)}`);
-    }
-    console.log('\nNewest tickets (should have highest serial numbers):');
-    for (const t of finalLast.reverse()) {
-      console.log(`  ${t.serialNo}  |  ${new Date(t.exactDate).toLocaleDateString()}  |  ${t.subject.substring(0, 60)}`);
-    }
-
-    console.log(`\n✅ Done! ${tickets.length} tickets reindexed chronologically.`);
+    console.log('\n✅ Done!');
   } catch (err) {
-    console.error('Reindex error:', err);
+    console.error('Fix error:', err.message);
   } finally {
     await prisma.$disconnect();
   }
 }
 
-reindex();
+fixSerials();

@@ -5,6 +5,7 @@ import {
   Users, Activity, UserPlus, Trash2, X, UserCheck, ShieldAlert,
   Settings, Mail, FileText, RefreshCw, Filter, Search,
   DollarSign, Globe, Phone, MapPin, Save, Eye, Key,
+  TrendingUp, TrendingDown, Check
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
@@ -246,22 +247,42 @@ export default function AdminCommandCenter() {
               <h2 style={{ fontSize: 18, margin: 0 }}>Financial Overview</h2>
             </div>
             {financials && (
-              <div className="financial-row">
+              <div className="financial-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16 }}>
                 <div className="financial-tile">
-                  <span className="field-label">Gross Revenue</span>
-                  <div className="financial-value" style={{ color: '#00f2fe' }}>Rs. {financials.grossRevenue.toLocaleString()}</div>
+                  <span className="field-label">Total Invoices Sent</span>
+                  <div className="financial-value" style={{ color: '#3b82f6', fontSize: 20 }}>
+                    Rs. {financials.totalInvoicesSent.toLocaleString()}
+                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 'normal', marginTop: 4 }}>
+                      ({financials.invoicesCount} Invoices)
+                    </div>
+                  </div>
+                </div>
+                <div className="financial-tile">
+                  <span className="field-label">Total Business</span>
+                  <div className="financial-value" style={{ color: '#a78bfa', fontSize: 20 }}>
+                    Rs. {financials.totalBusiness.toLocaleString()}
+                  </div>
+                </div>
+                <div className="financial-tile">
+                  <span className="field-label">Total Received Amount</span>
+                  <div className="financial-value" style={{ color: '#00f2fe', fontSize: 20 }}>
+                    Rs. {financials.totalReceived.toLocaleString()}
+                  </div>
                 </div>
                 <div className="financial-tile">
                   <span className="field-label">Total Expenses</span>
-                  <div className="financial-value" style={{ color: '#f87171' }}>Rs. {financials.totalExpenses.toLocaleString()}</div>
+                  <div className="financial-value" style={{ color: '#f87171', fontSize: 20 }}>
+                    Rs. {financials.totalExpenses.toLocaleString()}
+                  </div>
                 </div>
-                <div className="financial-tile">
-                  <span className="field-label">Tax Deduction ({(financials.taxRate * 100).toFixed(0)}%)</span>
-                  <div className="financial-value" style={{ color: '#f59e0b' }}>Rs. {financials.taxDeduction.toLocaleString()}</div>
-                </div>
-                <div className="financial-tile net">
-                  <span className="field-label">Net Cash Flow</span>
-                  <div className="financial-value" style={{ color: '#34d399' }}>Rs. {financials.netCashFlow.toLocaleString()}</div>
+                <div className="financial-tile net" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)', paddingLeft: 16 }}>
+                  <span className="field-label" style={{ color: financials.isProfit ? '#10b981' : '#f87171', fontWeight: 600 }}>
+                    {financials.isProfit ? 'Profit' : 'Loss'} Status
+                  </span>
+                  <div className="financial-value" style={{ color: financials.isProfit ? '#34d399' : '#f87171', display: 'flex', alignItems: 'center', gap: 6, fontSize: 20 }}>
+                    {financials.isProfit ? <TrendingUp size={18} color="#34d399" /> : <TrendingDown size={18} color="#f87171" />}
+                    Rs. {Math.abs(financials.profitOrLoss).toLocaleString()}
+                  </div>
                 </div>
               </div>
             )}

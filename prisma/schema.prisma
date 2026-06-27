@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/client"
 }
 
 datasource db {
@@ -22,6 +23,7 @@ model User {
   createdSurveys SurveyReport[]    @relation("CreatedSurveys")
   createdQuotations QuotationInvoice[] @relation("CreatedQuotations")
   createdExpenses Expense[]       @relation("CreatedExpenses")
+  createdPayments PaymentReceived[] @relation("CreatedPayments")
   gmailAccounts  GmailAccount[]
   createdTickets Ticket[]        @relation("CreatedTickets")
 }
@@ -77,6 +79,7 @@ model JobMetadata {
   surveyReport       SurveyReport?
   quotationInvoices  QuotationInvoice[]
   expenses           Expense[]
+  payments           PaymentReceived[]
 }
 
 model SurveyReport {
@@ -115,3 +118,16 @@ model Expense {
   summaryNotes  String
   createdAt     DateTime    @default(now())
 }
+
+model PaymentReceived {
+  id            Int         @id @default(autoincrement())
+  jobMetadataId Int
+  jobMetadata   JobMetadata @relation(fields: [jobMetadataId], references: [id], onDelete: Cascade)
+  createdById   Int?
+  createdBy     User?       @relation("CreatedPayments", fields: [createdById], references: [id], onDelete: SetNull)
+  amount        Float
+  imageUrl      String?
+  summaryNotes  String
+  createdAt     DateTime    @default(now())
+}
+

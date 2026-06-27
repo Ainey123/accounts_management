@@ -33,6 +33,7 @@ export async function GET(request) {
         surveyReport: { select: { id: true } },
         quotationInvoices: { select: { id: true, documentType: true, status: true } },
         expenses: { select: { id: true, amount: true } },
+        payments: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true } },
       },
     });
     return NextResponse.json({ jobs });

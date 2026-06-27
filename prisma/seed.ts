@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../src/generated/client";
 import { scryptSync, randomBytes } from 'crypto';
 
 function hashPassword(plain: string): string {

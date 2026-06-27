@@ -51,9 +51,9 @@ export default function EmployeeRealTimeDashboard() {
         setMyStatus(me.activeStatus);
       }
 
-      // 3. Load incoming operations feed (pending tickets)
-      const { tickets: pendingTickets } = await apiFetch('/api/tickets?pending=true');
-      setTickets(pendingTickets || []);
+      // 3. Load ALL incoming Gmail tickets (full ingestion stream)
+      const { tickets: allTickets } = await apiFetch('/api/tickets');
+      setTickets(allTickets || []);
 
       // 4. Calculate metrics
       const assigned = (fetchedJobs || []).length;

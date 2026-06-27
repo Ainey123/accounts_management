@@ -1,26 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// Get all connected Gmail accounts for current user
-export async function GET(request) {
+// Get all connected Gmail accounts (organizational resource, visible to all authenticated users)
+export async function GET() {
   try {
-    const userId = request.headers.get('x-user-id');
-    let accounts;
-    if (!userId) {
-      const firstUser = await prisma.user.findFirst();
-      if (!firstUser) {
-        return NextResponse.json({ accounts: [] });
-      }
-      accounts = await prisma.gmailAccount.findMany({
-        where: { userId: firstUser.id },
-        orderBy: { createdAt: 'desc' },
-      });
-    } else {
-      accounts = await prisma.gmailAccount.findMany({
-        where: { userId: Number(userId) },
-        orderBy: { createdAt: 'desc' },
-      });
-    }
+    const accounts = await prisma.gmailAccount.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
 
     return NextResponse.json({
       accounts: accounts.map((a) => ({

@@ -36,6 +36,7 @@ export default function EmployeeRealTimeDashboard() {
 
   // Payment form state
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentTaxDeducted, setPaymentTaxDeducted] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
   const [paymentImg, setPaymentImg] = useState('');
   const [capturedPaymentImg, setCapturedPaymentImg] = useState(null);
@@ -158,6 +159,7 @@ export default function EmployeeRealTimeDashboard() {
         body: JSON.stringify({
           jobMetadataId: jobId,
           amount: parseFloat(paymentAmount),
+          taxDeducted: paymentTaxDeducted ? parseFloat(paymentTaxDeducted) : 0,
           imageUrl: finalUrl || null,
           summaryNotes: paymentNotes,
         }),
@@ -165,6 +167,7 @@ export default function EmployeeRealTimeDashboard() {
 
       setMessage('Payment logged successfully!');
       setPaymentAmount('');
+      setPaymentTaxDeducted('');
       setPaymentNotes('');
       setPaymentImg('');
       setCapturedPaymentImg(null);
@@ -608,6 +611,16 @@ export default function EmployeeRealTimeDashboard() {
                               required
                               value={paymentAmount}
                               onChange={(e) => setPaymentAmount(e.target.value)}
+                              placeholder="0.00"
+                              style={{ marginBottom: 16 }}
+                            />
+
+                            <label className="field-label">Tax Deduction (Rs. Optional)</label>
+                            <input
+                              className="nexus-input"
+                              type="number"
+                              value={paymentTaxDeducted}
+                              onChange={(e) => setPaymentTaxDeducted(e.target.value)}
                               placeholder="0.00"
                               style={{ marginBottom: 16 }}
                             />

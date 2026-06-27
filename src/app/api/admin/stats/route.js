@@ -4,35 +4,32 @@ import { prisma } from '@/lib/prisma';
 export async function GET() {
   try {
     const [
-      pendingTickets,
-      intakeForms,
-      surveys,
-      pendingQuotations,
-      pendingInvoices,
+      notEnteredComplaints,
+      enteredEmails,
+      generatedQuotes,
       approvedQuotations,
+      generatedInvoices,
     ] = await Promise.all([
       prisma.ticket.count({ where: { jobMetadata: null } }),
-      prisma.jobMetadata.count(),
-      prisma.surveyReport.count(),
+      prisma.ticket.count({ where: { jobMetadata: { isNot: null } } }),
       prisma.quotationInvoice.count({
-        where: { documentType: 'QUOTATION', status: 'PENDING' },
-      }),
-      prisma.quotationInvoice.count({
-        where: { documentType: 'INVOICE', status: 'PENDING' },
+        where: { documentType: 'QUOTATION' },
       }),
       prisma.quotationInvoice.count({
         where: { documentType: 'QUOTATION', status: 'APPROVED' },
+      }),
+      prisma.quotationInvoice.count({
+        where: { documentType: 'INVOICE' },
       }),
     ]);
 
     return NextResponse.json({
       stats: {
-        pendingTickets,
-        intakeForms,
-        surveys,
-        pendingQuotations,
-        pendingInvoices,
+        notEnteredComplaints,
+        enteredEmails,
+        generatedQuotes,
         approvedQuotations,
+        generatedInvoices,
       },
     });
   } catch (error) {

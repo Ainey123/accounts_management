@@ -28,7 +28,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const { jobMetadataId, amount, imageUrl, summaryNotes } = await request.json();
+    const { jobMetadataId, amount, taxDeducted, imageUrl, summaryNotes } = await request.json();
     const authCookie = request.headers.get('x-user-id') || request.cookies.get('nexus_user')?.value;
     let userId = null;
     if (authCookie) {
@@ -48,6 +48,7 @@ export async function POST(request) {
         data: {
           jobMetadataId: Number(jobMetadataId),
           amount: Number(amount),
+          taxDeducted: taxDeducted ? Number(taxDeducted) : 0,
           imageUrl: imageUrl || null,
           summaryNotes,
           createdById: userId,
@@ -63,6 +64,7 @@ export async function POST(request) {
         data: {
           jobMetadataId: Number(jobMetadataId),
           amount: Number(amount),
+          taxDeducted: taxDeducted ? Number(taxDeducted) : 0,
           imageUrl: imageUrl || null,
           summaryNotes,
         },

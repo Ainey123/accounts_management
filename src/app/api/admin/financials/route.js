@@ -38,41 +38,33 @@ export async function GET() {
       return [];
     };
 
-    const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
-
     const revenueFromInvoices = invoices.reduce((sum, inv) => {
       const items = parseLineItems(inv.lineItems);
       const docTotal = items.reduce((s, item) => s + (Number(item.amount) || 0), 0);
       return sum + docTotal;
     }, 0);
 
-    const revenueFromApprovedQuotes = quotations.reduce((sum, q) => {
-      const items = parseLineItems(q.lineItems);
-      const docTotal = items.reduce((s, item) => s + (Number(item.amount) || 0), 0);
-      return sum + docTotal;
-    }, 0);
-
-    const totalInvoicesSent = revenueFromInvoices;
-    const totalBusiness = revenueFromInvoices + revenueFromApprovedQuotes;
+    const totalBusiness = revenueFromInvoices;
     const totalReceived = payments.reduce((sum, p) => sum + p.amount, 0);
-    const profitOrLoss = totalReceived - totalExpenses;
-
-    const taxableIncome = Math.max(0, totalReceived - totalExpenses);
-    const taxDeduction = taxableIncome * TAX_RATE;
-    const netCashFlow = totalReceived - totalExpenses - taxDeduction;
+    const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+    
+    // Tax deducted is now manually entered by employees for each payment
+    const taxDeduction = payments.reduce((sum, p) => sum + (p.taxDeducted || 0), 0);
+    
+    const netTotalBusiness = totalBusiness - taxDeduction;
+    const profitOrLoss = totalReceived - totalExpenses; // Cash flow profit/loss
 
     return NextResponse.json({
       financials: {
         totalExpenses,
-        totalInvoicesSent,
+        totalInvoicesSent: revenueFromInvoices,
         invoicesCount: invoices.length,
         totalBusiness,
         totalReceived,
         profitOrLoss,
         isProfit: profitOrLoss >= 0,
         taxDeduction,
-        netCashFlow,
-        taxRate: TAX_RATE,
+        netTotalBusiness,
       },
       expenses,
       quotations,

@@ -225,12 +225,11 @@ export default function AdminCommandCenter() {
             {stats && (
               <div className="admin-metrics-row">
                 {[
-                  { label: 'Pending Gmail', value: stats.pendingTickets, color: '#f59e0b' },
-                  { label: 'Intake Forms', value: stats.intakeForms, color: '#00f2fe' },
-                  { label: 'Surveys', value: stats.surveys, color: '#a78bfa' },
-                  { label: 'Unsigned Quotes', value: stats.pendingQuotations, color: '#f87171' },
-                  { label: 'Pending Invoices', value: stats.pendingInvoices, color: '#34d399' },
+                  { label: 'Not Entered Complaints', value: stats.notEnteredComplaints, color: '#f59e0b' },
+                  { label: 'Entered Emails', value: stats.enteredEmails, color: '#00f2fe' },
+                  { label: 'Generated Quotes', value: stats.generatedQuotes, color: '#a78bfa' },
                   { label: 'Approved Quotes', value: stats.approvedQuotations, color: '#22c55e' },
+                  { label: 'Generated Invoices', value: stats.generatedInvoices, color: '#3b82f6' },
                 ].map((m) => (
                   <div key={m.label} className="metric-tile">
                     <div className="metric-digit" style={{ color: m.color }}>{m.value}</div>
@@ -249,30 +248,30 @@ export default function AdminCommandCenter() {
             {financials && (
               <div className="financial-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16 }}>
                 <div className="financial-tile">
-                  <span className="field-label">Total Invoices Sent</span>
+                  <span className="field-label">Total Business</span>
                   <div className="financial-value" style={{ color: '#3b82f6', fontSize: 20 }}>
-                    Rs. {financials.totalInvoicesSent.toLocaleString()}
+                    Rs. {financials.totalBusiness.toLocaleString()}
                     <div style={{ fontSize: 11, color: '#64748b', fontWeight: 'normal', marginTop: 4 }}>
                       ({financials.invoicesCount} Invoices)
                     </div>
                   </div>
                 </div>
                 <div className="financial-tile">
-                  <span className="field-label">Total Business</span>
-                  <div className="financial-value" style={{ color: '#a78bfa', fontSize: 20 }}>
-                    Rs. {financials.totalBusiness.toLocaleString()}
-                  </div>
-                </div>
-                <div className="financial-tile">
-                  <span className="field-label">Total Received Amount</span>
-                  <div className="financial-value" style={{ color: '#00f2fe', fontSize: 20 }}>
-                    Rs. {financials.totalReceived.toLocaleString()}
-                  </div>
-                </div>
-                <div className="financial-tile">
-                  <span className="field-label">Total Expenses</span>
+                  <span className="field-label">Total Tax Deduction</span>
                   <div className="financial-value" style={{ color: '#f87171', fontSize: 20 }}>
-                    Rs. {financials.totalExpenses.toLocaleString()}
+                    Rs. {financials.taxDeduction.toLocaleString()}
+                  </div>
+                </div>
+                <div className="financial-tile">
+                  <span className="field-label">Net Amount</span>
+                  <div className="financial-value" style={{ color: '#00f2fe', fontSize: 20 }}>
+                    Rs. {financials.netTotalBusiness.toLocaleString()}
+                  </div>
+                </div>
+                <div className="financial-tile">
+                  <span className="field-label">Total Received</span>
+                  <div className="financial-value" style={{ color: '#34d399', fontSize: 20 }}>
+                    Rs. {financials.totalReceived.toLocaleString()}
                   </div>
                 </div>
                 <div className="financial-tile net" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)', paddingLeft: 16 }}>

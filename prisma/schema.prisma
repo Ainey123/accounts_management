@@ -72,6 +72,7 @@ model JobMetadata {
   workNature         String
   assignedEmployeeId Int?
   assignedEmployee   User?              @relation(fields: [assignedEmployeeId], references: [id], onDelete: SetNull)
+  manualEnteredBy    String?
   createdById        Int?
   createdBy          User?              @relation("CreatedJobs", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt          DateTime           @default(now())
@@ -89,6 +90,7 @@ model SurveyReport {
   createdById   Int?
   createdBy     User?       @relation("CreatedSurveys", fields: [createdById], references: [id], onDelete: SetNull)
   reportText    String
+  imageUrl      String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 }
@@ -126,6 +128,7 @@ model PaymentReceived {
   createdById   Int?
   createdBy     User?       @relation("CreatedPayments", fields: [createdById], references: [id], onDelete: SetNull)
   amount        Float
+  taxDeducted   Float       @default(0)
   imageUrl      String?
   summaryNotes  String
   createdAt     DateTime    @default(now())

@@ -24,7 +24,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const { jobMetadataId, reportText } = await request.json();
+    const { jobMetadataId, reportText, imageUrl } = await request.json();
     const authCookie = request.headers.get('x-user-id') || request.cookies.get('nexus_user')?.value;
     let userId = null;
     if (authCookie) {
@@ -41,15 +41,15 @@ export async function POST(request) {
     try {
       const report = await prisma.surveyReport.upsert({
         where: { jobMetadataId: Number(jobMetadataId) },
-        create: { jobMetadataId: Number(jobMetadataId), reportText, createdById: userId },
-        update: { reportText, createdById: userId },
+        create: { jobMetadataId: Number(jobMetadataId), reportText, imageUrl: imageUrl || null, createdById: userId },
+        update: { reportText, imageUrl: imageUrl || null, createdById: userId },
       });
       return NextResponse.json({ report });
     } catch (e) {
       const report = await prisma.surveyReport.upsert({
         where: { jobMetadataId: Number(jobMetadataId) },
-        create: { jobMetadataId: Number(jobMetadataId), reportText },
-        update: { reportText },
+        create: { jobMetadataId: Number(jobMetadataId), reportText, imageUrl: imageUrl || null },
+        update: { reportText, imageUrl: imageUrl || null },
       });
       return NextResponse.json({ report });
     }

@@ -25,6 +25,7 @@ export default function IntakeGridPage() {
     personOfContact: '',
     workNature: '',
     assignedEmployeeId: '',
+    manualEnteredBy: '',
   });
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -90,10 +91,11 @@ export default function IntakeGridPage() {
           personOfContact: form.personOfContact,
           workNature: form.workNature,
           assignedEmployeeId: form.assignedEmployeeId ? Number(form.assignedEmployeeId) : null,
+          manualEnteredBy: form.manualEnteredBy,
         }),
       });
       setMessage('Job metadata saved. Serial assigned from ticket.');
-      setForm({ clientName: '', branchName: '', personOfContact: '', workNature: '', assignedEmployeeId: '' });
+      setForm({ clientName: '', branchName: '', personOfContact: '', workNature: '', assignedEmployeeId: '', manualEnteredBy: '' });
       const { tickets: updated } = await apiFetch('/api/tickets?pending=true');
       setTickets(updated);
       if (updated.length) setSelectedTicketId(String(updated[0].id));
@@ -190,6 +192,10 @@ export default function IntakeGridPage() {
               ))}
             </select>
           </div>
+          <div>
+            <label className="field-label"><User size={12} style={{ display: 'inline', marginRight: 4 }} />Manually Entered By</label>
+            <input className="nexus-input" name="manualEnteredBy" value={form.manualEnteredBy} onChange={handleChange} placeholder="If not in system" />
+          </div>
         </div>
 
         {message && (
@@ -213,7 +219,7 @@ export default function IntakeGridPage() {
               <th>Branch</th>
               <th>POC</th>
               <th>Work Nature</th>
-              <th>Assigned</th>
+              <th>Assigned / Entered By</th>
             </tr>
           </thead>
           <tbody>
@@ -227,7 +233,7 @@ export default function IntakeGridPage() {
                   <td>{job.branchName}</td>
                   <td>{job.personOfContact}</td>
                   <td>{job.workNature}</td>
-                  <td>{job.assignedEmployee?.employeeName || '—'}</td>
+                  <td>{job.assignedEmployee?.employeeName || job.manualEnteredBy || '—'}</td>
                 </tr>
               ))
             )}

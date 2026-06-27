@@ -124,14 +124,16 @@ export default function FinancialLedgerPage() {
               <th>Serial</th>
               <th>Client</th>
               <th>Employee</th>
-              <th>Amount</th>
+              <th>Amount Received</th>
+              <th>Tax Deducted</th>
+              <th>Net Status</th>
               <th>Notes</th>
               <th>Receipt</th>
             </tr>
           </thead>
           <tbody>
             {payments.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No payments received.</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No payments received.</td></tr>
             ) : (
               payments.map((pay) => (
                 <tr key={pay.id}>
@@ -139,6 +141,8 @@ export default function FinancialLedgerPage() {
                   <td>{pay.jobMetadata?.clientName || '—'}</td>
                   <td>{pay.createdBy?.employeeName || '—'}</td>
                   <td style={{ color: '#34d399' }}>Rs. {pay.amount.toLocaleString()}</td>
+                  <td style={{ color: '#f87171' }}>Rs. {(pay.taxDeducted || 0).toLocaleString()}</td>
+                  <td style={{ color: '#00f2fe', fontWeight: 'bold' }}>Rs. {(pay.amount - (pay.taxDeducted || 0)).toLocaleString()}</td>
                   <td>{pay.summaryNotes}</td>
                   <td>{pay.imageUrl ? <a href={pay.imageUrl} target="_blank" rel="noreferrer" style={{ color: '#00f2fe' }}>View</a> : '—'}</td>
                 </tr>

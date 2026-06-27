@@ -24,7 +24,7 @@ export async function GET(request) {
 
     const tickets = await withRetry(() => prisma.ticket.findMany({
       where: pending ? { jobMetadata: null } : undefined,
-      orderBy: { id: 'desc' },
+      orderBy: { exactDate: 'desc' },
       include: {
         gmailAccount: { select: { id: true, gmailEmail: true } },
         createdBy: { select: { id: true, employeeName: true, email: true } },

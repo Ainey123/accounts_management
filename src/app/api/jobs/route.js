@@ -45,7 +45,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const { ticketId, clientName, branchName, personOfContact, workNature, assignedEmployeeId } =
+    const { ticketId, clientName, branchName, personOfContact, workNature, assignedEmployeeId, manualEnteredBy } =
       await request.json();
     const user = getUserFromCookie(request);
     const userId = user?.id || null;
@@ -78,6 +78,7 @@ export async function POST(request) {
         personOfContact,
         workNature,
         assignedEmployeeId: assignedEmployeeId ? Number(assignedEmployeeId) : null,
+        manualEnteredBy: manualEnteredBy || null,
         createdById: userId,
       },
       include: {

@@ -56,11 +56,12 @@ async function syncAccount(account) {
 
   try {
     do {
-      // Query optimized to only fetch complaint-relevant emails directly from the Gmail API
+      // Fetch ALL emails in date range — let the app-side isComplaintEmail filter handle keyword matching
+      // Previous query had complaint keywords that caused recent emails to be missed
       const response = await gmail.users.messages.list({
         userId: 'me',
         maxResults: 100,
-        q: 'after:2026/01/01 before:2027/01/01 (complaint OR issue OR problem OR fault OR urgent OR repair OR maintenance OR breakdown OR error OR not working OR service OR assistance OR help OR ticket OR work order) -from:linkedin.com -from:google.com -subject:"security alert" -subject:"new sign-in" -subject:"password changed"',
+        q: 'after:2026/01/01 before:2027/12/31 -from:linkedin.com -from:google.com -subject:"security alert" -subject:"new sign-in" -subject:"password changed"',
         pageToken,
       });
 
@@ -86,9 +87,12 @@ async function syncAccount(account) {
     throw error;
   }
 
+  // Reverse so oldest emails are processed first → oldest gets lowest serial number
+  messages.reverse();
+
   for (const message of messages) {
     if (syncedIds.includes(message.id)) {
-      continue; // Skip already-synced messages (use continue, not break, to handle gaps)
+      continue; // Skip already-synced messages
     }
 
     const msg = await gmail.users.messages.get({

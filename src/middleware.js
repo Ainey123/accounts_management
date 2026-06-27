@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-export function proxy(request) {
+export default function middleware(request) {
   const authCookie = request.cookies.get('nexus_user');
   const { pathname } = request.nextUrl;
 
@@ -9,6 +9,7 @@ export function proxy(request) {
     pathname.startsWith('/api/auth/') ||
     pathname.startsWith('/api/seed') ||
     pathname.startsWith('/api/gmail/callback') ||
+    pathname === '/api/gmail-sync' ||
     pathname === '/api/fix-db';
 
   if (!authCookie) {

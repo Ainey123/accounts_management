@@ -26,6 +26,26 @@ async function syncAccount(account) {
     expiry_date: Number(account.expiryDate),
   });
 
+  // Automatically save refreshed tokens to prevent authentication dropouts
+  oauth2Client.on('tokens', async (tokens) => {
+    try {
+      const updateData = {};
+      if (tokens.access_token) updateData.accessToken = tokens.access_token;
+      if (tokens.expiry_date) updateData.expiryDate = BigInt(tokens.expiry_date);
+      if (tokens.refresh_token) updateData.refreshToken = tokens.refresh_token;
+
+      if (Object.keys(updateData).length > 0) {
+        await prisma.gmailAccount.update({
+          where: { id: account.id },
+          data: updateData,
+        });
+        console.log(`Updated refreshed Google OAuth tokens in database for ${account.gmailEmail}`);
+      }
+    } catch (e) {
+      console.error(`Error updating refreshed token for ${account.gmailEmail}:`, e);
+    }
+  });
+
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
   const syncedIds = JSON.parse(account.syncedEmailIds || '[]');
   const updatedSyncedIds = [...syncedIds];
@@ -34,21 +54,41 @@ async function syncAccount(account) {
   let messages = [];
   let pageToken = null;
 
-  do {
-    const response = await gmail.users.messages.list({
-      userId: 'me',
-      maxResults: 500,
-      q: 'after:2026/01/01 before:2027/01/01 -from:linkedin.com -from:google.com -subject:"security alert" -subject:"new sign-in" -subject:"password changed"',
-      pageToken,
-    });
+  try {
+    do {
+      // Query optimized to only fetch complaint-relevant emails directly from the Gmail API
+      const response = await gmail.users.messages.list({
+        userId: 'me',
+        maxResults: 100,
+        q: 'after:2026/01/01 before:2027/01/01 (complaint OR issue OR problem OR fault OR urgent OR repair OR maintenance OR breakdown OR error OR not working OR service OR assistance OR help OR ticket OR work order) -from:linkedin.com -from:google.com -subject:"security alert" -subject:"new sign-in" -subject:"password changed"',
+        pageToken,
+      });
 
-    messages = messages.concat(response.data.messages || []);
-    pageToken = response.data.nextPageToken;
-  } while (pageToken);
+      const pageMessages = response.data.messages || [];
+      
+      // Check if we hit any messages we've already synced in this page to break pagination early
+      let hitSynced = false;
+      for (const m of pageMessages) {
+        if (syncedIds.includes(m.id)) {
+          hitSynced = true;
+          break;
+        }
+      }
+
+      messages = messages.concat(pageMessages);
+      if (hitSynced || !response.data.nextPageToken) {
+        break;
+      }
+      pageToken = response.data.nextPageToken;
+    } while (pageToken);
+  } catch (error) {
+    console.error(`Failed to list messages for ${account.gmailEmail}:`, error.message);
+    throw error;
+  }
 
   for (const message of messages) {
-    if (updatedSyncedIds.includes(message.id)) {
-      continue;
+    if (syncedIds.includes(message.id)) {
+      continue; // Skip already-synced messages (use continue, not break, to handle gaps)
     }
 
     const msg = await gmail.users.messages.get({
@@ -84,8 +124,11 @@ async function syncAccount(account) {
       const serialNo = await nextTicketSerialNo();
 
       try {
-        const ticket = await prisma.ticket.create({
-          data: {
+        // Use upsert to prevent unique constraint violations on gmailMessageId
+        const ticket = await prisma.ticket.upsert({
+          where: { gmailMessageId: message.id },
+          update: {},  // Don't overwrite existing tickets
+          create: {
             gmailAccountId: account.id,
             gmailMessageId: message.id,
             serialNo,
@@ -95,7 +138,10 @@ async function syncAccount(account) {
             sender: from,
           },
         });
-        savedTickets.push(ticket);
+        // Only count as new if it was actually created (not an existing record)
+        if (ticket.serialNo === serialNo) {
+          savedTickets.push(ticket);
+        }
       } catch (e) {
         console.error(`Failed to save ticket for ${message.id}:`, e.message);
       }

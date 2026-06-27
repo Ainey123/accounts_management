@@ -3,13 +3,12 @@ import { prisma } from '@/lib/prisma';
 
 const WORK_NATURES = ['ELECTRICAL', 'WAPDA', 'MAINTENANCE', 'PROJECT'];
 
-function getUserId(request) {
+function getUserFromCookie(request) {
   const authCookie = request.headers.get('x-user-id') || request.cookies.get('nexus_user')?.value;
   if (!authCookie) return null;
   try {
     const decoded = typeof authCookie === 'string' ? decodeURIComponent(authCookie) : authCookie;
-    const parsed = decoded.startsWith('{') ? JSON.parse(decoded) : null;
-    return parsed?.id || null;
+    return decoded.startsWith('{') ? JSON.parse(decoded) : null;
   } catch {
     return null;
   }
@@ -17,9 +16,15 @@ function getUserId(request) {
 
 export async function GET(request) {
   try {
-    const userId = getUserId(request);
+    const user = getUserFromCookie(request);
+    let whereClause = undefined;
+
+    if (user && user.role === 'EMPLOYEE') {
+      whereClause = { assignedEmployeeId: user.id };
+    }
+
     const jobs = await prisma.jobMetadata.findMany({
-      where: userId ? { createdById: userId } : undefined,
+      where: whereClause,
       orderBy: { id: 'desc' },
       include: {
         ticket: true,
@@ -41,7 +46,8 @@ export async function POST(request) {
   try {
     const { ticketId, clientName, branchName, personOfContact, workNature, assignedEmployeeId } =
       await request.json();
-    const userId = getUserId(request);
+    const user = getUserFromCookie(request);
+    const userId = user?.id || null;
 
     if (!ticketId || !clientName || !branchName || !personOfContact || !workNature) {
       return NextResponse.json({ error: 'All job metadata fields are required' }, { status: 400 });

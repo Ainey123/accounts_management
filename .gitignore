@@ -42,6 +42,11 @@ prisma/prisma/dev.db
 # vercel
 .vercel
 
+# Backups contain OAuth tokens - never push to git
+/backups/
+scripts/nexus-daemon.log
+.kilo/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { scryptSync, randomBytes, timingSafeEqual } from 'crypto';
+import { scryptSync, randomBytes } from 'crypto';
 
 function hashPassword(plain: string): string {
   const salt = randomBytes(16).toString('hex');
@@ -12,11 +12,20 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding operational user roles...");
   
-  await prisma.user.deleteMany({});
+  // We use upsert instead of deleteMany + create to protect user data and connected accounts during seeding.
+  const adminEmail = "admin@fes.com";
+  const employeeEmail = "employee@fes.com";
 
-  await prisma.user.create({
-    data: {
-      email: "admin@fes.com",
+  await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: {
+      password: hashPassword("admin123"),
+      role: "ADMIN",
+      employeeName: "Master Admin",
+      activeStatus: true,
+    },
+    create: {
+      email: adminEmail,
       password: hashPassword("admin123"),
       role: "ADMIN",
       employeeName: "Master Admin",
@@ -24,9 +33,16 @@ async function main() {
     },
   });
 
-  await prisma.user.create({
-    data: {
-      email: "employee@fes.com",
+  await prisma.user.upsert({
+    where: { email: employeeEmail },
+    update: {
+      password: hashPassword("employee123"),
+      role: "EMPLOYEE",
+      employeeName: "Field Operations Group",
+      activeStatus: true,
+    },
+    create: {
+      email: employeeEmail,
       password: hashPassword("employee123"),
       role: "EMPLOYEE",
       employeeName: "Field Operations Group",
@@ -34,9 +50,9 @@ async function main() {
     },
   });
 
-  console.log("Seeding complete! Users created with hashed passwords.");
-  console.log("Admin: admin@fes.com / admin123");
-  console.log("Employee: employee@fes.com / employee123");
+  console.log("Seeding complete! Users upserted with hashed passwords.");
+  console.log("Admin credentials:", { email: adminEmail, password: "admin123" });
+  console.log("Employee credentials:", { email: employeeEmail, password: "employee123" });
 }
 
 main()

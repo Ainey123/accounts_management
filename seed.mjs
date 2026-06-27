@@ -4,7 +4,7 @@ import { hashPassword } from './src/lib/password.js';
 async function main() {
   try {
     const adminEmail = 'admin@gmail.com';
-    const employeeEmail = 'guest@example.com';
+    const employeeEmail = 'user@gmail.com';
 
     await prisma.user.upsert({
       where: { email: adminEmail },
@@ -26,23 +26,23 @@ async function main() {
     await prisma.user.upsert({
       where: { email: employeeEmail },
       update: {
-        password: hashPassword('guest123'),
+        password: hashPassword('user123'),
         role: 'EMPLOYEE',
-        employeeName: 'Guest User',
+        employeeName: 'Default User',
         activeStatus: true,
       },
       create: {
         email: employeeEmail,
-        password: hashPassword('guest123'),
+        password: hashPassword('user123'),
         role: 'EMPLOYEE',
-        employeeName: 'Guest User',
+        employeeName: 'Default User',
         activeStatus: true,
       },
     });
 
     console.log('Seed complete!');
     console.log('Admin credentials:', { email: adminEmail, password: 'admin123' });
-    console.log('Guest credentials:', { email: employeeEmail, password: 'guest123' });
+    console.log('Employee credentials:', { email: employeeEmail, password: 'user123' });
   } catch (error) {
     console.error('Seed error:', error);
     process.exit(1);

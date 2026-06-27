@@ -19,7 +19,7 @@ export default function LoginPage() {
     try {
       const { user } = await apiFetch('/api/auth/pin-login', {
         method: 'POST',
-        body: JSON.stringify({ pin, role: activeTab }),
+        body: JSON.stringify({ pin: pin.trim(), role: activeTab }),
       });
       await login(user.email, user.tempPassword, user.role);
     } catch (err) {

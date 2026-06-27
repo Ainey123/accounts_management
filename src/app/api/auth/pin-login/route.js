@@ -11,11 +11,11 @@ export async function POST(request) {
   console.log('PIN login attempt:', { role, pinStr, ADMIN_PIN });
 
   if (role === 'ADMIN' && pinStr === ADMIN_PIN) {
-    return NextResponse.json({ user: { email: 'admin@gmail.com', tempPassword: 'admin123', role: 'ADMIN' } });
+    return NextResponse.json({ user: { email: 'admin@gmail.com', tempPassword: 'temp-admin123', role: 'ADMIN' } });
   }
   
   if (role === 'EMPLOYEE' && pinStr === EMPLOYEE_PIN) {
-    return NextResponse.json({ user: { email: 'user@gmail.com', tempPassword: 'user123', role: 'EMPLOYEE' } });
+    return NextResponse.json({ user: { email: 'user@gmail.com', tempPassword: 'temp-user123', role: 'EMPLOYEE' } });
   }
 
   return NextResponse.json({ error: 'Invalid PIN' }, { status: 401 });

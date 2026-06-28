@@ -5,7 +5,7 @@ const TAX_RATE = 0.15;
 
 export async function GET() {
   try {
-    const [expenses, quotations, invoices, payments] = await Promise.all([
+    const [expenses, quotations, invoices, payments, workCompletions] = await Promise.all([
       prisma.expense.findMany({
         include: { jobMetadata: { include: { ticket: true } } },
       }),
@@ -21,6 +21,9 @@ export async function GET() {
           jobMetadata: { include: { ticket: true } },
         },
         orderBy: { createdAt: 'desc' },
+      }),
+      prisma.workCompletion.findMany({
+        where: { status: 'COMPLETED' },
       }),
     ]);
 
@@ -44,29 +47,23 @@ export async function GET() {
       return sum + docTotal;
     }, 0);
 
-    const totalBusiness = revenueFromInvoices;
+    const totalBusiness = workCompletions.reduce((sum, wc) => sum + (Number(wc.amount) || 0), 0);
+    const totalReceivable = revenueFromInvoices;
     const totalReceived = payments.reduce((sum, p) => sum + p.amount, 0);
     const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
-    
-    // Tax deducted is now manually entered by employees for each payment
     const taxDeduction = payments.reduce((sum, p) => sum + (p.taxDeducted || 0), 0);
     
-    const netTotalBusiness = totalBusiness - taxDeduction;
-    const profitOrLoss = totalReceived - totalExpenses; // Cash flow profit/loss
+    const profitOrLoss = totalReceived - totalExpenses - taxDeduction; // Cash flow profit/loss
 
     return NextResponse.json({
       financials: {
-        totalExpenses,
-        totalInvoicesSent: revenueFromInvoices,
-        invoicesCount: invoices.length,
         totalBusiness,
+        totalReceivable,
         totalReceived,
+        totalExpenses,
+        taxDeduction,
         profitOrLoss,
         isProfit: profitOrLoss >= 0,
-        taxDeduction,
-        netTotalBusiness,
-        taxRate: TAX_RATE,
-        netCashFlow: profitOrLoss - taxDeduction,
       },
       expenses,
       quotations,

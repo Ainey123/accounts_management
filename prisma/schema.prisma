@@ -24,6 +24,7 @@ model User {
   createdQuotations QuotationInvoice[] @relation("CreatedQuotations")
   createdExpenses Expense[]       @relation("CreatedExpenses")
   createdPayments PaymentReceived[] @relation("CreatedPayments")
+  createdWorkCompletions WorkCompletion[] @relation("CreatedWorkCompletions")
   gmailAccounts  GmailAccount[]
   createdTickets Ticket[]        @relation("CreatedTickets")
 }
@@ -81,6 +82,7 @@ model JobMetadata {
   quotationInvoices  QuotationInvoice[]
   expenses           Expense[]
   payments           PaymentReceived[]
+  workCompletion     WorkCompletion?
 }
 
 model SurveyReport {
@@ -134,3 +136,15 @@ model PaymentReceived {
   createdAt     DateTime    @default(now())
 }
 
+model WorkCompletion {
+  id            Int         @id @default(autoincrement())
+  jobMetadataId Int         @unique
+  jobMetadata   JobMetadata @relation(fields: [jobMetadataId], references: [id], onDelete: Cascade)
+  createdById   Int?
+  createdBy     User?       @relation("CreatedWorkCompletions", fields: [createdById], references: [id], onDelete: SetNull)
+  status        String      @default("PENDING")
+  amount        Float       @default(0)
+  imageUrl      String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}

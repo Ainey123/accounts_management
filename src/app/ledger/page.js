@@ -34,53 +34,50 @@ export default function FinancialLedgerPage() {
         <h2 style={{ fontSize: 18, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
           <DollarSign size={20} color="#10b981" /> Financial Overview & Tax Breakdown
         </h2>
-        <div className="financial-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16 }}>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
           <div className="financial-tile">
-            <span className="field-label">Total Invoices Sent</span>
-            <div className="financial-value" style={{ color: '#3b82f6', display: 'flex', alignItems: 'center', gap: 8, fontSize: 18 }}>
-              Rs. {financials.totalInvoicesSent.toLocaleString()}
-            </div>
-          </div>
-          <div className="financial-tile">
-            <span className="field-label">Total Business</span>
-            <div className="financial-value" style={{ color: '#a78bfa', display: 'flex', alignItems: 'center', gap: 8, fontSize: 18 }}>
+            <span className="field-label">Total Business (Completed Work)</span>
+            <div className="financial-value" style={{ color: '#a78bfa', display: 'flex', alignItems: 'center', gap: 8, fontSize: 24 }}>
               Rs. {financials.totalBusiness.toLocaleString()}
             </div>
           </div>
+          
+          <div className="financial-tile">
+            <span className="field-label">Total Receivable (Invoices Sent)</span>
+            <div className="financial-value" style={{ color: '#3b82f6', display: 'flex', alignItems: 'center', gap: 8, fontSize: 24 }}>
+              Rs. {financials.totalReceivable.toLocaleString()}
+            </div>
+          </div>
+
           <div className="financial-tile">
             <span className="field-label">Total Received Amount</span>
-            <div className="financial-value" style={{ color: '#00f2fe', display: 'flex', alignItems: 'center', gap: 8, fontSize: 18 }}>
+            <div className="financial-value" style={{ color: '#00f2fe', display: 'flex', alignItems: 'center', gap: 8, fontSize: 24 }}>
               Rs. {financials.totalReceived.toLocaleString()}
             </div>
           </div>
+
           <div className="financial-tile">
-            <span className="field-label">Total Expenses</span>
-            <div className="financial-value" style={{ color: '#f87171', display: 'flex', alignItems: 'center', gap: 8, fontSize: 18 }}>
+            <span className="field-label">Total Site Expenses</span>
+            <div className="financial-value" style={{ color: '#f87171', display: 'flex', alignItems: 'center', gap: 8, fontSize: 24 }}>
               Rs. {financials.totalExpenses.toLocaleString()}
             </div>
           </div>
-          <div className="financial-tile net" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)', paddingLeft: 16 }}>
-            <span className="field-label" style={{ color: financials.isProfit ? '#10b981' : '#f87171', fontWeight: 600 }}>
-              {financials.isProfit ? 'Profit' : 'Loss'} Status
-            </span>
-            <div className="financial-value" style={{ color: financials.isProfit ? '#34d399' : '#f87171', display: 'flex', alignItems: 'center', gap: 6, fontSize: 18 }}>
-              {financials.isProfit ? <TrendingUp size={18} color="#34d399" /> : <TrendingDown size={18} color="#f87171" />}
-              Rs. {Math.abs(financials.profitOrLoss).toLocaleString()}
-            </div>
-          </div>
-        </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 24, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
           <div className="financial-tile">
-            <span className="field-label">Tax Deduction ({Math.round(financials.taxRate * 100)}% on Received Net)</span>
-            <div className="financial-value" style={{ color: '#22d3ee', fontSize: 24 }}>
+            <span className="field-label">Total Tax Deduction</span>
+            <div className="financial-value" style={{ color: '#22d3ee', display: 'flex', alignItems: 'center', gap: 8, fontSize: 24 }}>
               Rs. {financials.taxDeduction.toLocaleString()}
             </div>
           </div>
-          <div className="financial-tile net">
-            <span className="field-label">Net Final Cash Flow (After Tax)</span>
-            <div className="financial-value" style={{ color: '#34d399', fontSize: 24 }}>
-              Rs. {financials.netCashFlow.toLocaleString()}
+
+          <div className="financial-tile net" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+            <span className="field-label" style={{ color: financials.isProfit ? '#10b981' : '#f87171', fontWeight: 600 }}>
+              {financials.isProfit ? 'Profit' : 'Loss'} Status (After Tax & Expenses)
+            </span>
+            <div className="financial-value" style={{ color: financials.isProfit ? '#34d399' : '#f87171', display: 'flex', alignItems: 'center', gap: 6, fontSize: 24 }}>
+              {financials.isProfit ? <TrendingUp size={24} color="#34d399" /> : <TrendingDown size={24} color="#f87171" />}
+              Rs. {Math.abs(financials.profitOrLoss).toLocaleString()}
             </div>
           </div>
         </div>

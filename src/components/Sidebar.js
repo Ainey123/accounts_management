@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
   BarChart2, FileEdit, FileText, Briefcase, Landmark,
   Camera, DollarSign, Settings, LogOut, Receipt, Mail, Download,
-  Users, Eye, FileSearch, ClipboardList,
+  Users, Eye, FileSearch, ClipboardList, CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 
@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { name: 'Survey Canvas', href: '/survey', icon: FileText },
   { name: 'Quotation Studio', href: '/quotation', icon: Briefcase },
   { name: 'Bank Approval Console', href: '/approval', icon: Landmark },
+  { name: 'Work Completion Status', href: '/work-status', icon: CheckCircle2 },
   { name: 'Invoice Studio', href: '/invoice', icon: Receipt },
   { name: 'Documents Download', href: '/quotation', icon: Download },
   { name: 'Site Expense Log', href: '/site', icon: Camera },

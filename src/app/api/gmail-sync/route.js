@@ -77,7 +77,10 @@ async function syncAccount(account) {
       }
 
       messages = messages.concat(pageMessages);
-      if (hitSynced || !response.data.nextPageToken) {
+      
+      // Vercel serverless functions time out after 10s-15s. 
+      // If we've fetched 200 emails, break early to ensure we save our progress to the DB.
+      if (hitSynced || !response.data.nextPageToken || messages.length >= 200) {
         break;
       }
       pageToken = response.data.nextPageToken;

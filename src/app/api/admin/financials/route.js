@@ -65,6 +65,8 @@ export async function GET() {
         isProfit: profitOrLoss >= 0,
         taxDeduction,
         netTotalBusiness,
+        taxRate: TAX_RATE,
+        netCashFlow: profitOrLoss - taxDeduction,
       },
       expenses,
       quotations,

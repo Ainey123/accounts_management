@@ -8,6 +8,7 @@ export default function FinancialLedgerPage() {
   const [financials, setFinancials] = useState(null);
   const [expenses, setExpenses] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     apiFetch('/api/admin/financials')
@@ -16,8 +17,23 @@ export default function FinancialLedgerPage() {
         setExpenses(data.expenses);
         setPayments(data.payments || []);
       })
-      .catch(console.error);
+      .catch((err) => {
+        console.error(err);
+        setError(err.message);
+      });
   }, []);
+
+  if (error) {
+    return (
+      <div className="glass-card">
+        <h2 style={{ color: '#f87171' }}>Error Loading Ledger</h2>
+        <p style={{ color: '#94a3b8' }}>{error}</p>
+        <button className="nexus-btn nexus-btn-primary" onClick={() => window.location.reload()} style={{ marginTop: 16 }}>
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   if (!financials) {
     return <div className="glass-card"><p style={{ color: '#94a3b8' }}>Loading ledger...</p></div>;

@@ -3,16 +3,24 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Mail, RefreshCw, Link, X, Filter, Shield, Plus, Trash2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 
 export default function GmailConnectionPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [accounts, setAccounts] = useState([]);
   const [syncing, setSyncing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [tickets, setTickets] = useState([]);
   const oauthHandlerRef = useRef(null);
+
+  useEffect(() => {
+    if (user && user.role !== 'ADMIN') {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
 
   useEffect(() => {
     loadAccounts();
@@ -140,6 +148,10 @@ export default function GmailConnectionPage() {
 
   if (loading) {
     return <div className="glass-card"><p style={{ color: '#94a3b8' }}>Loading...</p></div>;
+  }
+
+  if (user?.role !== 'ADMIN') {
+    return null; // Don't render anything while redirecting
   }
 
   return (

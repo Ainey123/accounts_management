@@ -122,6 +122,7 @@ async function syncAccount(account) {
       subject,
       exactDate: date,
       time,
+      body: msg.data.snippet || '',
     };
 
     if (isComplaintEmail(emailData)) {

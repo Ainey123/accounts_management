@@ -66,15 +66,6 @@ async function syncAccount(account) {
       });
 
       const pageMessages = response.data.messages || [];
-      let hitSynced = false;
-      for (const m of pageMessages) {
-        if (syncedSet.has(m.id)) {
-          hitSynced = true;
-          break;
-        }
-      }
-
-      if (hitSynced) break;
       pageToken = response.data.nextPageToken || undefined;
 
       const messagesToProcess = pageMessages.reverse();

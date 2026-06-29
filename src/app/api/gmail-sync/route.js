@@ -162,8 +162,11 @@ async function syncAccount(account) {
 
 export async function POST() {
   try {
-    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-      return NextResponse.json({ error: 'Google OAuth not configured.' }, { status: 500 });
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    if (!clientId || !clientSecret) {
+      console.log('OAuth missing - CLIENT_ID:', !!clientId, 'CLIENT_SECRET:', !!clientSecret);
+      return NextResponse.json({ error: 'Google OAuth not configured. Check Vercel env vars.' }, { status: 500 });
     }
 
     const accounts = await prisma.gmailAccount.findMany({

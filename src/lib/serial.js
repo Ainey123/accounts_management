@@ -5,7 +5,13 @@ export async function nextTicketSerialNo() {
     orderBy: { id: 'desc' },
     select: { serialNo: true },
   });
-  const current = maxTicket?.serialNo || '#000';
-  const num = parseInt(current.replace('#', ''), 10) || 0;
+  
+  const extractSerialNum = (serial) => {
+    if (!serial) return 0;
+    const match = serial.match(/^#(\d+)/);
+    return match ? parseInt(match[1], 10) : 0;
+  };
+  
+  const num = extractSerialNum(maxTicket?.serialNo);
   return `#${String(num + 1).padStart(3, '0')}`;
 }

@@ -168,6 +168,17 @@ export default function AdminCommandCenter() {
     }
   };
 
+  const handleCleanInvalidSerials = async () => {
+    if (!confirm('This will delete tickets with invalid serial numbers (not #XXX format) and renumber all tickets. Continue?')) return;
+    try {
+      const result = await apiFetch('/api/admin/fix-duplicates', { method: 'DELETE' });
+      setMessage(`Cleaned ${result.deleted} invalid tickets.`);
+      await loadAll();
+    } catch (err) {
+      setMessage('Clean failed: ' + err.message);
+    }
+  };
+
   const filteredTickets = tickets.filter((t) => {
     if (ticketFilter === 'pending') return !t.jobMetadata;
     if (ticketFilter === 'intake') return !!t.jobMetadata;
@@ -390,6 +401,9 @@ export default function AdminCommandCenter() {
               <button type="button" className="nexus-btn nexus-btn-ghost" onClick={handleFixDuplicates} style={{ color: '#f59e0b' }}>
                 <Filter size={16} /> Fix Duplicates
               </button>
+              <button type="button" className="nexus-btn nexus-btn-ghost" onClick={handleCleanInvalidSerials} style={{ color: '#ef4444' }}>
+                <Trash2 size={16} /> Clean Invalid Serials
+              </button>
               <select className="nexus-select" value={ticketFilter} onChange={(e) => setTicketFilter(e.target.value)} style={{ width: 'auto' }}>
                 <option value="all">All</option>
                 <option value="pending">Pending Only</option>
@@ -459,6 +473,9 @@ export default function AdminCommandCenter() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button type="button" className="nexus-btn nexus-btn-ghost" onClick={handleFixDuplicates} style={{ color: '#f59e0b' }}>
                 <Filter size={16} /> Fix Duplicates
+              </button>
+              <button type="button" className="nexus-btn nexus-btn-ghost" onClick={handleCleanInvalidSerials} style={{ color: '#ef4444' }}>
+                <Trash2 size={16} /> Clean Invalid Serials
               </button>
               <button type="button" className="nexus-btn nexus-btn-primary" onClick={handleSyncAllGmail}>
                 <RefreshCw size={16} /> Sync All Accounts

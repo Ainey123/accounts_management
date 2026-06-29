@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Send, Building, User, Briefcase, X } from 'lucide-react';
+import { Send, Building, User, Briefcase, X, Copy } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useJob } from '@/components/JobContext';
 import { useAuth } from '@/components/AuthProvider';
@@ -34,6 +34,7 @@ export default function IntakeGridPage() {
   const [manualSubject, setManualSubject] = useState('');
   const [manualSender, setManualSender] = useState('');
   const [creatingTicket, setCreatingTicket] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,6 +136,19 @@ export default function IntakeGridPage() {
     }
   };
 
+  const handleCopyTicket = async () => {
+    if (!selectedTicketId) return;
+    const ticket = (tickets || []).find((t) => String(t.id) === String(selectedTicketId));
+    if (!ticket) return;
+    try {
+      await navigator.clipboard.writeText(ticket.serialNo);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setMessage('Failed to copy');
+    }
+  };
+
   return (
     <div>
       <header className="page-header">
@@ -149,12 +163,24 @@ export default function IntakeGridPage() {
             + Manual Ticket
           </button>
         </div>
-        <select className="nexus-select" value={selectedTicketId} onChange={(e) => handleTicketChange(e.target.value)} disabled={loadingData}>
-          <option value="">Select ticket...</option>
-          {tickets.map((t) => (
-            <option key={t.id} value={t.id}>{t.serialNo} — {t.subject}</option>
-          ))}
-        </select>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <select className="nexus-select" value={selectedTicketId} onChange={(e) => handleTicketChange(e.target.value)} disabled={loadingData} style={{ flex: 1 }}>
+            <option value="">Select ticket...</option>
+            {tickets.map((t) => (
+              <option key={t.id} value={t.id}>{t.serialNo} — {t.subject}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="nexus-btn nexus-btn-ghost"
+            onClick={handleCopyTicket}
+            disabled={!selectedTicketId}
+            style={{ padding: '8px 12px', fontSize: 12 }}
+            title="Copy ticket serial number"
+          >
+            {copied ? 'Copied!' : <><Copy size={14} /> Copy</>}
+          </button>
+        </div>
         {tickets.length === 0 && !loadingData && (
           <p style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>No Gmail tickets. Click "+ Manual Ticket" to create one.</p>
         )}

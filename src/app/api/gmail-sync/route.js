@@ -48,16 +48,14 @@ async function syncAccount(account) {
 
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
   const syncedIds = JSON.parse(account.syncedEmailIds || '[]');
-  const updatedSyncedIds = [...syncedIds];
   const savedTickets = [];
 
-  let messages = [];
-  let pageToken = null;
+  let pageToken = undefined;
+  const maxMessages = 200;
+  let messagesProcessed = 0;
 
   try {
     do {
-      // Fetch ALL emails in date range — let the app-side isComplaintEmail filter handle keyword matching
-      // Previous query had complaint keywords that caused recent emails to be missed
       const response = await gmail.users.messages.list({
         userId: 'me',
         maxResults: 100,
@@ -66,8 +64,6 @@ async function syncAccount(account) {
       });
 
       const pageMessages = response.data.messages || [];
-      
-      // Check if we hit any messages we've already synced in this page to break pagination early
       let hitSynced = false;
       for (const m of pageMessages) {
         if (syncedIds.includes(m.id)) {
@@ -76,94 +72,94 @@ async function syncAccount(account) {
         }
       }
 
-      messages = messages.concat(pageMessages);
-      
-      // Vercel serverless functions time out after 10s-15s. 
-      // If we've fetched 200 emails, break early to ensure we save our progress to the DB.
-      if (hitSynced || !response.data.nextPageToken || messages.length >= 200) {
-        break;
+      if (hitSynced) break;
+      pageToken = response.data.nextPageToken || undefined;
+
+      const messagesToProcess = pageMessages.reverse();
+
+      for (const message of messagesToProcess) {
+        if (syncedIds.includes(message.id)) continue;
+        if (messagesProcessed >= maxMessages) break;
+
+        const msg = await gmail.users.messages.get({
+          userId: 'me',
+          id: message.id,
+          format: 'metadata',
+          metadataHeaders: ['From', 'Subject', 'Date'],
+        });
+
+        const headers = msg.data.payload?.headers || [];
+        const from = headers.find(h => h.name === 'From')?.value || 'Unknown';
+        const subject = headers.find(h => h.name === 'Subject')?.value || 'No Subject';
+        const dateStr = headers.find(h => h.name === 'Date')?.value || '';
+
+        const dateObj = new Date(dateStr);
+        const exactDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
+        const time = exactDate.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        });
+
+        const emailData = {
+          gmailMessageId: message.id,
+          sender: from,
+          subject,
+          exactDate,
+          time,
+          body: msg.data.snippet || '',
+        };
+
+        if (isComplaintEmail(emailData)) {
+          const serialNo = await nextTicketSerialNo();
+
+          try {
+            const ticket = await prisma.ticket.upsert({
+              where: { gmailMessageId: message.id },
+              update: {},
+              create: {
+                gmailAccountId: account.id,
+                gmailMessageId: message.id,
+                serialNo,
+                exactDate,
+                time,
+                subject,
+                sender: from,
+              },
+            });
+            if (ticket.serialNo === serialNo) {
+              savedTickets.push(ticket);
+            }
+          } catch (e) {
+            console.error(`Failed to save ticket for ${message.id}:`, e.message);
+          }
+        }
+
+        syncedIds.push(message.id);
+        messagesProcessed++;
       }
-      pageToken = response.data.nextPageToken;
+
+      if (syncedIds.length > 0) {
+        await prisma.gmailAccount.update({
+          where: { id: account.id },
+          data: { syncedEmailIds: JSON.stringify(syncedIds) },
+        });
+      }
     } while (pageToken);
   } catch (error) {
     console.error(`Failed to list messages for ${account.gmailEmail}:`, error.message);
+    if (syncedIds.length > 0) {
+      await prisma.gmailAccount.update({
+        where: { id: account.id },
+        data: { syncedEmailIds: JSON.stringify(syncedIds) },
+      }).catch(() => {});
+    }
     throw error;
-  }
-
-  // Reverse so oldest emails are processed first → oldest gets lowest serial number
-  messages.reverse();
-
-  for (const message of messages) {
-    if (syncedIds.includes(message.id)) {
-      continue; // Skip already-synced messages
-    }
-
-    const msg = await gmail.users.messages.get({
-      userId: 'me',
-      id: message.id,
-      format: 'metadata',
-      metadataHeaders: ['From', 'Subject', 'Date'],
-    });
-
-    const headers = msg.data.payload?.headers || [];
-    const from = headers.find(h => h.name === 'From')?.value || 'Unknown';
-    const subject = headers.find(h => h.name === 'Subject')?.value || 'No Subject';
-    const dateStr = headers.find(h => h.name === 'Date')?.value || '';
-
-    const dateObj = new Date(dateStr);
-    const exactDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
-    const date = exactDate.toISOString().split('T')[0];
-    const time = exactDate.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
-
-    const emailData = {
-      gmailMessageId: message.id,
-      sender: from,
-      subject,
-      exactDate: date,
-      time,
-      body: msg.data.snippet || '',
-    };
-
-    if (isComplaintEmail(emailData)) {
-      const serialNo = await nextTicketSerialNo();
-
-      try {
-        // Use upsert to prevent unique constraint violations on gmailMessageId
-        const ticket = await prisma.ticket.upsert({
-          where: { gmailMessageId: message.id },
-          update: {},  // Don't overwrite existing tickets
-          create: {
-            gmailAccountId: account.id,
-            gmailMessageId: message.id,
-            serialNo,
-            exactDate,
-            time,
-            subject,
-            sender: from,
-          },
-        });
-        // Only count as new if it was actually created (not an existing record)
-        if (ticket.serialNo === serialNo) {
-          savedTickets.push(ticket);
-        }
-      } catch (e) {
-        console.error(`Failed to save ticket for ${message.id}:`, e.message);
-      }
-    }
-
-    updatedSyncedIds.push(message.id);
   }
 
   await prisma.gmailAccount.update({
     where: { id: account.id },
-    data: {
-      syncedEmailIds: JSON.stringify(updatedSyncedIds),
-      syncedAt: new Date(),
-    },
+    data: { syncedAt: new Date() },
   });
 
   return { email: account.gmailEmail, synced: savedTickets.length };

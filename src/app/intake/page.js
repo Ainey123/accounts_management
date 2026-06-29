@@ -141,7 +141,7 @@ export default function IntakeGridPage() {
     const ticket = (tickets || []).find((t) => String(t.id) === String(selectedTicketId));
     if (!ticket) return;
     try {
-      await navigator.clipboard.writeText(ticket.serialNo);
+      await navigator.clipboard.writeText(ticket.subject);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -176,9 +176,9 @@ export default function IntakeGridPage() {
             onClick={handleCopyTicket}
             disabled={!selectedTicketId}
             style={{ padding: '8px 12px', fontSize: 12 }}
-            title="Copy ticket serial number"
+            title="Copy serial and subject for verification"
           >
-            {copied ? 'Copied!' : <><Copy size={14} /> Copy Serial</>}
+            {copied ? 'Copied!' : <><Copy size={14} /> Copy Subject</>}
           </button>
         </div>
         {tickets.length === 0 && !loadingData && (

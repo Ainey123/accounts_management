@@ -61,7 +61,7 @@ async function syncAccount(account) {
       const response = await gmail.users.messages.list({
         userId: 'me',
         maxResults: 100,
-        q: 'after:2026/01/01 before:2027/12/31 -from:linkedin.com -from:google.com -subject:"security alert" -subject:"new sign-in" -subject:"password changed"',
+        q: 'after:2020/01/01 before:2027/12/31 -from:linkedin.com -from:google.com -subject:"security alert" -subject:"new sign-in" -subject:"password changed"',
         pageToken,
       });
 

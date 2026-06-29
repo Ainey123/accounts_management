@@ -48,7 +48,9 @@ async function syncAccount(account) {
 
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
   const syncedIds = JSON.parse(account.syncedEmailIds || '[]');
+  const syncedSet = new Set(syncedIds);
   const savedTickets = [];
+  const MAX_SYNCED_IDS = 2000;
 
   let pageToken = undefined;
   const maxMessages = 200;
@@ -66,7 +68,7 @@ async function syncAccount(account) {
       const pageMessages = response.data.messages || [];
       let hitSynced = false;
       for (const m of pageMessages) {
-        if (syncedIds.includes(m.id)) {
+        if (syncedSet.has(m.id)) {
           hitSynced = true;
           break;
         }
@@ -78,7 +80,7 @@ async function syncAccount(account) {
       const messagesToProcess = pageMessages.reverse();
 
       for (const message of messagesToProcess) {
-        if (syncedIds.includes(message.id)) continue;
+        if (syncedSet.has(message.id)) continue;
         if (messagesProcessed >= maxMessages) break;
 
         const msg = await gmail.users.messages.get({
@@ -135,25 +137,27 @@ async function syncAccount(account) {
           }
         }
 
-        syncedIds.push(message.id);
+        syncedSet.add(message.id);
         messagesProcessed++;
       }
 
-      if (syncedIds.length > 0) {
+      if (syncedSet.size > 0) {
+        const idsArray = Array.from(syncedSet).slice(-MAX_SYNCED_IDS);
         await prisma.gmailAccount.update({
           where: { id: account.id },
-          data: { syncedEmailIds: JSON.stringify(syncedIds) },
+          data: { syncedEmailIds: JSON.stringify(idsArray) },
         });
       }
     } while (pageToken);
   } catch (error) {
     console.error(`Failed to list messages for ${account.gmailEmail}:`, error.message);
-    if (syncedIds.length > 0) {
+    try {
+      const idsArray = Array.from(syncedSet).slice(-MAX_SYNCED_IDS);
       await prisma.gmailAccount.update({
         where: { id: account.id },
-        data: { syncedEmailIds: JSON.stringify(syncedIds) },
+        data: { syncedEmailIds: JSON.stringify(idsArray) },
       }).catch(() => {});
-    }
+    } catch {}
     throw error;
   }
 

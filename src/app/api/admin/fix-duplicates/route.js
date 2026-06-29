@@ -20,14 +20,14 @@ export async function POST(request) {
   try {
     const allTickets = await prisma.ticket.findMany({
       orderBy: { createdAt: 'asc' },
-      select: { id: true, subject: true, createdAt: true },
+      select: { id: true, subject: true, sender: true, createdAt: true },
     });
 
     const seen = new Map();
     const toDelete = [];
 
     for (const ticket of allTickets) {
-      const key = ticket.subject.trim().toLowerCase();
+      const key = `${ticket.subject.trim().toLowerCase()}|${ticket.sender?.trim().toLowerCase() || ''}`;
       if (seen.has(key)) {
         toDelete.push(ticket.id);
       } else {

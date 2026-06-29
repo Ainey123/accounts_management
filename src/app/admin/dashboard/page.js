@@ -157,6 +157,17 @@ export default function AdminCommandCenter() {
     }
   };
 
+  const handleFixDuplicates = async () => {
+    if (!confirm('This will remove duplicate tickets with same subject and sender. Continue?')) return;
+    try {
+      const result = await apiFetch('/api/admin/fix-duplicates', { method: 'POST' });
+      setMessage(`Removed ${result.deleted} duplicate tickets.`);
+      await loadAll();
+    } catch (err) {
+      setMessage('Fix duplicates failed: ' + err.message);
+    }
+  };
+
   const filteredTickets = tickets.filter((t) => {
     if (ticketFilter === 'pending') return !t.jobMetadata;
     if (ticketFilter === 'intake') return !!t.jobMetadata;
@@ -376,6 +387,9 @@ export default function AdminCommandCenter() {
               <h2 style={{ fontSize: 18, margin: 0 }}>All Tickets ({tickets.length})</h2>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button type="button" className="nexus-btn nexus-btn-ghost" onClick={handleFixDuplicates} style={{ color: '#f59e0b' }}>
+                <Filter size={16} /> Fix Duplicates
+              </button>
               <select className="nexus-select" value={ticketFilter} onChange={(e) => setTicketFilter(e.target.value)} style={{ width: 'auto' }}>
                 <option value="all">All</option>
                 <option value="pending">Pending Only</option>
@@ -442,9 +456,14 @@ export default function AdminCommandCenter() {
               <Mail size={20} color="#22c55e" />
               <h2 style={{ fontSize: 18, margin: 0 }}>Connected Gmail Accounts ({gmailAccounts.length})</h2>
             </div>
-            <button type="button" className="nexus-btn nexus-btn-primary" onClick={handleSyncAllGmail}>
-              <RefreshCw size={16} /> Sync All Accounts
-            </button>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button type="button" className="nexus-btn nexus-btn-ghost" onClick={handleFixDuplicates} style={{ color: '#f59e0b' }}>
+                <Filter size={16} /> Fix Duplicates
+              </button>
+              <button type="button" className="nexus-btn nexus-btn-primary" onClick={handleSyncAllGmail}>
+                <RefreshCw size={16} /> Sync All Accounts
+              </button>
+            </div>
           </div>
 
           {gmailAccounts.length === 0 ? (

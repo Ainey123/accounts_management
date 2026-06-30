@@ -23,12 +23,12 @@ export async function POST(request) {
       select: { id: true, subject: true, sender: true, serialNo: true, createdAt: true },
     });
 
-    // Find duplicates by subject + sender
+    // Find duplicates by subject only
     const seen = new Map();
     const toDelete = [];
 
     for (const ticket of allTickets) {
-      const key = `${ticket.subject.trim().toLowerCase()}|${(ticket.sender || 'unknown').trim().toLowerCase()}`;
+      const key = ticket.subject.trim().toLowerCase();
       if (seen.has(key)) {
         toDelete.push(ticket.id);
       } else {

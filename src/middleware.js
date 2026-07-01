@@ -32,6 +32,7 @@ export default function middleware(request) {
         pathname.startsWith('/approval') ||
         pathname.startsWith('/invoice') ||
         pathname.startsWith('/site') ||
+        pathname.startsWith('/payment-status') ||
         pathname.startsWith('/dashboard'))
     ) {
       return NextResponse.redirect(new URL('/admin/dashboard', request.url));

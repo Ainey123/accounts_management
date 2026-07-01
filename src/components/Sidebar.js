@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { name: 'Invoice Studio', href: '/invoice', icon: Receipt },
   { name: 'Documents Download', href: '/quotation', icon: Download },
   { name: 'Site Expense Log', href: '/site', icon: Camera },
+  { name: 'Payment Status', href: '/payment-status', icon: DollarSign },
   { name: 'Financial Ledger', href: '/ledger', icon: DollarSign, adminOnly: true },
   { name: 'Admin Command Center', href: '/admin/dashboard', icon: Settings, adminOnly: true },
 ];

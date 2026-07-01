@@ -267,46 +267,71 @@ export default function AdminCommandCenter() {
               <DollarSign size={20} color="#10b981" />
               <h2 style={{ fontSize: 18, margin: 0 }}>Financial Overview</h2>
             </div>
-            {financials && (
-              <div className="financial-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16 }}>
-                <div className="financial-tile">
-                  <span className="field-label">Total Business</span>
-                  <div className="financial-value" style={{ color: '#3b82f6', fontSize: 20 }}>
-                    Rs. {financials.totalBusiness.toLocaleString()}
-                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 'normal', marginTop: 4 }}>
-                      ({financials.invoicesCount} Invoices)
-                    </div>
-                  </div>
-                </div>
-                <div className="financial-tile">
-                  <span className="field-label">Total Tax Deduction</span>
-                  <div className="financial-value" style={{ color: '#f87171', fontSize: 20 }}>
-                    Rs. {financials.taxDeduction.toLocaleString()}
-                  </div>
-                </div>
-                <div className="financial-tile">
-                  <span className="field-label">Net Amount</span>
-                  <div className="financial-value" style={{ color: '#00f2fe', fontSize: 20 }}>
-                    Rs. {financials.netTotalBusiness.toLocaleString()}
-                  </div>
-                </div>
-                <div className="financial-tile">
-                  <span className="field-label">Total Received</span>
-                  <div className="financial-value" style={{ color: '#34d399', fontSize: 20 }}>
-                    Rs. {financials.totalReceived.toLocaleString()}
-                  </div>
-                </div>
-                <div className="financial-tile net" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)', paddingLeft: 16 }}>
-                  <span className="field-label" style={{ color: financials.isProfit ? '#10b981' : '#f87171', fontWeight: 600 }}>
-                    {financials.isProfit ? 'Profit' : 'Loss'} Status
-                  </span>
-                  <div className="financial-value" style={{ color: financials.isProfit ? '#34d399' : '#f87171', display: 'flex', alignItems: 'center', gap: 6, fontSize: 20 }}>
-                    {financials.isProfit ? <TrendingUp size={18} color="#34d399" /> : <TrendingDown size={18} color="#f87171" />}
-                    Rs. {Math.abs(financials.profitOrLoss).toLocaleString()}
-                  </div>
-                </div>
-              </div>
-            )}
+             {financials && (
+               <div className="financial-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16 }}>
+                 <div className="financial-tile">
+                   <span className="field-label">Total Business</span>
+                   <div className="financial-value" style={{ color: '#3b82f6', fontSize: 20 }}>
+                     Rs. {financials.totalBusiness.toLocaleString()}
+                     <div style={{ fontSize: 11, color: '#64748b', fontWeight: 'normal', marginTop: 4 }}>
+                       ({financials.invoicesCount || 0} Invoices)
+                     </div>
+                   </div>
+                 </div>
+                 <div className="financial-tile">
+                   <span className="field-label">Total Tax Deduction</span>
+                   <div className="financial-value" style={{ color: '#f87171', fontSize: 20 }}>
+                     Rs. {financials.taxDeduction.toLocaleString()}
+                   </div>
+                 </div>
+                 <div className="financial-tile">
+                   <span className="field-label">Net Amount</span>
+                   <div className="financial-value" style={{ color: '#00f2fe', fontSize: 20 }}>
+                     Rs. {(financials.netTotalBusiness || 0).toLocaleString()}
+                   </div>
+                 </div>
+                 <div className="financial-tile">
+                   <span className="field-label">Total Received</span>
+                   <div className="financial-value" style={{ color: '#34d399', fontSize: 20 }}>
+                     Rs. {financials.totalReceived.toLocaleString()}
+                   </div>
+                 </div>
+                 <div className="financial-tile net" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)', paddingLeft: 16 }}>
+                   <span className="field-label" style={{ color: financials.isProfit ? '#10b981' : '#f87171', fontWeight: 600 }}>
+                     {financials.isProfit ? 'Profit' : 'Loss'} Status
+                   </span>
+                   <div className="financial-value" style={{ color: financials.isProfit ? '#34d399' : '#f87171', display: 'flex', alignItems: 'center', gap: 6, fontSize: 20 }}>
+                     {financials.isProfit ? <TrendingUp size={18} color="#34d399" /> : <TrendingDown size={18} color="#f87171" />}
+                     Rs. {Math.abs(financials.profitOrLoss || 0).toLocaleString()}
+                   </div>
+                 </div>
+               </div>
+             )}
+             {financials && (
+               <div className="financial-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 16 }}>
+                 <div className="financial-tile">
+                   <span className="field-label">Payment Progress (Avg)</span>
+                   <div className="financial-value" style={{ color: '#a78bfa', fontSize: 24 }}>
+                     {financials.avgPaymentProgress || 0}%
+                   </div>
+                   <div style={{ width: '100%', height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 4, marginTop: 12, overflow: 'hidden' }}>
+                     <div style={{ width: `${financials.avgPaymentProgress || 0}%`, height: '100%', background: '#a78bfa', borderRadius: 4, transition: 'width 0.3s' }} />
+                   </div>
+                 </div>
+                 <div className="financial-tile">
+                   <span className="field-label">Fully Paid Jobs</span>
+                   <div className="financial-value" style={{ color: '#10b981', fontSize: 24 }}>
+                     {financials.jobsByProgress?.fullyPaid || 0}
+                   </div>
+                 </div>
+                 <div className="financial-tile">
+                   <span className="field-label">Pending Payments</span>
+                   <div className="financial-value" style={{ color: '#f59e0b', fontSize: 24 }}>
+                     {(financials.jobsByProgress?.partial || 0) + (financials.jobsByProgress?.notStarted || 0)}
+                   </div>
+                 </div>
+               </div>
+             )}
           </section>
         </>
       )}

@@ -75,9 +75,10 @@ model JobMetadata {
   assignedEmployee   User?              @relation(fields: [assignedEmployeeId], references: [id], onDelete: SetNull)
   manualEnteredBy    String?
   createdById        Int?
-  createdBy          User?              @relation("CreatedJobs", fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy          User?        @relation("CreatedJobs", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
+  paymentProgress    Int?           @default(0)
   surveyReport       SurveyReport?
   quotationInvoices  QuotationInvoice[]
   expenses           Expense[]

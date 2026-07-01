@@ -7,7 +7,7 @@ const TAX_RATE = 0.15;
 
 export async function GET() {
   try {
-    const [expenses, quotations, invoices, payments, workCompletions] = await Promise.all([
+    const [expenses, quotations, invoices, payments, workCompletions, jobsWithProgress] = await Promise.all([
       prisma.expense.findMany({
         include: { jobMetadata: { include: { ticket: true } } },
       }),
@@ -26,6 +26,10 @@ export async function GET() {
       }),
       prisma.workCompletion.findMany({
         where: { status: 'COMPLETED' },
+      }),
+      prisma.jobMetadata.findMany({
+        include: { ticket: true },
+        orderBy: { createdAt: 'desc' },
       }),
     ]);
 
@@ -57,6 +61,16 @@ export async function GET() {
     
     const profitOrLoss = totalReceived - totalExpenses - taxDeduction; // Cash flow profit/loss
 
+    const avgPaymentProgress = jobsWithProgress.length > 0
+      ? Math.round(jobsWithProgress.reduce((sum, j) => sum + (j.paymentProgress || 0), 0) / jobsWithProgress.length)
+      : 0;
+
+    const jobsByProgress = {
+      notStarted: jobsWithProgress.filter(j => (j.paymentProgress || 0) === 0).length,
+      partial: jobsWithProgress.filter(j => (j.paymentProgress || 0) > 0 && (j.paymentProgress || 0) < 100).length,
+      fullyPaid: jobsWithProgress.filter(j => (j.paymentProgress || 0) === 100).length,
+    };
+
     return NextResponse.json({
       financials: {
         totalBusiness,
@@ -66,11 +80,14 @@ export async function GET() {
         taxDeduction,
         profitOrLoss,
         isProfit: profitOrLoss >= 0,
+        avgPaymentProgress,
+        jobsByProgress,
       },
       expenses,
       quotations,
       invoices,
       payments,
+      jobsWithProgress,
     });
   } catch (error) {
     console.error('Financials error:', error);

@@ -10,7 +10,14 @@ export async function POST() {
     const results = [];
 
     for (const account of accounts) {
-      const beforeCount = JSON.parse(account.syncedEmailIds || '[]').length;
+      // Safely count previous IDs - handle both old and new formats
+      let beforeCount = 0;
+      const raw = account.syncedEmailIds || '';
+      if (raw.includes('|')) {
+        try { beforeCount = JSON.parse(raw.split('|')[1] || '[]').length; } catch {}
+      } else {
+        try { beforeCount = JSON.parse(raw || '[]').length; } catch {}
+      }
 
       // Reset to start from January 2026 (monthIndex=0) with empty ID list
       await prisma.gmailAccount.update({

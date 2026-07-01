@@ -12,6 +12,39 @@ function getBaseUrl() {
   return 'http://localhost:3000';
 }
 
+/**
+ * Parse the syncedEmailIds field.
+ * Supports both old format (json array) and new format (monthIndex|json array).
+ * If invalid, returns { monthIdx: 0, ids: [] }
+ */
+function parseSyncState(raw) {
+  if (!raw || raw === '[]' || raw === '') {
+    return { monthIdx: 0, ids: [] };
+  }
+
+  // Check if it's the new format: monthIndex|jsonArray
+  if (raw.includes('|')) {
+    const parts = raw.split('|');
+    let monthIdx = parseInt(parts[0], 10);
+    if (isNaN(monthIdx) || monthIdx < 0) monthIdx = 0;
+    if (monthIdx > 12) monthIdx = 11; // clamp to Dec
+    try {
+      const ids = JSON.parse(parts[1] || '[]');
+      return { monthIdx, ids: Array.isArray(ids) ? ids : [] };
+    } catch {
+      return { monthIdx: 0, ids: [] };
+    }
+  }
+
+  // Old format: just a json array - start from January
+  try {
+    const ids = JSON.parse(raw);
+    return { monthIdx: 0, ids: Array.isArray(ids) ? ids : [] };
+  } catch {
+    return { monthIdx: 0, ids: [] };
+  }
+}
+
 async function syncAccount(account) {
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -44,52 +77,37 @@ async function syncAccount(account) {
 
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-  // Parse stored data - handle BOTH old format (json array) and new format (monthIndex|json)
-  const raw = account.syncedEmailIds || '0|[]';
-  let currentMonthIndex = 0;
-  let syncedIds = [];
-
-  if (raw.includes('|')) {
-    // New format: monthIndex|jsonIds
-    const parts = raw.split('|');
-    currentMonthIndex = parseInt(parts[0] || '0', 10);
-    try { syncedIds = JSON.parse(parts[1] || '[]'); } catch (e) { syncedIds = []; }
-  } else {
-    // Old format: just a json array - reset to start from January
-    try { syncedIds = JSON.parse(raw || '[]'); } catch (e) { syncedIds = []; }
-    currentMonthIndex = 0;
-  }
-
-  const syncedSet = new Set(syncedIds);
+  const state = parseSyncState(account.syncedEmailIds);
+  let currentMonthIdx = state.monthIdx;
+  const syncedSet = new Set(state.ids);
   const savedTickets = [];
   const MAX_SYNCED_IDS = 2000;
 
   const months = [
-    { after: '2026/01/01', before: '2026/02/01' },
-    { after: '2026/02/01', before: '2026/03/01' },
-    { after: '2026/03/01', before: '2026/04/01' },
-    { after: '2026/04/01', before: '2026/05/01' },
-    { after: '2026/05/01', before: '2026/06/01' },
-    { after: '2026/06/01', before: '2026/07/01' },
-    { after: '2026/07/01', before: '2026/08/01' },
-    { after: '2026/08/01', before: '2026/09/01' },
-    { after: '2026/09/01', before: '2026/10/01' },
-    { after: '2026/10/01', before: '2026/11/01' },
-    { after: '2026/11/01', before: '2026/12/01' },
-    { after: '2026/12/01', before: '2027/01/01' },
+    { after: '2026/01/01', before: '2026/02/01', label: 'January 2026' },
+    { after: '2026/02/01', before: '2026/03/01', label: 'February 2026' },
+    { after: '2026/03/01', before: '2026/04/01', label: 'March 2026' },
+    { after: '2026/04/01', before: '2026/05/01', label: 'April 2026' },
+    { after: '2026/05/01', before: '2026/06/01', label: 'May 2026' },
+    { after: '2026/06/01', before: '2026/07/01', label: 'June 2026' },
+    { after: '2026/07/01', before: '2026/08/01', label: 'July 2026' },
+    { after: '2026/08/01', before: '2026/09/01', label: 'August 2026' },
+    { after: '2026/09/01', before: '2026/10/01', label: 'September 2026' },
+    { after: '2026/10/01', before: '2026/11/01', label: 'October 2026' },
+    { after: '2026/11/01', before: '2026/12/01', label: 'November 2026' },
+    { after: '2026/12/01', before: '2027/01/01', label: 'December 2026' },
   ];
+
+  // Clamp month index to valid range
+  if (currentMonthIdx >= months.length) currentMonthIdx = months.length - 1;
+  if (currentMonthIdx < 0) currentMonthIdx = 0;
 
   let pageToken = undefined;
   let monthFinished = false;
 
-  // Clamp month index
-  let monthIdx = currentMonthIndex;
-  if (monthIdx >= months.length) monthIdx = months.length - 1;
-  if (monthIdx < 0) monthIdx = 0;
-
   try {
-    const month = months[monthIdx];
-    console.log(`Syncing month ${monthIdx + 1}/${months.length}: ${month.after} to ${month.before} for ${account.gmailEmail}`);
+    const month = months[currentMonthIdx];
+    console.log(`[${account.gmailEmail}] Syncing ${month.label} (month ${currentMonthIdx + 1}/${months.length})`);
 
     do {
       const response = await gmail.users.messages.list({
@@ -105,76 +123,86 @@ async function syncAccount(account) {
       for (const message of pageMessages) {
         if (syncedSet.has(message.id)) continue;
 
-        const msg = await gmail.users.messages.get({
-          userId: 'me',
-          id: message.id,
-          format: 'metadata',
-          metadataHeaders: ['From', 'Subject', 'Date'],
-        });
+        try {
+          const msg = await gmail.users.messages.get({
+            userId: 'me',
+            id: message.id,
+            format: 'metadata',
+            metadataHeaders: ['From', 'Subject', 'Date'],
+          });
 
-        const headers = msg.data.payload?.headers || [];
-        const from = headers.find(h => h.name === 'From')?.value || 'Unknown';
-        const subject = headers.find(h => h.name === 'Subject')?.value || 'No Subject';
-        const dateStr = headers.find(h => h.name === 'Date')?.value || '';
+          const headers = msg.data.payload?.headers || [];
+          const from = headers.find(h => h.name === 'From')?.value || 'Unknown';
+          const subject = headers.find(h => h.name === 'Subject')?.value || 'No Subject';
+          const dateStr = headers.find(h => h.name === 'Date')?.value || '';
 
-        const dateObj = new Date(dateStr);
-        const exactDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
-        const time = exactDate.toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true,
-        });
+          const dateObj = new Date(dateStr);
+          const exactDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
+          const time = exactDate.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+          });
 
-        const existingTicket = await prisma.ticket.findFirst({
-          where: { subject },
-          select: { id: true, serialNo: true },
-        });
+          const existingTicket = await prisma.ticket.findFirst({
+            where: { subject },
+            select: { id: true, serialNo: true },
+          });
 
-        if (!existingTicket) {
-          const serialNo = await nextTicketSerialNo();
-          try {
-            const ticket = await prisma.ticket.upsert({
-              where: { gmailMessageId: message.id },
-              update: {},
-              create: {
-                gmailAccountId: account.id,
-                gmailMessageId: message.id,
-                serialNo,
-                exactDate,
-                time,
-                subject,
-                sender: from,
-              },
-            });
-            if (ticket.serialNo === serialNo) savedTickets.push(ticket);
-          } catch (e) {
-            console.error(`Failed to save ticket for ${message.id}:`, e.message);
+          if (!existingTicket) {
+            const serialNo = await nextTicketSerialNo();
+            try {
+              const ticket = await prisma.ticket.upsert({
+                where: { gmailMessageId: message.id },
+                update: {},
+                create: {
+                  gmailAccountId: account.id,
+                  gmailMessageId: message.id,
+                  serialNo,
+                  exactDate,
+                  time,
+                  subject,
+                  sender: from,
+                },
+              });
+              if (ticket.serialNo === serialNo) savedTickets.push(ticket);
+            } catch (e) {
+              if (!e.message?.includes('Unique constraint')) {
+                console.error(`Failed to save ticket for ${message.id}:`, e.message);
+              }
+            }
           }
-        }
 
-        syncedSet.add(message.id);
+          syncedSet.add(message.id);
+        } catch (e) {
+          console.error(`Failed to get message ${message.id}:`, e.message);
+          // Still mark as synced so we don't retry broken messages
+          syncedSet.add(message.id);
+        }
       }
 
-      // Save progress after each page
+      // Save progress - ALWAYS use valid number for monthIdx
       const idsArray = Array.from(syncedSet).slice(-MAX_SYNCED_IDS);
-      const nextMonthIdx = !pageToken ? monthIdx + 1 : monthIdx;
+      const nextMonthIdx = pageToken ? currentMonthIdx : currentMonthIdx + 1;
+      const safeMonthIdx = isNaN(nextMonthIdx) ? 0 : nextMonthIdx;
       await prisma.gmailAccount.update({
         where: { id: account.id },
-        data: { syncedEmailIds: `${nextMonthIdx}|${JSON.stringify(idsArray)}` },
+        data: { syncedEmailIds: `${safeMonthIdx}|${JSON.stringify(idsArray)}` },
       });
 
       if (!pageToken) {
         monthFinished = true;
-        console.log(`Month ${monthIdx + 1} complete for ${account.gmailEmail}. ${savedTickets.length} new tickets.`);
+        console.log(`[${account.gmailEmail}] ✅ ${month.label} complete. ${savedTickets.length} new tickets. Moving to month ${currentMonthIdx + 2}.`);
       }
     } while (pageToken && !monthFinished);
   } catch (error) {
-    console.error(`Failed to list messages for ${account.gmailEmail}:`, error.message);
+    console.error(`[${account.gmailEmail}] Error:`, error.message);
     try {
       const idsArray = Array.from(syncedSet).slice(-MAX_SYNCED_IDS);
+      const safeIdx = isNaN(currentMonthIdx) ? 0 : currentMonthIdx;
       await prisma.gmailAccount.update({
         where: { id: account.id },
-        data: { syncedEmailIds: `${monthIdx}|${JSON.stringify(idsArray)}` },
+        data: { syncedEmailIds: `${safeIdx}|${JSON.stringify(idsArray)}` },
       }).catch(() => {});
     } catch {}
     throw error;
@@ -185,7 +213,7 @@ async function syncAccount(account) {
     data: { syncedAt: new Date() },
   });
 
-  return { email: account.gmailEmail, synced: savedTickets.length };
+  return { email: account.gmailEmail, synced: savedTickets.length, month: month.label };
 }
 
 export async function POST(request) {

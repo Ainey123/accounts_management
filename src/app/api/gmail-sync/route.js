@@ -48,32 +48,56 @@ async function syncAccount(account) {
   });
 
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-  const syncedIds = JSON.parse(account.syncedEmailIds || '[]');
+  
+  // Parse stored data: syncedEmailIds stores "monthIndex|jsonIds"
+  // Default: monthIndex=0 (January 2026), ids=[]
+  const storedParts = (account.syncedEmailIds || '0|[]').split('|');
+  const currentMonthIndex = parseInt(storedParts[0] || '0', 10);
+  const syncedIds = JSON.parse(storedParts[1] || '[]');
   const syncedSet = new Set(syncedIds);
+  
   const savedTickets = [];
   const MAX_SYNCED_IDS = 2000;
 
+  const months = [
+    { after: '2026/01/01', before: '2026/02/01' },
+    { after: '2026/02/01', before: '2026/03/01' },
+    { after: '2026/03/01', before: '2026/04/01' },
+    { after: '2026/04/01', before: '2026/05/01' },
+    { after: '2026/05/01', before: '2026/06/01' },
+    { after: '2026/06/01', before: '2026/07/01' },
+    { after: '2026/07/01', before: '2026/08/01' },
+    { after: '2026/08/01', before: '2026/09/01' },
+    { after: '2026/09/01', before: '2026/10/01' },
+    { after: '2026/10/01', before: '2026/11/01' },
+    { after: '2026/11/01', before: '2026/12/01' },
+    { after: '2026/12/01', before: '2027/01/01' },
+  ];
+
   let pageToken = undefined;
   let messagesProcessed = 0;
-  // Process up to 300 new emails per sync for faster catch-up.
-  // With maxDuration=60s this should complete within Vercel's timeout.
-  const BATCH_LIMIT = 300;
+  let monthFinished = false;
+
+  // If all months done, reset to continue checking latest emails
+  let monthIdx = currentMonthIndex >= months.length ? months.length - 1 : currentMonthIndex;
 
   try {
+    // Only process ONE month per sync to stay within timeout
+    const month = months[monthIdx];
+    console.log(`Syncing month ${monthIdx + 1}/${months.length}: ${month.after} to ${month.before} for ${account.gmailEmail}`);
+
     do {
       const response = await gmail.users.messages.list({
         userId: 'me',
         maxResults: 100,
-        q: 'after:2026/01/01',
+        q: `after:${month.after} before:${month.before}`,
         pageToken,
       });
 
       const pageMessages = response.data.messages || [];
       pageToken = response.data.nextPageToken || undefined;
 
-      const messagesToProcess = pageMessages;
-
-      for (const message of messagesToProcess) {
+      for (const message of pageMessages) {
         if (syncedSet.has(message.id)) continue;
 
         const msg = await gmail.users.messages.get({
@@ -96,7 +120,6 @@ async function syncAccount(account) {
           hour12: true,
         });
 
-        // Check for duplicate subject across ALL tickets to prevent re-imports
         const existingTicket = await prisma.ticket.findFirst({
           where: { subject },
           select: { id: true, serialNo: true },
@@ -104,7 +127,6 @@ async function syncAccount(account) {
 
         if (!existingTicket) {
           const serialNo = await nextTicketSerialNo();
-
           try {
             const ticket = await prisma.ticket.upsert({
               where: { gmailMessageId: message.id },
@@ -119,42 +141,37 @@ async function syncAccount(account) {
                 sender: from,
               },
             });
-            if (ticket.serialNo === serialNo) {
-              savedTickets.push(ticket);
-            }
+            if (ticket.serialNo === serialNo) savedTickets.push(ticket);
           } catch (e) {
             console.error(`Failed to save ticket for ${message.id}:`, e.message);
           }
-        } else {
-          console.log(`Skipping duplicate subject (ticket #${existingTicket.serialNo} already exists): ${subject}`);
         }
 
         syncedSet.add(message.id);
         messagesProcessed++;
-
-        // Stop early if we hit the batch limit to avoid 504 timeout on Vercel
-        if (messagesProcessed >= BATCH_LIMIT) break;
       }
 
-      if (syncedSet.size > 0) {
-        const idsArray = Array.from(syncedSet).slice(-MAX_SYNCED_IDS);
-        await prisma.gmailAccount.update({
-          where: { id: account.id },
-          data: { syncedEmailIds: JSON.stringify(idsArray) },
-        });
-      }
+      // Save progress after each page
+      const idsArray = Array.from(syncedSet).slice(-MAX_SYNCED_IDS);
+      const nextMonthIdx = !pageToken ? monthIdx + 1 : monthIdx;
+      await prisma.gmailAccount.update({
+        where: { id: account.id },
+        data: { syncedEmailIds: `${nextMonthIdx}|${JSON.stringify(idsArray)}` },
+      });
 
-      // If we hit the limit, stop pagination so we don't time out.
-      // Next sync will pick up where we left off.
-      if (messagesProcessed >= BATCH_LIMIT) break;
-    } while (pageToken);
+      // If no next page, mark month as finished
+      if (!pageToken) {
+        monthFinished = true;
+        console.log(`Month ${monthIdx + 1} complete for ${account.gmailEmail}. ${savedTickets.length} new tickets.`);
+      }
+    } while (pageToken && !monthFinished);
   } catch (error) {
     console.error(`Failed to list messages for ${account.gmailEmail}:`, error.message);
     try {
       const idsArray = Array.from(syncedSet).slice(-MAX_SYNCED_IDS);
       await prisma.gmailAccount.update({
         where: { id: account.id },
-        data: { syncedEmailIds: JSON.stringify(idsArray) },
+        data: { syncedEmailIds: `${monthIdx}|${JSON.stringify(idsArray)}` },
       }).catch(() => {});
     } catch {}
     throw error;

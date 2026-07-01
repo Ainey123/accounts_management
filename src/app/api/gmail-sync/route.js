@@ -104,9 +104,9 @@ async function syncAccount(account) {
 
   let pageToken = undefined;
   let monthFinished = false;
+  const month = months[currentMonthIdx];
 
   try {
-    const month = months[currentMonthIdx];
     console.log(`[${account.gmailEmail}] Syncing ${month.label} (month ${currentMonthIdx + 1}/${months.length})`);
 
     do {

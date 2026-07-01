@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { prisma } from '@/lib/prisma';
@@ -53,10 +55,9 @@ async function syncAccount(account) {
 
   let pageToken = undefined;
   let messagesProcessed = 0;
-  // Limit to 50 new emails per sync to avoid Vercel 504 timeout.
-  // Over multiple sync cycles (cron runs daily + manual clicks),
-  // ALL emails will be imported gradually.
-  const BATCH_LIMIT = 50;
+  // Process up to 300 new emails per sync for faster catch-up.
+  // With maxDuration=60s this should complete within Vercel's timeout.
+  const BATCH_LIMIT = 300;
 
   try {
     do {

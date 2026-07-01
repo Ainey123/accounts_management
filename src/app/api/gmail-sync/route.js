@@ -172,7 +172,7 @@ async function syncAccount(account) {
   return { email: account.gmailEmail, synced: savedTickets.length };
 }
 
-export async function POST() {
+export async function POST(request) {
   try {
     const authHeader = request.headers.get('authorization');
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && process.env.CRON_SECRET) {

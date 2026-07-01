@@ -243,6 +243,7 @@ export default function IntakeGridPage() {
               <th>Sr #</th>
               <th>Client</th>
               <th>Branch</th>
+              <th>Subject / Ticket</th>
               <th>POC</th>
               <th>Work Nature</th>
               <th>Assigned / Entered By</th>
@@ -250,13 +251,14 @@ export default function IntakeGridPage() {
           </thead>
           <tbody>
             {jobs.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No entries yet.</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No entries yet.</td></tr>
             ) : (
               jobs.map((job) => (
                 <tr key={job.id}>
                   <td style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 600 }}>{job.ticket?.serialNo}</td>
                   <td>{job.clientName}</td>
                   <td>{job.branchName}</td>
+                  <td style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.ticket?.subject || '—'}</td>
                   <td>{job.personOfContact}</td>
                   <td>{job.workNature}</td>
                   <td>{job.assignedEmployee?.employeeName || job.manualEnteredBy || '—'}</td>

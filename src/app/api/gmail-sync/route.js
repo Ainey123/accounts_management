@@ -61,14 +61,14 @@ async function syncAccount(account) {
       const response = await gmail.users.messages.list({
         userId: 'me',
         maxResults: 100,
-        q: 'after:2020/01/01 before:2027/12/31 -from:linkedin.com -from:google.com -subject:"security alert" -subject:"new sign-in" -subject:"password changed"',
+        q: 'after:2026/01/01 before:2027/01/01 -from:linkedin.com -from:google.com -subject:"security alert" -subject:"new sign-in" -subject:"password changed"',
         pageToken,
       });
 
       const pageMessages = response.data.messages || [];
       pageToken = response.data.nextPageToken || undefined;
 
-      const messagesToProcess = pageMessages.reverse();
+      const messagesToProcess = pageMessages;
 
       for (const message of messagesToProcess) {
         if (syncedSet.has(message.id)) continue;
@@ -104,27 +104,39 @@ async function syncAccount(account) {
         };
 
         if (isComplaintEmail(emailData)) {
-          const serialNo = await nextTicketSerialNo();
+          const existingPending = await prisma.ticket.findFirst({
+            where: {
+              subject: { equals: subject },
+              jobMetadata: null,
+            },
+            select: { id: true, serialNo: true },
+          });
 
-          try {
-            const ticket = await prisma.ticket.upsert({
-              where: { gmailMessageId: message.id },
-              update: {},
-              create: {
-                gmailAccountId: account.id,
-                gmailMessageId: message.id,
-                serialNo,
-                exactDate,
-                time,
-                subject,
-                sender: from,
-              },
-            });
-            if (ticket.serialNo === serialNo) {
-              savedTickets.push(ticket);
+          if (!existingPending) {
+            const serialNo = await nextTicketSerialNo();
+
+            try {
+              const ticket = await prisma.ticket.upsert({
+                where: { gmailMessageId: message.id },
+                update: {},
+                create: {
+                  gmailAccountId: account.id,
+                  gmailMessageId: message.id,
+                  serialNo,
+                  exactDate,
+                  time,
+                  subject,
+                  sender: from,
+                },
+              });
+              if (ticket.serialNo === serialNo) {
+                savedTickets.push(ticket);
+              }
+            } catch (e) {
+              console.error(`Failed to save ticket for ${message.id}:`, e.message);
             }
-          } catch (e) {
-            console.error(`Failed to save ticket for ${message.id}:`, e.message);
+          } else {
+            console.log(`Skipping duplicate subject: ${subject}`);
           }
         }
 
@@ -162,9 +174,14 @@ async function syncAccount(account) {
 
 export async function POST() {
   try {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    if (!clientId || !clientSecret) {
+    const authHeader = request.headers.get('authorization');
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && process.env.CRON_SECRET) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      const clientId = process.env.GOOGLE_CLIENT_ID;
+      const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
       console.log('OAuth missing - CLIENT_ID:', !!clientId, 'CLIENT_SECRET:', !!clientSecret);
       return NextResponse.json({ error: 'Google OAuth not configured. Check Vercel env vars.' }, { status: 500 });
     }

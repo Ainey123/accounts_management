@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mail, RefreshCw, Link, X, Filter, Shield, Plus, Trash2 } from 'lucide-react';
+import { Mail, RefreshCw, Link, X, Filter, Shield, Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
@@ -11,6 +11,7 @@ export default function GmailConnectionPage() {
   const router = useRouter();
   const [accounts, setAccounts] = useState([]);
   const [syncing, setSyncing] = useState(false);
+  const [forceResetting, setForceResetting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [tickets, setTickets] = useState([]);
@@ -146,6 +147,27 @@ export default function GmailConnectionPage() {
     }
   };
 
+  const handleForceResync = async () => {
+    setForceResetting(true);
+    setMessage('');
+    try {
+      // Step 1: Clear sync history on the live database (removes the 2000 ID limit)
+      await apiFetch('/api/gmail-force-reset', { method: 'POST' });
+      setMessage('Sync history cleared. Now importing ALL emails...');
+      
+      // Step 2: Let React render the message, then trigger full sync
+      await new Promise(r => setTimeout(r, 100));
+      
+      // Step 3: Trigger full sync — no filters, no exclusions, no limits
+      await handleSync();
+      setMessage('✅ Full re-sync complete! All emails from 2026 onwards have been imported.');
+    } catch (err) {
+      setMessage('Force re-sync failed: ' + err.message);
+    } finally {
+      setForceResetting(false);
+    }
+  };
+
   if (loading) {
     return <div className="glass-card"><p style={{ color: '#94a3b8' }}>Loading...</p></div>;
   }
@@ -214,16 +236,36 @@ export default function GmailConnectionPage() {
         </button>
 
         {accounts.length > 0 && (
-          <button
-            type="button"
-            className="nexus-btn nexus-btn-ghost"
-            style={{ width: '100%', padding: 16, marginTop: 8 }}
-            onClick={handleSync}
-            disabled={syncing}
-          >
-            <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} />
-            {syncing ? 'Syncing All Accounts...' : `Sync ${accounts.length} Gmail Account(s) Now`}
-          </button>
+          <>
+            <button
+              type="button"
+              className="nexus-btn nexus-btn-ghost"
+              style={{ width: '100%', padding: 16, marginTop: 8 }}
+              onClick={handleSync}
+              disabled={syncing || forceResetting}
+            >
+              <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} />
+              {syncing ? 'Syncing All Accounts...' : `Sync ${accounts.length} Gmail Account(s) Now`}
+            </button>
+
+            <button
+              type="button"
+              className="nexus-btn"
+              style={{
+                width: '100%',
+                padding: 16,
+                marginTop: 8,
+                background: 'rgba(234, 179, 8, 0.1)',
+                border: '1px solid rgba(234, 179, 8, 0.3)',
+                color: '#eab308',
+              }}
+              onClick={handleForceResync}
+              disabled={syncing || forceResetting}
+            >
+              <AlertTriangle size={18} style={{ marginRight: 8 }} />
+              {forceResetting ? 'Resetting Sync History...' : '⚠️ Force Full Re-Sync (Import ALL Emails)'}
+            </button>
+          </>
         )}
       </div>
 

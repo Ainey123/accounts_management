@@ -53,6 +53,10 @@ async function syncAccount(account) {
 
   let pageToken = undefined;
   let messagesProcessed = 0;
+  // Limit to 50 new emails per sync to avoid Vercel 504 timeout.
+  // Over multiple sync cycles (cron runs daily + manual clicks),
+  // ALL emails will be imported gradually.
+  const BATCH_LIMIT = 50;
 
   try {
     do {
@@ -126,6 +130,9 @@ async function syncAccount(account) {
 
         syncedSet.add(message.id);
         messagesProcessed++;
+
+        // Stop early if we hit the batch limit to avoid 504 timeout on Vercel
+        if (messagesProcessed >= BATCH_LIMIT) break;
       }
 
       if (syncedSet.size > 0) {
@@ -135,6 +142,10 @@ async function syncAccount(account) {
           data: { syncedEmailIds: JSON.stringify(idsArray) },
         });
       }
+
+      // If we hit the limit, stop pagination so we don't time out.
+      // Next sync will pick up where we left off.
+      if (messagesProcessed >= BATCH_LIMIT) break;
     } while (pageToken);
   } catch (error) {
     console.error(`Failed to list messages for ${account.gmailEmail}:`, error.message);

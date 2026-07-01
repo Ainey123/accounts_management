@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { prisma } from '@/lib/prisma';
 import { nextTicketSerialNo } from '@/lib/serial';
-import { isComplaintEmail } from '@/lib/complaintFilter';
 
 function getBaseUrl() {
   if (process.env.NODE_ENV === 'production') {
@@ -53,7 +52,6 @@ async function syncAccount(account) {
   const MAX_SYNCED_IDS = 2000;
 
   let pageToken = undefined;
-  const maxMessages = 200;
   let messagesProcessed = 0;
 
   try {
@@ -61,7 +59,7 @@ async function syncAccount(account) {
       const response = await gmail.users.messages.list({
         userId: 'me',
         maxResults: 100,
-        q: 'after:2026/01/01 before:2027/01/01 -from:linkedin.com -from:google.com -subject:"security alert" -subject:"new sign-in" -subject:"password changed"',
+        q: 'after:2026/01/01',
         pageToken,
       });
 
@@ -72,7 +70,6 @@ async function syncAccount(account) {
 
       for (const message of messagesToProcess) {
         if (syncedSet.has(message.id)) continue;
-        if (messagesProcessed >= maxMessages) break;
 
         const msg = await gmail.users.messages.get({
           userId: 'me',
@@ -94,50 +91,37 @@ async function syncAccount(account) {
           hour12: true,
         });
 
-        const emailData = {
-          gmailMessageId: message.id,
-          sender: from,
-          subject,
-          exactDate,
-          time,
-          body: msg.data.snippet || '',
-        };
+        // Check for duplicate subject across ALL tickets to prevent re-imports
+        const existingTicket = await prisma.ticket.findFirst({
+          where: { subject },
+          select: { id: true, serialNo: true },
+        });
 
-        if (isComplaintEmail(emailData)) {
-          const existingPending = await prisma.ticket.findFirst({
-            where: {
-              subject,
-              jobMetadata: null,
-            },
-            select: { id: true, serialNo: true },
-          });
+        if (!existingTicket) {
+          const serialNo = await nextTicketSerialNo();
 
-          if (!existingPending) {
-            const serialNo = await nextTicketSerialNo();
-
-            try {
-              const ticket = await prisma.ticket.upsert({
-                where: { gmailMessageId: message.id },
-                update: {},
-                create: {
-                  gmailAccountId: account.id,
-                  gmailMessageId: message.id,
-                  serialNo,
-                  exactDate,
-                  time,
-                  subject,
-                  sender: from,
-                },
-              });
-              if (ticket.serialNo === serialNo) {
-                savedTickets.push(ticket);
-              }
-            } catch (e) {
-              console.error(`Failed to save ticket for ${message.id}:`, e.message);
+          try {
+            const ticket = await prisma.ticket.upsert({
+              where: { gmailMessageId: message.id },
+              update: {},
+              create: {
+                gmailAccountId: account.id,
+                gmailMessageId: message.id,
+                serialNo,
+                exactDate,
+                time,
+                subject,
+                sender: from,
+              },
+            });
+            if (ticket.serialNo === serialNo) {
+              savedTickets.push(ticket);
             }
-          } else {
-            console.log(`Skipping duplicate subject: ${subject}`);
+          } catch (e) {
+            console.error(`Failed to save ticket for ${message.id}:`, e.message);
           }
+        } else {
+          console.log(`Skipping duplicate subject (ticket #${existingTicket.serialNo} already exists): ${subject}`);
         }
 
         syncedSet.add(message.id);

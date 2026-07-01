@@ -203,16 +203,6 @@ export default function GmailConnectionPage() {
           </div>
         )}
 
-        <div style={{ padding: 16, background: 'rgba(0, 242, 254, 0.05)', borderRadius: 12, border: '1px solid rgba(0, 242, 254, 0.15)', marginTop: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <Filter size={16} color="#00f2fe" />
-            <span style={{ fontSize: 14, fontWeight: 600, color: '#00f2fe' }}>Complaint Filter Active</span>
-          </div>
-          <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
-            Only emails matching complaint keywords (issue, problem, urgent, repair, fault, breakdown, etc.) are synced. 
-            System emails from LinkedIn, Google Security, and other non-complaint senders are automatically excluded.
-          </p>
-        </div>
 
         <button
           type="button"

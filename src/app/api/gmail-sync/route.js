@@ -106,7 +106,7 @@ async function syncAccount(account) {
         if (isComplaintEmail(emailData)) {
           const existingPending = await prisma.ticket.findFirst({
             where: {
-              subject: { equals: subject },
+              subject,
               jobMetadata: null,
             },
             select: { id: true, serialNo: true },

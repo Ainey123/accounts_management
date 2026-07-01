@@ -1,5 +1,3 @@
-export const maxDuration = 60;
-
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { prisma } from '@/lib/prisma';
@@ -27,20 +25,17 @@ async function syncAccount(account) {
     expiry_date: Number(account.expiryDate),
   });
 
-  // Automatically save refreshed tokens to prevent authentication dropouts
   oauth2Client.on('tokens', async (tokens) => {
     try {
       const updateData = {};
       if (tokens.access_token) updateData.accessToken = tokens.access_token;
       if (tokens.expiry_date) updateData.expiryDate = BigInt(tokens.expiry_date);
       if (tokens.refresh_token) updateData.refreshToken = tokens.refresh_token;
-
       if (Object.keys(updateData).length > 0) {
         await prisma.gmailAccount.update({
           where: { id: account.id },
           data: updateData,
         });
-        console.log(`Updated refreshed Google OAuth tokens in database for ${account.gmailEmail}`);
       }
     } catch (e) {
       console.error(`Error updating refreshed token for ${account.gmailEmail}:`, e);
@@ -48,14 +43,24 @@ async function syncAccount(account) {
   });
 
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-  
-  // Parse stored data: syncedEmailIds stores "monthIndex|jsonIds"
-  // Default: monthIndex=0 (January 2026), ids=[]
-  const storedParts = (account.syncedEmailIds || '0|[]').split('|');
-  const currentMonthIndex = parseInt(storedParts[0] || '0', 10);
-  const syncedIds = JSON.parse(storedParts[1] || '[]');
+
+  // Parse stored data - handle BOTH old format (json array) and new format (monthIndex|json)
+  const raw = account.syncedEmailIds || '0|[]';
+  let currentMonthIndex = 0;
+  let syncedIds = [];
+
+  if (raw.includes('|')) {
+    // New format: monthIndex|jsonIds
+    const parts = raw.split('|');
+    currentMonthIndex = parseInt(parts[0] || '0', 10);
+    try { syncedIds = JSON.parse(parts[1] || '[]'); } catch (e) { syncedIds = []; }
+  } else {
+    // Old format: just a json array - reset to start from January
+    try { syncedIds = JSON.parse(raw || '[]'); } catch (e) { syncedIds = []; }
+    currentMonthIndex = 0;
+  }
+
   const syncedSet = new Set(syncedIds);
-  
   const savedTickets = [];
   const MAX_SYNCED_IDS = 2000;
 
@@ -75,14 +80,14 @@ async function syncAccount(account) {
   ];
 
   let pageToken = undefined;
-  let messagesProcessed = 0;
   let monthFinished = false;
 
-  // If all months done, reset to continue checking latest emails
-  let monthIdx = currentMonthIndex >= months.length ? months.length - 1 : currentMonthIndex;
+  // Clamp month index
+  let monthIdx = currentMonthIndex;
+  if (monthIdx >= months.length) monthIdx = months.length - 1;
+  if (monthIdx < 0) monthIdx = 0;
 
   try {
-    // Only process ONE month per sync to stay within timeout
     const month = months[monthIdx];
     console.log(`Syncing month ${monthIdx + 1}/${months.length}: ${month.after} to ${month.before} for ${account.gmailEmail}`);
 
@@ -148,7 +153,6 @@ async function syncAccount(account) {
         }
 
         syncedSet.add(message.id);
-        messagesProcessed++;
       }
 
       // Save progress after each page
@@ -159,7 +163,6 @@ async function syncAccount(account) {
         data: { syncedEmailIds: `${nextMonthIdx}|${JSON.stringify(idsArray)}` },
       });
 
-      // If no next page, mark month as finished
       if (!pageToken) {
         monthFinished = true;
         console.log(`Month ${monthIdx + 1} complete for ${account.gmailEmail}. ${savedTickets.length} new tickets.`);
@@ -193,10 +196,7 @@ export async function POST(request) {
     }
 
     if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-      const clientId = process.env.GOOGLE_CLIENT_ID;
-      const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-      console.log('OAuth missing - CLIENT_ID:', !!clientId, 'CLIENT_SECRET:', !!clientSecret);
-      return NextResponse.json({ error: 'Google OAuth not configured. Check Vercel env vars.' }, { status: 500 });
+      return NextResponse.json({ error: 'Google OAuth not configured.' }, { status: 500 });
     }
 
     const accounts = await prisma.gmailAccount.findMany({

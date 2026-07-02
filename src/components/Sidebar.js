@@ -11,7 +11,6 @@ import { useAuth } from '@/components/AuthProvider';
 
 const NAV_ITEMS = [
   { name: 'Operations Feed', href: '/dashboard', icon: BarChart2 },
-  { name: 'All Tickets', href: '/tickets', icon: FileText },
   { name: 'Gmail Connection', href: '/gmail', icon: Mail, adminOnly: true },
   { name: 'Job Intake Grid', href: '/intake', icon: FileEdit },
   { name: 'Survey Canvas', href: '/survey', icon: FileText },

@@ -39,7 +39,10 @@ export async function GET(request) {
     return NextResponse.json({ jobs });
   } catch (error) {
     console.error('Jobs fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch jobs' }, { status: 500 });
+    const message = error.message || 'Unknown error';
+    const code = error.code || '';
+    const meta = error.meta || {};
+    return NextResponse.json({ error: 'Failed to fetch jobs', details: message, code, meta: JSON.stringify(meta) }, { status: 500 });
   }
 }
 
@@ -92,6 +95,8 @@ export async function POST(request) {
   } catch (error) {
     console.error('Job create error:', error);
     const message = error.message || 'Failed to create job metadata';
-    return NextResponse.json({ error: message, details: error.message }, { status: 500 });
+    const code = error.code || '';
+    const meta = error.meta || {};
+    return NextResponse.json({ error: message, details: message, code, meta: JSON.stringify(meta) }, { status: 500 });
   }
 }

@@ -39,7 +39,10 @@ export async function GET(request) {
     return NextResponse.json({ tickets });
   } catch (error) {
     console.error('Tickets fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch tickets' }, { status: 500 });
+    const message = error.message || 'Unknown error';
+    const code = error.code || '';
+    const meta = error.meta || {};
+    return NextResponse.json({ error: 'Failed to fetch tickets', details: message, code, meta: JSON.stringify(meta) }, { status: 500 });
   }
 }
 

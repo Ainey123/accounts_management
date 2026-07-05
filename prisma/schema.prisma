@@ -10,38 +10,23 @@ datasource db {
 
 /// Internal staffing ONLY — never store commercial customers here.
 model User {
-  id                     Int               @id @default(autoincrement())
-  email                  String            @unique
-  password               String
-  role                   String            @default("EMPLOYEE")
-  employeeName           String
-  activeStatus           Boolean           @default(true)
-  createdAt              DateTime          @default(now())
-  updatedAt              DateTime          @updatedAt
-  assignedJobs           JobMetadata[]
-  createdJobs            JobMetadata[]     @relation("CreatedJobs")
-  createdSurveys         SurveyReport[]    @relation("CreatedSurveys")
-  createdQuotations      QuotationInvoice[] @relation("CreatedQuotations")
-  createdExpenses        Expense[]         @relation("CreatedExpenses")
-  createdPayments        PaymentReceived[] @relation("CreatedPayments")
-  createdWorkCompletions WorkCompletion[]  @relation("CreatedWorkCompletions")
-  gmailAccounts          GmailAccount[]
-  createdTickets         Ticket[]          @relation("CreatedTickets")
-  attendanceRecords      AttendanceRecord[]
-}
-
-model AttendanceRecord {
-  id              Int      @id @default(autoincrement())
-  userId          Int
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  attendanceDate  DateTime
-  status          String   @default("PRESENT")
-  reason          String?
-  submittedAt     DateTime @default(now())
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([userId, attendanceDate])
+  id             Int               @id @default(autoincrement())
+  email          String            @unique
+  password       String
+  role           String            @default("EMPLOYEE")
+  employeeName   String
+  activeStatus   Boolean           @default(true)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  assignedJobs   JobMetadata[]
+  createdJobs    JobMetadata[]     @relation("CreatedJobs")
+  createdSurveys SurveyReport[]    @relation("CreatedSurveys")
+  createdQuotations QuotationInvoice[] @relation("CreatedQuotations")
+  createdExpenses Expense[]       @relation("CreatedExpenses")
+  createdPayments PaymentReceived[] @relation("CreatedPayments")
+  createdWorkCompletions WorkCompletion[] @relation("CreatedWorkCompletions")
+  gmailAccounts  GmailAccount[]
+  createdTickets Ticket[]        @relation("CreatedTickets")
 }
 
 /// Gmail OAuth connection and sync tracking.

@@ -18,10 +18,6 @@ export default function EmployeeRealTimeDashboard() {
   const [tickets, setTickets] = useState([]);
   const [stats, setStats] = useState({ assigned: 0, completed: 0, surveys: 0, expenses: 0, payments: 0 });
   const [message, setMessage] = useState('');
-  const [attendanceRecords, setAttendanceRecords] = useState([]);
-  const [leaveDate, setLeaveDate] = useState('');
-  const [leaveReason, setLeaveReason] = useState('');
-  const [savingLeave, setSavingLeave] = useState(false);
   
   // Inline actions states
   const [expandedJobId, setExpandedJobId] = useState(null);
@@ -67,11 +63,7 @@ export default function EmployeeRealTimeDashboard() {
       const { tickets: allTickets } = await apiFetch('/api/tickets');
       setTickets(allTickets || []);
 
-      // 4. Load attendance / leave records
-      const attendanceRes = await apiFetch('/api/attendance');
-      setAttendanceRecords(attendanceRes.attendanceRecords || []);
-
-      // 5. Calculate metrics
+      // 4. Calculate metrics
       const assigned = (fetchedJobs || []).length;
       // Inferred completion: if a job has at least one approved quotation/invoice
       const completed = (fetchedJobs || []).filter(j => 
@@ -263,35 +255,6 @@ export default function EmployeeRealTimeDashboard() {
     }
   };
 
-  const submitLeaveApplication = async () => {
-    if (!leaveDate || !leaveReason.trim()) {
-      setMessage('Leave date and reason are required.');
-      return;
-    }
-
-    setSavingLeave(true);
-    setMessage('');
-    try {
-      await apiFetch('/api/attendance', {
-        method: 'POST',
-        body: JSON.stringify({
-          attendanceDate: leaveDate,
-          status: 'LEAVE',
-          reason: leaveReason.trim(),
-        }),
-      });
-
-      setMessage('Leave application submitted successfully. Attendance marked as LEAVE.');
-      setLeaveDate('');
-      setLeaveReason('');
-      await loadDashboardData();
-    } catch (err) {
-      setMessage('Failed to submit leave application: ' + err.message);
-    } finally {
-      setSavingLeave(false);
-    }
-  };
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* HEADER SECTION */}
@@ -350,63 +313,6 @@ export default function EmployeeRealTimeDashboard() {
               </div>
             );
           })}
-        </div>
-      </section>
-
-      <section className="glass-card" style={{ padding: 24, display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 20 }}>
-        <div>
-          <h2 style={{ fontSize: 18, marginBottom: 8 }}>Leave Application</h2>
-          <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 16 }}>
-            Submit a leave request here and the system will automatically record your attendance as LEAVE for the selected date.
-          </p>
-          <label className="field-label">Leave Date</label>
-          <input
-            className="nexus-input"
-            type="date"
-            value={leaveDate}
-            onChange={(e) => setLeaveDate(e.target.value)}
-            style={{ marginBottom: 12 }}
-          />
-
-          <label className="field-label">Reason for Leave</label>
-          <textarea
-            className="nexus-textarea"
-            value={leaveReason}
-            onChange={(e) => setLeaveReason(e.target.value)}
-            placeholder="Briefly explain the reason for your leave..."
-            style={{ minHeight: 90, marginBottom: 12 }}
-          />
-
-          <button
-            type="button"
-            className="nexus-btn nexus-btn-primary"
-            onClick={submitLeaveApplication}
-            disabled={savingLeave}
-          >
-            <Save size={14} /> {savingLeave ? 'Submitting Leave...' : 'Submit Leave Application'}
-          </button>
-        </div>
-
-        <div style={{ padding: 16, background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)' }}>
-          <h3 style={{ fontSize: 16, marginBottom: 12 }}>Your Leave Records</h3>
-          {attendanceRecords.filter((record) => record.status === 'LEAVE').length === 0 ? (
-            <p style={{ color: '#94a3b8', fontSize: 13 }}>No leave requests submitted yet.</p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {attendanceRecords
-                .filter((record) => record.status === 'LEAVE')
-                .sort((a, b) => new Date(b.attendanceDate) - new Date(a.attendanceDate))
-                .map((record) => (
-                  <div key={record.id} style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.16)', borderRadius: 8 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                      <strong>{new Date(record.attendanceDate).toLocaleDateString()}</strong>
-                      <span style={{ fontSize: 12, color: '#f59e0b' }}>LEAVE</span>
-                    </div>
-                    <div style={{ fontSize: 13, color: '#cbd5e1' }}>{record.reason || 'No reason provided'}</div>
-                  </div>
-                ))}
-            </div>
-          )}
         </div>
       </section>
 

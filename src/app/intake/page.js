@@ -246,7 +246,9 @@ export default function IntakeGridPage() {
         {selectedTicket && (
           <div style={{ marginTop: 16, padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid rgba(255,255,255,0.05)' }}>
             <span style={{ fontSize: 14, color: '#94a3b8' }}>
-              Ticket Relevance: <strong style={{ color: selectedTicket.status === 'RELEVANT' ? '#4ade80' : selectedTicket.status === 'IRRELEVANT' ? '#f87171' : '#fbbf24', marginLeft: 6 }}>{selectedTicket.status}</strong>
+              {selectedTicket.status === 'PENDING' ? 'Is this ticket relevant?' : (
+                <>Ticket Relevance: <strong style={{ color: selectedTicket.status === 'RELEVANT' ? '#4ade80' : '#f87171', marginLeft: 6 }}>{selectedTicket.status}</strong></>
+              )}
             </span>
             <div style={{ display: 'flex', gap: 8 }}>
               {selectedTicket.status !== 'RELEVANT' && (

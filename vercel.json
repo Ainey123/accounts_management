@@ -4,8 +4,5 @@
       "path": "/api/gmail-sync",
       "schedule": "0 8 * * *"
     }
-  ],
-  "deployment": {
-    "source": "push"
-  }
+  ]
 }

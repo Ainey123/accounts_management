@@ -65,6 +65,7 @@ export async function POST(request) {
         time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
         gmailMessageId: `manual-${Date.now()}`,
         createdById: createdById ? Number(createdById) : undefined,
+        status: 'RELEVANT',
       },
       include: {
         createdBy: { select: { id: true, employeeName: true, email: true } }

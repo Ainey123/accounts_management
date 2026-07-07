@@ -57,6 +57,7 @@ model Ticket {
   subject        String
   sender         String
   createdAt      DateTime     @default(now())
+  status         String       @default("PENDING") // PENDING, RELEVANT, IRRELEVANT
   jobMetadata    JobMetadata?
   createdById    Int?
   createdBy      User?        @relation("CreatedTickets", fields: [createdById], references: [id], onDelete: SetNull)

@@ -37,6 +37,7 @@ export default function IntakeGridPage() {
   const [copied, setCopied] = useState(false);
   const [jobSearch, setJobSearch] = useState('');
   const [ticketSearch, setTicketSearch] = useState('');
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +112,27 @@ export default function IntakeGridPage() {
     }
   };
 
+  const handleUpdateTicketStatus = async (ticketId, newStatus) => {
+    setUpdatingStatus(true);
+    setMessage('');
+    try {
+      await apiFetch(`/api/tickets/${ticketId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: newStatus }),
+      });
+      setTickets((prev) =>
+        prev.map((t) => (String(t.id) === String(ticketId) ? { ...t, status: newStatus } : t))
+      );
+      if (newStatus === 'IRRELEVANT') {
+        setMessage('Ticket marked as irrelevant.');
+      }
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   const handleCreateManualTicket = async (e) => {
     e.preventDefault();
     setCreatingTicket(true);
@@ -161,6 +183,8 @@ export default function IntakeGridPage() {
       setMessage('Failed to copy subject');
     }
   };
+
+  const selectedTicket = (tickets || []).find((t) => String(t.id) === String(selectedTicketId));
 
   return (
     <div>
@@ -218,10 +242,37 @@ export default function IntakeGridPage() {
         {tickets.length === 0 && !loadingData && (
           <p style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>No Gmail tickets. Click "+ Manual Ticket" to create one.</p>
         )}
+        
+        {selectedTicket && (
+          <div style={{ marginTop: 16, padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <span style={{ fontSize: 14, color: '#94a3b8' }}>
+              Ticket Relevance: <strong style={{ color: selectedTicket.status === 'RELEVANT' ? '#4ade80' : selectedTicket.status === 'IRRELEVANT' ? '#f87171' : '#fbbf24', marginLeft: 6 }}>{selectedTicket.status}</strong>
+            </span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {selectedTicket.status !== 'RELEVANT' && (
+                <button type="button" className="nexus-btn" style={{ background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid #4ade80', fontSize: 12, padding: '6px 16px' }} onClick={() => handleUpdateTicketStatus(selectedTicket.id, 'RELEVANT')} disabled={updatingStatus}>
+                  Mark Relevant
+                </button>
+              )}
+              {selectedTicket.status !== 'IRRELEVANT' && (
+                <button type="button" className="nexus-btn" style={{ background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid #f87171', fontSize: 12, padding: '6px 16px' }} onClick={() => handleUpdateTicketStatus(selectedTicket.id, 'IRRELEVANT')} disabled={updatingStatus}>
+                  Mark Irrelevant
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      <form onSubmit={handleSubmit} className="glass-card">
-        <div className="intake-grid" style={{ opacity: loadingData ? 0.5 : 1, pointerEvents: loadingData ? 'none' : 'auto' }}>
+      <form onSubmit={handleSubmit} className="glass-card" style={{ position: 'relative' }}>
+        {(!selectedTicket || selectedTicket.status !== 'RELEVANT') && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 10, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8 }}>
+            <div style={{ background: '#1e293b', padding: '12px 24px', borderRadius: 8, border: '1px solid #334155', color: '#f8fafc', fontWeight: 500, boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
+              {selectedTicket?.status === 'IRRELEVANT' ? 'This ticket is marked as Irrelevant.' : 'Please mark the ticket as Relevant first.'}
+            </div>
+          </div>
+        )}
+        <div className="intake-grid" style={{ opacity: loadingData || (!selectedTicket || selectedTicket.status !== 'RELEVANT') ? 0.5 : 1, pointerEvents: loadingData || (!selectedTicket || selectedTicket.status !== 'RELEVANT') ? 'none' : 'auto' }}>
           <div>
             <label className="field-label"><User size={12} style={{ display: 'inline', marginRight: 4 }} />Client Name</label>
             <input className="nexus-input" name="clientName" value={form.clientName} onChange={handleChange} required placeholder="Commercial client" />

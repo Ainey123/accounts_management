@@ -360,7 +360,8 @@ export default function IntakeGridPage() {
                     job.manualEnteredBy?.toLowerCase().includes(q)
                   );
                 })
-                .map((job, index) => (
+                .sort((a, b) => a.id - b.id)
+              .map((job, index) => (
                   <tr key={job.id}>
                     <td style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 600 }}>{index + 1}</td>
                     <td>{job.clientName}</td>

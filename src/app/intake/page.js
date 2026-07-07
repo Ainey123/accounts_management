@@ -384,7 +384,7 @@ export default function IntakeGridPage() {
                     <td>{job.assignedEmployee?.employeeName || job.manualEnteredBy || '—'}</td>
                   </tr>
                 ))
-            )}
+            })}
           </tbody>
         </table>
       </section>

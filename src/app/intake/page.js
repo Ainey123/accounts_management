@@ -116,15 +116,18 @@ export default function IntakeGridPage() {
     setUpdatingStatus(true);
     setMessage('');
     try {
-      await apiFetch(`/api/tickets/${ticketId}`, {
+      const { ticket: updatedTicket } = await apiFetch(`/api/tickets/${ticketId}`, {
         method: 'PATCH',
         body: JSON.stringify({ status: newStatus }),
       });
       setTickets((prev) =>
-        prev.map((t) => (String(t.id) === String(ticketId) ? { ...t, status: newStatus } : t))
+        prev.map((t) => (String(t.id) === String(ticketId) ? updatedTicket : t))
       );
+      setSelectedTicketId(String(ticketId));
       if (newStatus === 'IRRELEVANT') {
         setMessage('Ticket marked as irrelevant.');
+      } else if (newStatus === 'RELEVANT') {
+        setMessage('Ticket marked as relevant. You can now fill in client name and metadata.');
       }
     } catch (err) {
       setMessage(err.message);
@@ -267,14 +270,7 @@ export default function IntakeGridPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="glass-card" style={{ position: 'relative' }}>
-        {(!selectedTicket || selectedTicket.status !== 'RELEVANT') && (
-          <div style={{ position: 'absolute', inset: 0, zIndex: 10, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8 }}>
-            <div style={{ background: '#1e293b', padding: '12px 24px', borderRadius: 8, border: '1px solid #334155', color: '#f8fafc', fontWeight: 500, boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
-              {selectedTicket?.status === 'IRRELEVANT' ? 'This ticket is marked as Irrelevant.' : 'Please mark the ticket as Relevant first.'}
-            </div>
-          </div>
-        )}
-        <div className="intake-grid" style={{ opacity: loadingData || (!selectedTicket || selectedTicket.status !== 'RELEVANT') ? 0.5 : 1, pointerEvents: loadingData || (!selectedTicket || selectedTicket.status !== 'RELEVANT') ? 'none' : 'auto' }}>
+        <div className="intake-grid" style={{ opacity: loadingData ? 0.5 : 1, pointerEvents: loadingData ? 'none' : 'auto' }}>
           <div>
             <label className="field-label"><User size={12} style={{ display: 'inline', marginRight: 4 }} />Client Name</label>
             <input className="nexus-input" name="clientName" value={form.clientName} onChange={handleChange} required placeholder="Commercial client" />
@@ -394,7 +390,7 @@ export default function IntakeGridPage() {
       </section>
 
       {showManualForm && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }} onClick={() => setShowManualForm(false)}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }} onClick={() => setShowManualForm(false)}>
           <div className="glass-card" style={{ width: '100%', maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <h3 style={{ margin: 0 }}>Create Manual Ticket</h3>

@@ -15,7 +15,7 @@ const WORK_NATURES = [
 
 export default function IntakeGridPage() {
   const { user } = useAuth();
-  const { refreshJobs, jobs } = useJob();
+  const { refreshJobs } = useJob();
   const [tickets, setTickets] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [selectedTicketId, setSelectedTicketId] = useState('');
@@ -343,35 +343,40 @@ export default function IntakeGridPage() {
           </thead>
           <tbody>
             {(() => {
-              const list = jobs.filter((job) => {
-                if (!jobSearch) return true;
-                const q = jobSearch.toLowerCase();
-                return (
-                  job.clientName?.toLowerCase().includes(q) ||
-                  job.branchName?.toLowerCase().includes(q) ||
-                  job.personOfContact?.toLowerCase().includes(q) ||
-                  job.workNature?.toLowerCase().includes(q) ||
-                  job.ticket?.subject?.toLowerCase().includes(q) ||
-                  job.ticket?.serialNo?.toLowerCase().includes(q) ||
-                  job.assignedEmployee?.employeeName?.toLowerCase().includes(q) ||
-                  job.manualEnteredBy?.toLowerCase().includes(q)
-                );
-              });
+              const list = tickets
+                .filter((t) => t.jobMetadata)
+                .filter((t) => {
+                  if (!jobSearch) return true;
+                  const j = t.jobMetadata;
+                  const q = jobSearch.toLowerCase();
+                  return (
+                    j.clientName?.toLowerCase().includes(q) ||
+                    j.branchName?.toLowerCase().includes(q) ||
+                    j.personOfContact?.toLowerCase().includes(q) ||
+                    j.workNature?.toLowerCase().includes(q) ||
+                    t.subject?.toLowerCase().includes(q) ||
+                    t.serialNo?.toLowerCase().includes(q) ||
+                    j.assignedEmployee?.employeeName?.toLowerCase().includes(q) ||
+                    j.manualEnteredBy?.toLowerCase().includes(q)
+                  );
+                });
               if (list.length === 0) {
                 return <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No entries yet.</td></tr>;
               }
-              return list.map((job, index) => (
-                <tr key={job.id}>
-                  <td style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 600 }}>{list.length - index}</td>
-                    <td>{job.clientName}</td>
-                    <td>{job.branchName}</td>
+              return list.map((t, index) => {
+                const j = t.jobMetadata;
+                return (
+                  <tr key={t.id}>
+                    <td style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 600 }}>{list.length - index}</td>
+                    <td>{j.clientName}</td>
+                    <td>{j.branchName}</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: 260 }}>
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{job.ticket?.subject || '—'}</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{t.subject || '—'}</span>
                         <button
                           type="button"
                           className="nexus-btn nexus-btn-ghost"
-                          onClick={() => handleCopyJobSubject(job.ticket?.subject)}
+                          onClick={() => handleCopyJobSubject(t.subject)}
                           style={{ padding: 4, minWidth: 'auto', flexShrink: 0 }}
                           title="Copy subject"
                         >
@@ -379,12 +384,13 @@ export default function IntakeGridPage() {
                         </button>
                       </div>
                     </td>
-                    <td>{job.personOfContact}</td>
-                    <td>{job.workNature}</td>
-                    <td>{job.assignedEmployee?.employeeName || job.manualEnteredBy || '—'}</td>
+                    <td>{j.personOfContact}</td>
+                    <td>{j.workNature}</td>
+                    <td>{j.assignedEmployee?.employeeName || j.manualEnteredBy || '—'}</td>
                   </tr>
-                ))
-            })}
+                );
+              });
+            })()}
           </tbody>
         </table>
       </section>

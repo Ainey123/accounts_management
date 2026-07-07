@@ -342,28 +342,27 @@ export default function IntakeGridPage() {
             </tr>
           </thead>
           <tbody>
-            {jobs.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No entries yet.</td></tr>
-            ) : (
-              jobs
-                .filter((job) => {
-                  if (!jobSearch) return true;
-                  const q = jobSearch.toLowerCase();
-                  return (
-                    job.clientName?.toLowerCase().includes(q) ||
-                    job.branchName?.toLowerCase().includes(q) ||
-                    job.personOfContact?.toLowerCase().includes(q) ||
-                    job.workNature?.toLowerCase().includes(q) ||
-                    job.ticket?.subject?.toLowerCase().includes(q) ||
-                    job.ticket?.serialNo?.toLowerCase().includes(q) ||
-                    job.assignedEmployee?.employeeName?.toLowerCase().includes(q) ||
-                    job.manualEnteredBy?.toLowerCase().includes(q)
-                  );
-                })
-                .sort((a, b) => a.id - b.id)
-              .map((job, index) => (
-                  <tr key={job.id}>
-                    <td style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 600 }}>{index + 1}</td>
+            {(() => {
+              const list = jobs.filter((job) => {
+                if (!jobSearch) return true;
+                const q = jobSearch.toLowerCase();
+                return (
+                  job.clientName?.toLowerCase().includes(q) ||
+                  job.branchName?.toLowerCase().includes(q) ||
+                  job.personOfContact?.toLowerCase().includes(q) ||
+                  job.workNature?.toLowerCase().includes(q) ||
+                  job.ticket?.subject?.toLowerCase().includes(q) ||
+                  job.ticket?.serialNo?.toLowerCase().includes(q) ||
+                  job.assignedEmployee?.employeeName?.toLowerCase().includes(q) ||
+                  job.manualEnteredBy?.toLowerCase().includes(q)
+                );
+              });
+              if (list.length === 0) {
+                return <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No entries yet.</td></tr>;
+              }
+              return list.map((job, index) => (
+                <tr key={job.id}>
+                  <td style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 600 }}>{list.length - index}</td>
                     <td>{job.clientName}</td>
                     <td>{job.branchName}</td>
                     <td>

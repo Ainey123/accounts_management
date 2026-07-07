@@ -11,6 +11,19 @@ function getAuthUser(request) {
   }
 }
 
+// Single atomic renumber: assigns 1, 2, 3... to all tickets ordered by creation.
+async function renumberAllTickets() {
+  await prisma.$executeRawUnsafe(`
+    UPDATE "Ticket" AS t
+    SET "serialNo" = sub."newSerial"
+    FROM (
+      SELECT id, CAST(ROW_NUMBER() OVER (ORDER BY "createdAt" ASC, id ASC) AS TEXT) AS "newSerial"
+      FROM "Ticket"
+    ) AS sub
+    WHERE t.id = sub.id;
+  `);
+}
+
 export async function POST(request) {
   const user = getAuthUser(request);
   if (!user || user.role !== 'ADMIN') {
@@ -42,21 +55,8 @@ export async function POST(request) {
       });
     }
 
-    // Renumber serials sequentially
-    const remainingTickets = await prisma.ticket.findMany({
-      orderBy: { createdAt: 'asc' },
-      select: { id: true, serialNo: true },
-    });
-
-    for (let i = 0; i < remainingTickets.length; i++) {
-      const newSerial = String(i + 1);
-      if (remainingTickets[i].serialNo !== newSerial) {
-        await prisma.ticket.update({
-          where: { id: remainingTickets[i].id },
-          data: { serialNo: newSerial },
-        });
-      }
-    }
+    // Renumber all serials sequentially (1, 2, 3...) in a single atomic statement
+    await renumberAllTickets();
 
     return NextResponse.json({ success: true, deleted: toDelete.length });
   } catch (error) {
@@ -74,22 +74,9 @@ export async function DELETE(request) {
   try {
     // Safely renumber ALL tickets sequentially as plain numbers (1, 2, 3...)
     // without deleting any data.
-    const allTickets = await prisma.ticket.findMany({
-      orderBy: { createdAt: 'asc' },
-      select: { id: true, serialNo: true },
-    });
+    await renumberAllTickets();
 
-    for (let i = 0; i < allTickets.length; i++) {
-      const newSerial = String(i + 1);
-      if (allTickets[i].serialNo !== newSerial) {
-        await prisma.ticket.update({
-          where: { id: allTickets[i].id },
-          data: { serialNo: newSerial },
-        });
-      }
-    }
-
-    return NextResponse.json({ success: true, renumbered: allTickets.length });
+    return NextResponse.json({ success: true, renumbered: await prisma.ticket.count() });
   } catch (error) {
     console.error('Clean invalid tickets error:', error);
     return NextResponse.json({ error: 'Failed to clean invalid tickets' }, { status: 500 });

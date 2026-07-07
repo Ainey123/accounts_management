@@ -169,10 +169,10 @@ export default function AdminCommandCenter() {
   };
 
   const handleCleanInvalidSerials = async () => {
-    if (!confirm('This will delete tickets with invalid serial numbers (not #XXX format) and renumber all tickets. Continue?')) return;
+    if (!confirm('This will renumber all ticket serial numbers sequentially as 1, 2, 3... No tickets will be deleted. Continue?')) return;
     try {
       const result = await apiFetch('/api/admin/fix-duplicates', { method: 'DELETE' });
-      setMessage(`Cleaned ${result.deleted} invalid tickets.`);
+      setMessage(`Renumbered ${result.renumbered} tickets to sequential serials.`);
       await loadAll();
     } catch (err) {
       setMessage('Clean failed: ' + err.message);
@@ -427,7 +427,7 @@ export default function AdminCommandCenter() {
                 <Filter size={16} /> Fix Duplicates
               </button>
               <button type="button" className="nexus-btn nexus-btn-ghost" onClick={handleCleanInvalidSerials} style={{ color: '#ef4444' }}>
-                <Trash2 size={16} /> Clean Invalid Serials
+                <Trash2 size={16} /> Renumber Serials (1,2,3)
               </button>
               <select className="nexus-select" value={ticketFilter} onChange={(e) => setTicketFilter(e.target.value)} style={{ width: 'auto' }}>
                 <option value="all">All</option>
@@ -500,7 +500,7 @@ export default function AdminCommandCenter() {
                 <Filter size={16} /> Fix Duplicates
               </button>
               <button type="button" className="nexus-btn nexus-btn-ghost" onClick={handleCleanInvalidSerials} style={{ color: '#ef4444' }}>
-                <Trash2 size={16} /> Clean Invalid Serials
+                <Trash2 size={16} /> Renumber Serials (1,2,3)
               </button>
               <button type="button" className="nexus-btn nexus-btn-primary" onClick={handleSyncAllGmail}>
                 <RefreshCw size={16} /> Sync All Accounts

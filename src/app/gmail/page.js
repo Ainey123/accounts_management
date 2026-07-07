@@ -295,7 +295,7 @@ export default function GmailConnectionPage() {
                   <div style={{ fontSize: 15 }}>{ticket.subject}</div>
                 </div>
                 <div style={{ marginTop: 8, fontSize: 11, color: '#475569', fontFamily: 'monospace' }}>
-                  #{ticket.serialNo}
+                  {ticket.serialNo}
                 </div>
               </div>
             ))}

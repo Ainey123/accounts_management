@@ -49,7 +49,7 @@ export async function POST(request) {
     });
 
     for (let i = 0; i < remainingTickets.length; i++) {
-      const newSerial = `#${String(i + 1).padStart(3, '0')}`;
+      const newSerial = String(i + 1);
       if (remainingTickets[i].serialNo !== newSerial) {
         await prisma.ticket.update({
           where: { id: remainingTickets[i].id },
@@ -72,33 +72,24 @@ export async function DELETE(request) {
   }
 
   try {
-    // Clean up tickets with invalid serial formats
-    const invalidTickets = await prisma.ticket.findMany({
-      where: { NOT: { serialNo: { startsWith: '#' } } },
+    // Safely renumber ALL tickets sequentially as plain numbers (1, 2, 3...)
+    // without deleting any data.
+    const allTickets = await prisma.ticket.findMany({
+      orderBy: { createdAt: 'asc' },
       select: { id: true, serialNo: true },
     });
 
-    if (invalidTickets.length > 0) {
-      await prisma.ticket.deleteMany({
-        where: { id: { in: invalidTickets.map(t => t.id) } },
-      });
+    for (let i = 0; i < allTickets.length; i++) {
+      const newSerial = String(i + 1);
+      if (allTickets[i].serialNo !== newSerial) {
+        await prisma.ticket.update({
+          where: { id: allTickets[i].id },
+          data: { serialNo: newSerial },
+        });
+      }
     }
 
-    // Renumber remaining tickets
-    const remainingTickets = await prisma.ticket.findMany({
-      orderBy: { createdAt: 'asc' },
-      select: { id: true },
-    });
-
-    for (let i = 0; i < remainingTickets.length; i++) {
-      const newSerial = `#${String(i + 1).padStart(3, '0')}`;
-      await prisma.ticket.update({
-        where: { id: remainingTickets[i].id },
-        data: { serialNo: newSerial },
-      });
-    }
-
-    return NextResponse.json({ success: true, deleted: invalidTickets.length });
+    return NextResponse.json({ success: true, renumbered: allTickets.length });
   } catch (error) {
     console.error('Clean invalid tickets error:', error);
     return NextResponse.json({ error: 'Failed to clean invalid tickets' }, { status: 500 });

@@ -8,10 +8,10 @@ export async function nextTicketSerialNo() {
   
   const extractSerialNum = (serial) => {
     if (!serial) return 0;
-    const match = serial.match(/^#(\d+)/);
+    const match = serial.match(/^(\d+)/);
     return match ? parseInt(match[1], 10) : 0;
   };
   
   const num = extractSerialNum(maxTicket?.serialNo);
-  return `#${String(num + 1).padStart(3, '0')}`;
+  return String(num + 1);
 }

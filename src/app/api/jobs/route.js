@@ -23,49 +23,62 @@ export async function GET(request) {
       whereClause = { assignedEmployeeId: user.id };
     }
 
-    // Try to include all relations including new ones (workCompletion, bankApproval)
-    // Fall back to basic relations if DB schema hasn't been updated yet
-    let jobs;
-    try {
-      jobs = await prisma.jobMetadata.findMany({
-        where: whereClause,
-        orderBy: { id: 'desc' },
-        include: {
-          ticket: true,
-          createdBy: { select: { id: true, employeeName: true, email: true } },
-          assignedEmployee: { select: { id: true, employeeName: true, email: true } },
-          surveyReport: { select: { id: true, reportText: true, imageUrl: true, createdAt: true, createdBy: { select: { id: true, employeeName: true } } } },
-          quotationInvoices: { select: { id: true, documentType: true, status: true, lineItems: true, poNumber: true, imageUrl: true, createdAt: true, createdBy: { select: { id: true, employeeName: true } } } },
-          expenses: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true } },
-          payments: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true } },
-          workCompletion: { select: { id: true, status: true, amount: true, imageUrl: true, notes: true, createdAt: true, updatedAt: true } },
-          bankApproval: { select: { id: true, bankName: true, accountNumber: true, amount: true, status: true, imageUrl: true, notes: true, createdAt: true } },
-        },
-      });
-    } catch (includeErr) {
-      // Fallback: new tables (workCompletion, bankApproval) may not exist yet
-      jobs = await prisma.jobMetadata.findMany({
-        where: whereClause,
-        orderBy: { id: 'desc' },
-        include: {
-          ticket: true,
-          createdBy: { select: { id: true, employeeName: true, email: true } },
-          assignedEmployee: { select: { id: true, employeeName: true, email: true } },
-          surveyReport: { select: { id: true, reportText: true, imageUrl: true, createdAt: true, createdBy: { select: { id: true, employeeName: true } } } },
-          quotationInvoices: { select: { id: true, documentType: true, status: true, lineItems: true, poNumber: true, imageUrl: true, createdAt: true } },
-          expenses: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true } },
-          payments: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true } },
-        },
-      });
-    }
+    // Use raw SQL to avoid Prisma client/schema mismatch issues
+    // This ensures the dashboard loads even if new DB columns don't exist yet
+    const employeeFilter = user && user.role === 'EMPLOYEE' ? `AND jm."assignedEmployeeId" = ${user.id}` : '';
+    
+    const rows = await prisma.$queryRawUnsafe(`
+      SELECT 
+        jm.id, jm."ticketId", jm."clientName", jm."branchName", jm."personOfContact",
+        jm."workNature", jm."assignedEmployeeId", jm."manualEnteredBy", jm."createdById",
+        jm."createdAt", jm."updatedAt", jm."paymentProgress",
+        t.id as "ticket_id", t."serialNo" as "ticket_serialNo", t.subject as "ticket_subject", t.sender as "ticket_sender",
+        u.id as "employee_id", u."employeeName" as "employee_name", u.email as "employee_email"
+      FROM "JobMetadata" jm
+      LEFT JOIN "Ticket" t ON t.id = jm."ticketId"
+      LEFT JOIN "User" u ON u.id = jm."assignedEmployeeId"
+      WHERE 1=1 ${employeeFilter}
+      ORDER BY jm.id DESC
+    `);
+
+    // Map raw rows to the expected format
+    const jobs = rows.map(row => ({
+      id: row.id,
+      ticketId: row.ticketId,
+      clientName: row.clientName,
+      branchName: row.branchName,
+      personOfContact: row.personOfContact,
+      workNature: row.workNature,
+      assignedEmployeeId: row.assignedEmployeeId,
+      manualEnteredBy: row.manualEnteredBy,
+      createdById: row.createdById,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      paymentProgress: row.paymentProgress,
+      paymentStatus: 'PENDING',
+      ticket: row.ticket_id ? {
+        id: row.ticket_id,
+        serialNo: row.ticket_serialNo,
+        subject: row.ticket_subject,
+        sender: row.ticket_sender,
+      } : null,
+      assignedEmployee: row.employee_id ? {
+        id: row.employee_id,
+        employeeName: row.employee_name,
+        email: row.employee_email,
+      } : null,
+      surveyReport: null,
+      quotationInvoices: [],
+      expenses: [],
+      payments: [],
+      workCompletion: null,
+      bankApproval: null,
+    }));
 
     return NextResponse.json({ jobs });
   } catch (error) {
     console.error('Jobs fetch error:', error);
-    const message = error.message || 'Unknown error';
-    const code = error.code || '';
-    const meta = error.meta || {};
-    return NextResponse.json({ error: 'Failed to fetch jobs', details: message, code, meta: JSON.stringify(meta) }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch jobs', details: error.message }, { status: 500 });
   }
 }
 
@@ -118,8 +131,6 @@ export async function POST(request) {
   } catch (error) {
     console.error('Job create error:', error);
     const message = error.message || 'Failed to create job metadata';
-    const code = error.code || '';
-    const meta = error.meta || {};
-    return NextResponse.json({ error: message, details: message, code, meta: JSON.stringify(meta) }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

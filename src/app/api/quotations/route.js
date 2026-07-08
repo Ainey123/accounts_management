@@ -42,7 +42,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const { jobMetadataId, documentType = 'QUOTATION', lineItems = [], poNumber, status = 'PENDING' } =
+    const { jobMetadataId, documentType = 'QUOTATION', lineItems = [], poNumber, status = 'PENDING', imageUrl } =
       await request.json();
     const authCookie = request.headers.get('x-user-id') || request.cookies.get('nexus_user')?.value;
     let userId = null;
@@ -71,6 +71,7 @@ export async function POST(request) {
           lineItems: JSON.stringify(lineItems),
           poNumber: poNumber || null,
           status,
+          imageUrl: imageUrl || null,
           createdById: userId,
         },
         include: {
@@ -87,6 +88,7 @@ export async function POST(request) {
           lineItems: JSON.stringify(lineItems),
           poNumber: poNumber || null,
           status,
+          imageUrl: imageUrl || null,
         },
         include: {
           jobMetadata: { include: { ticket: true } },
@@ -102,7 +104,7 @@ export async function POST(request) {
 
 export async function PATCH(request) {
   try {
-    const { id, lineItems, poNumber, status } = await request.json();
+    const { id, lineItems, poNumber, status, imageUrl } = await request.json();
 
     if (!id) {
       return NextResponse.json({ error: 'Document id is required' }, { status: 400 });
@@ -115,6 +117,7 @@ export async function PATCH(request) {
     if (lineItems !== undefined) data.lineItems = JSON.stringify(lineItems);
     if (poNumber !== undefined) data.poNumber = poNumber || null;
     if (status !== undefined) data.status = status;
+    if (imageUrl !== undefined) data.imageUrl = imageUrl || null;
 
     const document = await prisma.quotationInvoice.update({
       where: { id: Number(id) },

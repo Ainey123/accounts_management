@@ -25,6 +25,7 @@ model User {
   createdExpenses Expense[]       @relation("CreatedExpenses")
   createdPayments PaymentReceived[] @relation("CreatedPayments")
   createdWorkCompletions WorkCompletion[] @relation("CreatedWorkCompletions")
+  createdBankApprovals   BankApproval[]   @relation("CreatedBankApprovals")
   gmailAccounts  GmailAccount[]
   createdTickets Ticket[]        @relation("CreatedTickets")
 }
@@ -80,11 +81,13 @@ model JobMetadata {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   paymentProgress    Int?           @default(0)
+  paymentStatus      String?        @default("PENDING")
   surveyReport       SurveyReport?
   quotationInvoices  QuotationInvoice[]
   expenses           Expense[]
   payments           PaymentReceived[]
   workCompletion     WorkCompletion?
+  bankApproval       BankApproval?
 }
 
 model SurveyReport {
@@ -109,6 +112,7 @@ model QuotationInvoice {
   status        String          @default("PENDING")
   documentType  String          @default("QUOTATION")
   lineItems     String          @default("[]")
+  imageUrl      String?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime    @updatedAt
 }
@@ -147,6 +151,23 @@ model WorkCompletion {
   status        String      @default("PENDING")
   amount        Float       @default(0)
   imageUrl      String?
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model BankApproval {
+  id            Int         @id @default(autoincrement())
+  jobMetadataId Int         @unique
+  jobMetadata   JobMetadata @relation(fields: [jobMetadataId], references: [id], onDelete: Cascade)
+  createdById   Int?
+  createdBy     User?       @relation("CreatedBankApprovals", fields: [createdById], references: [id], onDelete: SetNull)
+  bankName      String?
+  accountNumber String?
+  amount        Float       @default(0)
+  status        String      @default("PENDING")
+  imageUrl      String?
+  notes         String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 }

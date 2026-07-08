@@ -338,7 +338,8 @@ export default function IntakeGridPage() {
               <th>Subject / Ticket</th>
               <th>POC</th>
               <th>Work Nature</th>
-              <th>Assigned / Entered By</th>
+              <th>Assigned To</th>
+              <th>Entered By</th>
             </tr>
           </thead>
           <tbody>
@@ -361,7 +362,7 @@ export default function IntakeGridPage() {
                   );
                 });
               if (list.length === 0) {
-                return <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No entries yet.</td></tr>;
+                return <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No entries yet.</td></tr>;
               }
               return list.map((t, index) => {
                 const j = t.jobMetadata;
@@ -386,7 +387,10 @@ export default function IntakeGridPage() {
                     </td>
                     <td>{j.personOfContact}</td>
                     <td>{j.workNature}</td>
-                    <td>{j.assignedEmployee?.employeeName || j.manualEnteredBy || '—'}</td>
+                    <td>{j.assignedEmployee?.employeeName || '—'}</td>
+                    <td style={{ color: '#94a3b8', fontSize: 12 }}>
+                      {j.createdBy?.employeeName || j.createdBy?.email || j.manualEnteredBy || t.createdBy?.employeeName || t.createdBy?.email || 'Auto-Ingested'}
+                    </td>
                   </tr>
                 );
               });

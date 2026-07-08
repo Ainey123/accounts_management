@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Webcam from 'react-webcam';
 import {
   Mail, RefreshCw, Activity, CheckCircle, DollarSign,
-  User, AlertCircle, FileText, Camera, Upload, ChevronRight, Save, ClipboardList, Check, Search
+  User, AlertCircle, FileText, Camera, Upload, ChevronRight, Save, ClipboardList, Check, Search, Edit3, Plus, Trash2, Image, Banknote, Hammer, Receipt, CreditCard
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
@@ -22,11 +22,19 @@ export default function EmployeeRealTimeDashboard() {
   
   // Inline actions states
   const [expandedJobId, setExpandedJobId] = useState(null);
-  const [actionType, setActionType] = useState(null); // 'survey' | 'expense' | null
+  const [actionType, setActionType] = useState(null); // 'survey' | 'expense' | 'payment' | 'quotation' | 'bank-approval' | 'work-completion' | 'invoice' | null
   
   // Survey form state
   const [surveyText, setSurveyText] = useState('');
   const [savingSurvey, setSavingSurvey] = useState(false);
+  const [surveyImageUrl, setSurveyImageUrl] = useState('');
+  const [capturedSurveyImg, setCapturedSurveyImg] = useState(null);
+  
+  // Quotation editable state
+  const [quotationLineItems, setQuotationLineItems] = useState([{ description: '', quantity: 1, rate: 0 }]);
+  const [quotationPoNumber, setQuotationPoNumber] = useState('');
+  const [savingQuotation, setSavingQuotation] = useState(false);
+  const [editingQuotationId, setEditingQuotationId] = useState(null);
   
   // Expense form state
   const [expenseAmount, setExpenseAmount] = useState('');
@@ -42,6 +50,35 @@ export default function EmployeeRealTimeDashboard() {
   const [paymentImg, setPaymentImg] = useState('');
   const [capturedPaymentImg, setCapturedPaymentImg] = useState(null);
   const [savingPayment, setSavingPayment] = useState(false);
+
+  // Bank Approval form state
+  const [bankName, setBankName] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [bankAmount, setBankAmount] = useState('');
+  const [bankNotes, setBankNotes] = useState('');
+  const [bankImg, setBankImg] = useState('');
+  const [capturedBankImg, setCapturedBankImg] = useState(null);
+  const [bankStatus, setBankStatus] = useState('PENDING');
+  const [savingBank, setSavingBank] = useState(false);
+
+  // Work Completion form state
+  const [workCompletionStatus, setWorkCompletionStatus] = useState('PENDING');
+  const [workCompletionAmount, setWorkCompletionAmount] = useState('');
+  const [workCompletionNotes, setWorkCompletionNotes] = useState('');
+  const [workCompletionImg, setWorkCompletionImg] = useState('');
+  const [capturedWorkImg, setCapturedWorkImg] = useState(null);
+  const [savingWork, setSavingWork] = useState(false);
+
+  // Invoice form state (separate from quotation)
+  const [invoiceLineItems, setInvoiceLineItems] = useState([{ description: '', quantity: 1, rate: 0 }]);
+  const [invoicePoNumber, setInvoicePoNumber] = useState('');
+  const [invoiceImg, setInvoiceImg] = useState('');
+  const [capturedInvoiceImg, setCapturedInvoiceImg] = useState(null);
+  const [savingInvoice, setSavingInvoice] = useState(false);
+  const [editingInvoiceId, setEditingInvoiceId] = useState(null);
+
+  // Payment Status state
+  const [paymentStatus, setPaymentStatus] = useState('PENDING');
   
   const webcamRef = useRef(null);
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dloxdnqfm';
@@ -51,7 +88,9 @@ export default function EmployeeRealTimeDashboard() {
     const q = jobSearch.toLowerCase();
     return (jobs || []).filter((j) =>
       (j.ticket?.subject || '').toLowerCase().includes(q) ||
-      (j.ticket?.serialNo || '').toLowerCase().includes(q)
+      (j.ticket?.serialNo || '').toLowerCase().includes(q) ||
+      (j.clientName || '').toLowerCase().includes(q) ||
+      (j.branchName || '').toLowerCase().includes(q)
     );
   })();
 
@@ -75,7 +114,6 @@ export default function EmployeeRealTimeDashboard() {
 
       // 4. Calculate metrics
       const assigned = (fetchedJobs || []).length;
-      // Inferred completion: if a job has at least one approved quotation/invoice
       const completed = (fetchedJobs || []).filter(j => 
         (j.quotationInvoices || []).some(qi => qi.status === 'APPROVED')
       ).length;
@@ -132,9 +170,31 @@ export default function EmployeeRealTimeDashboard() {
         setCapturedImg(shot);
       } else if (actionType === 'payment') {
         setCapturedPaymentImg(shot);
+      } else if (actionType === 'survey') {
+        setCapturedSurveyImg(shot);
+      } else if (actionType === 'bank-approval') {
+        setCapturedBankImg(shot);
+      } else if (actionType === 'work-completion') {
+        setCapturedWorkImg(shot);
+      } else if (actionType === 'invoice') {
+        setCapturedInvoiceImg(shot);
       }
     }
   }, [actionType]);
+
+  const handleSurveyFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setMessage('Uploading survey photo...');
+      const url = await uploadToCloudinary(file);
+      setSurveyImageUrl(url);
+      setCapturedSurveyImg(url);
+      setMessage('Survey photo uploaded successfully.');
+    } catch (err) {
+      setMessage('Upload error: ' + err.message);
+    }
+  };
 
   const handlePaymentFileUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -145,6 +205,48 @@ export default function EmployeeRealTimeDashboard() {
       setPaymentImg(url);
       setCapturedPaymentImg(url);
       setMessage('Payment receipt photo uploaded successfully.');
+    } catch (err) {
+      setMessage('Upload error: ' + err.message);
+    }
+  };
+
+  const handleBankFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setMessage('Uploading bank document...');
+      const url = await uploadToCloudinary(file);
+      setBankImg(url);
+      setCapturedBankImg(url);
+      setMessage('Bank document uploaded successfully.');
+    } catch (err) {
+      setMessage('Upload error: ' + err.message);
+    }
+  };
+
+  const handleWorkFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setMessage('Uploading work completion photo...');
+      const url = await uploadToCloudinary(file);
+      setWorkCompletionImg(url);
+      setCapturedWorkImg(url);
+      setMessage('Work completion photo uploaded successfully.');
+    } catch (err) {
+      setMessage('Upload error: ' + err.message);
+    }
+  };
+
+  const handleInvoiceFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setMessage('Uploading invoice document...');
+      const url = await uploadToCloudinary(file);
+      setInvoiceImg(url);
+      setCapturedInvoiceImg(url);
+      setMessage('Invoice document uploaded successfully.');
     } catch (err) {
       setMessage('Upload error: ' + err.message);
     }
@@ -212,12 +314,20 @@ export default function EmployeeRealTimeDashboard() {
     setSavingSurvey(true);
     setMessage('');
     try {
+      let finalUrl = surveyImageUrl;
+      if (capturedSurveyImg && capturedSurveyImg.startsWith('data:')) {
+        const blob = await fetch(capturedSurveyImg).then((r) => r.blob());
+        finalUrl = await uploadToCloudinary(blob);
+      }
+
       await apiFetch('/api/survey', {
         method: 'POST',
-        body: JSON.stringify({ jobMetadataId: jobId, reportText: surveyText }),
+        body: JSON.stringify({ jobMetadataId: jobId, reportText: surveyText, imageUrl: finalUrl || null }),
       });
       setMessage('Survey report submitted successfully!');
       setSurveyText('');
+      setSurveyImageUrl('');
+      setCapturedSurveyImg(null);
       setActionType(null);
       await loadDashboardData();
     } catch (err) {
@@ -264,6 +374,331 @@ export default function EmployeeRealTimeDashboard() {
       setSavingExpense(false);
     }
   };
+
+  // Quotation handlers
+  const handleQuotationLineItemChange = (index, field, value) => {
+    const updated = [...quotationLineItems];
+    updated[index] = { ...updated[index], [field]: value };
+    setQuotationLineItems(updated);
+  };
+
+  const addQuotationLineItem = () => {
+    setQuotationLineItems([...quotationLineItems, { description: '', quantity: 1, rate: 0 }]);
+  };
+
+  const removeQuotationLineItem = (index) => {
+    if (quotationLineItems.length <= 1) return;
+    setQuotationLineItems(quotationLineItems.filter((_, i) => i !== index));
+  };
+
+  const submitQuotation = async (jobId) => {
+    if (quotationLineItems.length === 0 || !quotationLineItems[0].description) {
+      setMessage('At least one line item with description is required.');
+      return;
+    }
+    setSavingQuotation(true);
+    setMessage('');
+    try {
+      const payload = {
+        jobMetadataId: jobId,
+        documentType: 'QUOTATION',
+        lineItems: quotationLineItems,
+        poNumber: quotationPoNumber || null,
+      };
+
+      if (editingQuotationId) {
+        await apiFetch('/api/quotations', {
+          method: 'PATCH',
+          body: JSON.stringify({ id: editingQuotationId, lineItems: quotationLineItems, poNumber: quotationPoNumber }),
+        });
+        setMessage('Quotation updated successfully!');
+      } else {
+        await apiFetch('/api/quotations', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        setMessage('Quotation created successfully!');
+      }
+
+      setQuotationLineItems([{ description: '', quantity: 1, rate: 0 }]);
+      setQuotationPoNumber('');
+      setEditingQuotationId(null);
+      setActionType(null);
+      await loadDashboardData();
+    } catch (err) {
+      setMessage('Failed to save quotation: ' + err.message);
+    } finally {
+      setSavingQuotation(false);
+    }
+  };
+
+  const openQuotationEditor = (job) => {
+    const quotations = job.quotationInvoices || [];
+    const quotation = quotations.find((q) => q.documentType === 'QUOTATION');
+    if (quotation) {
+      try {
+        const items = typeof quotation.lineItems === 'string' ? JSON.parse(quotation.lineItems) : quotation.lineItems;
+        setQuotationLineItems(items.length > 0 ? items : [{ description: '', quantity: 1, rate: 0 }]);
+      } catch {
+        setQuotationLineItems([{ description: '', quantity: 1, rate: 0 }]);
+      }
+      setQuotationPoNumber(quotation.poNumber || '');
+      setEditingQuotationId(quotation.id);
+    } else {
+      setQuotationLineItems([{ description: '', quantity: 1, rate: 0 }]);
+      setQuotationPoNumber('');
+      setEditingQuotationId(null);
+    }
+    setActionType('quotation');
+  };
+
+  // Invoice handlers (separate from quotation)
+  const handleInvoiceLineItemChange = (index, field, value) => {
+    const updated = [...invoiceLineItems];
+    updated[index] = { ...updated[index], [field]: value };
+    setInvoiceLineItems(updated);
+  };
+
+  const addInvoiceLineItem = () => {
+    setInvoiceLineItems([...invoiceLineItems, { description: '', quantity: 1, rate: 0 }]);
+  };
+
+  const removeInvoiceLineItem = (index) => {
+    if (invoiceLineItems.length <= 1) return;
+    setInvoiceLineItems(invoiceLineItems.filter((_, i) => i !== index));
+  };
+
+  const submitInvoice = async (jobId) => {
+    if (invoiceLineItems.length === 0 || !invoiceLineItems[0].description) {
+      setMessage('At least one line item with description is required.');
+      return;
+    }
+    setSavingInvoice(true);
+    setMessage('');
+    try {
+      let finalUrl = invoiceImg;
+      if (capturedInvoiceImg && capturedInvoiceImg.startsWith('data:')) {
+        const blob = await fetch(capturedInvoiceImg).then((r) => r.blob());
+        finalUrl = await uploadToCloudinary(blob);
+      }
+
+      const payload = {
+        jobMetadataId: jobId,
+        documentType: 'INVOICE',
+        lineItems: invoiceLineItems,
+        poNumber: invoicePoNumber || null,
+        imageUrl: finalUrl || null,
+      };
+
+      if (editingInvoiceId) {
+        await apiFetch('/api/quotations', {
+          method: 'PATCH',
+          body: JSON.stringify({ id: editingInvoiceId, lineItems: invoiceLineItems, poNumber: invoicePoNumber, imageUrl: finalUrl || null }),
+        });
+        setMessage('Invoice updated successfully!');
+      } else {
+        await apiFetch('/api/quotations', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        setMessage('Invoice created successfully!');
+      }
+
+      setInvoiceLineItems([{ description: '', quantity: 1, rate: 0 }]);
+      setInvoicePoNumber('');
+      setInvoiceImg('');
+      setCapturedInvoiceImg(null);
+      setEditingInvoiceId(null);
+      setActionType(null);
+      await loadDashboardData();
+    } catch (err) {
+      setMessage('Failed to save invoice: ' + err.message);
+    } finally {
+      setSavingInvoice(false);
+    }
+  };
+
+  const openInvoiceEditor = (job) => {
+    const invoices = job.quotationInvoices || [];
+    const invoice = invoices.find((q) => q.documentType === 'INVOICE');
+    if (invoice) {
+      try {
+        const items = typeof invoice.lineItems === 'string' ? JSON.parse(invoice.lineItems) : invoice.lineItems;
+        setInvoiceLineItems(items.length > 0 ? items : [{ description: '', quantity: 1, rate: 0 }]);
+      } catch {
+        setInvoiceLineItems([{ description: '', quantity: 1, rate: 0 }]);
+      }
+      setInvoicePoNumber(invoice.poNumber || '');
+      setInvoiceImg(invoice.imageUrl || '');
+      setCapturedInvoiceImg(invoice.imageUrl || null);
+      setEditingInvoiceId(invoice.id);
+    } else {
+      setInvoiceLineItems([{ description: '', quantity: 1, rate: 0 }]);
+      setInvoicePoNumber('');
+      setInvoiceImg('');
+      setCapturedInvoiceImg(null);
+      setEditingInvoiceId(null);
+    }
+    setActionType('invoice');
+  };
+
+  // Bank Approval submit
+  const submitBankApproval = async (jobId) => {
+    if (!bankName || !bankAmount) {
+      setMessage('Bank name and amount are required.');
+      return;
+    }
+    setSavingBank(true);
+    setMessage('');
+    try {
+      let finalUrl = bankImg;
+      if (capturedBankImg && capturedBankImg.startsWith('data:')) {
+        const blob = await fetch(capturedBankImg).then((r) => r.blob());
+        finalUrl = await uploadToCloudinary(blob);
+      }
+
+      await apiFetch('/api/bank-approval', {
+        method: 'POST',
+        body: JSON.stringify({
+          jobMetadataId: jobId,
+          bankName,
+          accountNumber: bankAccountNumber || null,
+          amount: parseFloat(bankAmount),
+          imageUrl: finalUrl || null,
+          notes: bankNotes || null,
+          status: bankStatus,
+        }),
+      });
+
+      setMessage('Bank approval saved successfully!');
+      setBankName('');
+      setBankAccountNumber('');
+      setBankAmount('');
+      setBankNotes('');
+      setBankImg('');
+      setCapturedBankImg(null);
+      setBankStatus('PENDING');
+      setActionType(null);
+      await loadDashboardData();
+    } catch (err) {
+      setMessage('Failed to save bank approval: ' + err.message);
+    } finally {
+      setSavingBank(false);
+    }
+  };
+
+  // Work Completion submit
+  const submitWorkCompletion = async (jobId) => {
+    if (!workCompletionStatus) {
+      setMessage('Work completion status is required.');
+      return;
+    }
+    setSavingWork(true);
+    setMessage('');
+    try {
+      let finalUrl = workCompletionImg;
+      if (capturedWorkImg && capturedWorkImg.startsWith('data:')) {
+        const blob = await fetch(capturedWorkImg).then((r) => r.blob());
+        finalUrl = await uploadToCloudinary(blob);
+      }
+
+      await apiFetch('/api/work-status', {
+        method: 'POST',
+        body: JSON.stringify({
+          jobMetadataId: jobId,
+          status: workCompletionStatus,
+          amount: workCompletionAmount ? parseFloat(workCompletionAmount) : 0,
+          imageUrl: finalUrl || null,
+          notes: workCompletionNotes || null,
+        }),
+      });
+
+      setMessage('Work completion updated successfully!');
+      setWorkCompletionStatus('PENDING');
+      setWorkCompletionAmount('');
+      setWorkCompletionNotes('');
+      setWorkCompletionImg('');
+      setCapturedWorkImg(null);
+      setActionType(null);
+      await loadDashboardData();
+    } catch (err) {
+      setMessage('Failed to update work status: ' + err.message);
+    } finally {
+      setSavingWork(false);
+    }
+  };
+
+  // Update payment status
+  const updatePaymentStatus = async (jobId) => {
+    setMessage('');
+    try {
+      await apiFetch(`/api/jobs/${jobId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ paymentStatus }),
+      });
+      setMessage(`Payment status updated to: ${paymentStatus}`);
+      setActionType(null);
+      await loadDashboardData();
+    } catch (err) {
+      setMessage('Failed to update payment status: ' + err.message);
+    }
+  };
+
+  const openBankApprovalEditor = (job) => {
+    const ba = job.bankApproval;
+    if (ba) {
+      setBankName(ba.bankName || '');
+      setBankAccountNumber(ba.accountNumber || '');
+      setBankAmount(ba.amount ? String(ba.amount) : '');
+      setBankNotes(ba.notes || '');
+      setBankImg(ba.imageUrl || '');
+      setCapturedBankImg(ba.imageUrl || null);
+      setBankStatus(ba.status || 'PENDING');
+    } else {
+      setBankName('');
+      setBankAccountNumber('');
+      setBankAmount('');
+      setBankNotes('');
+      setBankImg('');
+      setCapturedBankImg(null);
+      setBankStatus('PENDING');
+    }
+    setActionType('bank-approval');
+  };
+
+  const openWorkCompletionEditor = (job) => {
+    const wc = job.workCompletion;
+    if (wc) {
+      setWorkCompletionStatus(wc.status || 'PENDING');
+      setWorkCompletionAmount(wc.amount ? String(wc.amount) : '');
+      setWorkCompletionNotes(wc.notes || '');
+      setWorkCompletionImg(wc.imageUrl || '');
+      setCapturedWorkImg(wc.imageUrl || null);
+    } else {
+      setWorkCompletionStatus('PENDING');
+      setWorkCompletionAmount('');
+      setWorkCompletionNotes('');
+      setWorkCompletionImg('');
+      setCapturedWorkImg(null);
+    }
+    setActionType('work-completion');
+  };
+
+  const openPaymentStatusEditor = (job) => {
+    setPaymentStatus(job.paymentStatus || 'PENDING');
+    setActionType('payment-status');
+  };
+
+  const getPaymentStatusStyle = (status) => {
+    switch (status) {
+      case 'PAID': return { bg: '#22c55e', color: '#22c55e', label: 'Paid' };
+      case 'PARTIAL': return { bg: '#f59e0b', color: '#f59e0b', label: 'Partial' };
+      case 'PENDING': default: return { bg: '#64748b', color: '#64748b', label: 'Pending' };
+    }
+  };
+
+  // Inline helper to get the imageUrl from a quotation invoice with fallback
+  const getDocImageUrl = (doc) => doc?.imageUrl || null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -359,7 +794,7 @@ export default function EmployeeRealTimeDashboard() {
             <input
               className="nexus-input"
               style={{ paddingLeft: 32 }}
-              placeholder="Search by subject or ticket number..."
+              placeholder="Search by subject, ticket number, client or branch..."
               value={jobSearch}
               onChange={(e) => setJobSearch(e.target.value)}
             />
@@ -380,13 +815,23 @@ export default function EmployeeRealTimeDashboard() {
               const hasSurvey = !!job.surveyReport;
               const quotations = job.quotationInvoices || [];
               const quotation = quotations.find((q) => q.documentType === 'QUOTATION');
+              const invoice = quotations.find((q) => q.documentType === 'INVOICE');
               const hasQuotation = !!quotation;
+              const hasInvoice = !!invoice;
               const quotationApproved = quotation?.status === 'APPROVED';
+              const hasBankApproval = !!job.bankApproval;
+              const bankApproved = job.bankApproval?.status === 'APPROVED';
+              const hasWorkCompletion = !!job.workCompletion;
+              const workCompleted = job.workCompletion?.status === 'COMPLETED';
+              const paymentStatusStyle = getPaymentStatusStyle(job.paymentStatus || 'PENDING');
               
               const totalExpenses = (job.expenses || []).reduce((sum, e) => sum + e.amount, 0);
               const totalPayments = (job.payments || []).reduce((sum, p) => sum + p.amount, 0);
 
               const isExpanded = expandedJobId === job.id;
+
+              // Checklist steps completed counter
+              const stepsDone = [true, hasSurvey, hasQuotation, hasBankApproval, hasWorkCompletion, hasInvoice, totalExpenses > 0, totalPayments > 0].filter(Boolean).length;
 
               return (
                 <div key={job.id} className="glass-card" style={{ padding: 24, border: isExpanded ? '1px solid rgba(0, 242, 254, 0.2)' : '1px solid var(--glass-border)' }}>
@@ -400,9 +845,17 @@ export default function EmployeeRealTimeDashboard() {
                         <span className="status-pill active" style={{ fontSize: 11, background: 'rgba(20, 184, 166, 0.1)', color: '#14b8a6', border: '1px solid rgba(20,184,166,0.2)' }}>
                           {job.workNature}
                         </span>
+                        {/* Payment Status Badge */}
+                        <span style={{ fontSize: 11, background: `${paymentStatusStyle.bg}20`, color: paymentStatusStyle.color, border: `1px solid ${paymentStatusStyle.bg}40`, padding: '3px 8px', borderRadius: 4 }}>
+                          Payment: {paymentStatusStyle.label}
+                        </span>
                       </div>
                       <h2 style={{ fontSize: 20, marginBottom: 4 }}>{job.clientName}</h2>
                       <p style={{ color: '#94a3b8', fontSize: 14 }}>Site Branch: {job.branchName} · POC: {job.personOfContact}</p>
+                      {/* Subject display */}
+                      <p style={{ color: '#64748b', fontSize: 13, marginTop: 4, fontStyle: 'italic' }}>
+                        Subject: {job.ticket?.subject || '—'}
+                      </p>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
@@ -424,98 +877,195 @@ export default function EmployeeRealTimeDashboard() {
                     </div>
                   </div>
 
-                  {/* Task Checklist Tracker */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginTop: 24, padding: 16, background: 'rgba(0,0,0,0.15)', borderRadius: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Check size={12} color="#000" />
+                  {/* Expanded Task Checklist Tracker - 8 Steps */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 8, marginTop: 24, padding: 16, background: 'rgba(0,0,0,0.15)', borderRadius: 12 }}>
+                    {/* Step 1: Intake */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Check size={10} color="#000" />
                       </div>
                       <div>
-                        <div style={{ fontSize: 12, fontWeight: 600 }}>1. Intake Form</div>
-                        <div style={{ fontSize: 10, color: '#64748b' }}>Complete</div>
+                        <div style={{ fontSize: 10, fontWeight: 600 }}>Intake</div>
+                        <div style={{ fontSize: 8, color: '#64748b' }}>Done</div>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: hasSurvey ? '#22c55e' : 'rgba(255,255,255,0.05)', border: hasSurvey ? 'none' : '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {hasSurvey ? <Check size={12} color="#000" /> : <span style={{ fontSize: 10, color: '#64748b' }}>2</span>}
+                    {/* Step 2: Survey */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 18, height: 18, borderRadius: '50%', background: hasSurvey ? '#22c55e' : 'rgba(255,255,255,0.05)', border: hasSurvey ? 'none' : '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {hasSurvey ? <Check size={10} color="#000" /> : <span style={{ fontSize: 8, color: '#64748b' }}>2</span>}
                       </div>
                       <div>
-                        <div style={{ fontSize: 12, fontWeight: 600 }}>2. Site Survey</div>
-                        <div style={{ fontSize: 10, color: hasSurvey ? '#22c55e' : '#64748b' }}>{hasSurvey ? 'Report Filed' : 'Pending'}</div>
+                        <div style={{ fontSize: 10, fontWeight: 600 }}>Survey</div>
+                        <div style={{ fontSize: 8, color: hasSurvey ? '#22c55e' : '#64748b' }}>{hasSurvey ? 'Filed' : 'Pending'}</div>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: quotationApproved ? '#22c55e' : (hasQuotation ? '#f59e0b' : 'rgba(255,255,255,0.05)'), border: hasQuotation ? 'none' : '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {quotationApproved ? <Check size={12} color="#000" /> : <span style={{ fontSize: 10, color: '#64748b' }}>3</span>}
+                    {/* Step 3: Quotation */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 18, height: 18, borderRadius: '50%', background: quotationApproved ? '#22c55e' : (hasQuotation ? '#f59e0b' : 'rgba(255,255,255,0.05)'), border: hasQuotation ? 'none' : '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {quotationApproved ? <Check size={10} color="#000" /> : <span style={{ fontSize: 8, color: '#64748b' }}>3</span>}
                       </div>
                       <div>
-                        <div style={{ fontSize: 12, fontWeight: 600 }}>3. Quotation</div>
-                        <div style={{ fontSize: 10, color: quotationApproved ? '#22c55e' : (hasQuotation ? '#f59e0b' : '#64748b') }}>
-                          {quotationApproved ? 'Approved' : (hasQuotation ? 'Sent / Pending' : 'Pending')}
+                        <div style={{ fontSize: 10, fontWeight: 600 }}>Quotation</div>
+                        <div style={{ fontSize: 8, color: quotationApproved ? '#22c55e' : (hasQuotation ? '#f59e0b' : '#64748b') }}>
+                          {quotationApproved ? 'Approved' : (hasQuotation ? 'Sent' : 'Pending')}
                         </div>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: totalExpenses > 0 ? '#22c55e' : 'rgba(255,255,255,0.05)', border: totalExpenses > 0 ? 'none' : '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {totalExpenses > 0 ? <Check size={12} color="#000" /> : <span style={{ fontSize: 10, color: '#64748b' }}>4</span>}
+                    {/* Step 4: Bank Approval */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 18, height: 18, borderRadius: '50%', background: bankApproved ? '#22c55e' : (hasBankApproval ? '#f59e0b' : 'rgba(255,255,255,0.05)'), border: hasBankApproval ? 'none' : '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {bankApproved ? <Check size={10} color="#000" /> : <span style={{ fontSize: 8, color: '#64748b' }}>4</span>}
                       </div>
                       <div>
-                        <div style={{ fontSize: 12, fontWeight: 600 }}>4. Expenses Logged</div>
-                        <div style={{ fontSize: 10, color: totalExpenses > 0 ? '#22c55e' : '#64748b' }}>
-                          {totalExpenses > 0 ? `Rs. ${totalExpenses.toLocaleString()}` : 'Rs. 0 logged'}
+                        <div style={{ fontSize: 10, fontWeight: 600 }}>Bank Appr.</div>
+                        <div style={{ fontSize: 8, color: bankApproved ? '#22c55e' : (hasBankApproval ? '#f59e0b' : '#64748b') }}>
+                          {bankApproved ? 'Approved' : (hasBankApproval ? 'Sent' : 'Pending')}
                         </div>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: totalPayments > 0 ? '#22c55e' : 'rgba(255,255,255,0.05)', border: totalPayments > 0 ? 'none' : '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {totalPayments > 0 ? <Check size={12} color="#000" /> : <span style={{ fontSize: 10, color: '#64748b' }}>5</span>}
+                    {/* Step 5: Work Completion */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 18, height: 18, borderRadius: '50%', background: workCompleted ? '#22c55e' : (hasWorkCompletion ? '#f59e0b' : 'rgba(255,255,255,0.05)'), border: hasWorkCompletion ? 'none' : '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {workCompleted ? <Check size={10} color="#000" /> : <span style={{ fontSize: 8, color: '#64748b' }}>5</span>}
                       </div>
                       <div>
-                        <div style={{ fontSize: 12, fontWeight: 600 }}>5. Payments Collected</div>
-                        <div style={{ fontSize: 10, color: totalPayments > 0 ? '#22c55e' : '#64748b' }}>
-                          {totalPayments > 0 ? `Rs. ${totalPayments.toLocaleString()}` : 'Rs. 0 collected'}
+                        <div style={{ fontSize: 10, fontWeight: 600 }}>Work Compl.</div>
+                        <div style={{ fontSize: 8, color: workCompleted ? '#22c55e' : (hasWorkCompletion ? '#f59e0b' : '#64748b') }}>
+                          {workCompleted ? 'Done' : (hasWorkCompletion ? 'Progress' : 'Pending')}
                         </div>
                       </div>
                     </div>
+
+                    {/* Step 6: Invoice */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 18, height: 18, borderRadius: '50%', background: hasInvoice ? '#22c55e' : 'rgba(255,255,255,0.05)', border: hasInvoice ? 'none' : '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {hasInvoice ? <Check size={10} color="#000" /> : <span style={{ fontSize: 8, color: '#64748b' }}>6</span>}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 600 }}>Invoice</div>
+                        <div style={{ fontSize: 8, color: hasInvoice ? '#22c55e' : '#64748b' }}>{hasInvoice ? 'Filed' : 'Pending'}</div>
+                      </div>
+                    </div>
+
+                    {/* Step 7: Side Expenses */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 18, height: 18, borderRadius: '50%', background: totalExpenses > 0 ? '#22c55e' : 'rgba(255,255,255,0.05)', border: totalExpenses > 0 ? 'none' : '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {totalExpenses > 0 ? <Check size={10} color="#000" /> : <span style={{ fontSize: 8, color: '#64748b' }}>7</span>}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 600 }}>Expenses</div>
+                        <div style={{ fontSize: 8, color: totalExpenses > 0 ? '#22c55e' : '#64748b' }}>
+                          {totalExpenses > 0 ? `Rs. ${(totalExpenses/1000).toFixed(1)}k` : 'None'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Step 8: Payment */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 18, height: 18, borderRadius: '50%', background: totalPayments > 0 ? '#22c55e' : 'rgba(255,255,255,0.05)', border: totalPayments > 0 ? 'none' : '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {totalPayments > 0 ? <Check size={10} color="#000" /> : <span style={{ fontSize: 8, color: '#64748b' }}>8</span>}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 600 }}>Payment</div>
+                        <div style={{ fontSize: 8, color: totalPayments > 0 ? '#22c55e' : '#64748b' }}>
+                          {totalPayments > 0 ? `Rs. ${(totalPayments/1000).toFixed(1)}k` : 'Collect'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Progress Summary Bar */}
+                  <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ width: `${(stepsDone / 8) * 100}%`, height: '100%', background: 'linear-gradient(90deg, #00f2fe, #4facfe)', borderRadius: 2 }}></div>
+                    </div>
+                    <span style={{ fontSize: 10, color: '#64748b' }}>Checklist: {stepsDone}/8</span>
                   </div>
 
                   {/* Expanded Task Panels */}
                   {isExpanded && (
                     <div style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', gap: 20 }}>
                       
-                      {/* Active Panel Selector Buttons */}
-                      <div style={{ display: 'flex', gap: 10 }}>
+                      {/* Active Panel Selector Buttons - All 8 options */}
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <button
                           type="button"
                           className={`nexus-btn ${actionType === 'survey' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
-                          style={{ padding: '8px 16px', fontSize: 13 }}
+                          style={{ padding: '7px 12px', fontSize: 12 }}
                           onClick={() => {
                             setActionType(actionType === 'survey' ? null : 'survey');
-                            if (job.surveyReport) setSurveyText(job.surveyReport.reportText);
-                            else setSurveyText('');
+                            if (job.surveyReport) {
+                              setSurveyText(job.surveyReport.reportText);
+                              setSurveyImageUrl(job.surveyReport.imageUrl || '');
+                              setCapturedSurveyImg(job.surveyReport.imageUrl || null);
+                            } else {
+                              setSurveyText('');
+                              setSurveyImageUrl('');
+                              setCapturedSurveyImg(null);
+                            }
                           }}
                         >
-                          <FileText size={14} /> {hasSurvey ? 'View Survey Report' : 'File Site Survey'}
+                          <FileText size={13} /> {hasSurvey ? 'View Survey Report' : 'File Survey Report'}
+                        </button>
+                        <button
+                          type="button"
+                          className={`nexus-btn ${actionType === 'quotation' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
+                          style={{ padding: '7px 12px', fontSize: 12 }}
+                          onClick={() => openQuotationEditor(job)}
+                        >
+                          <Edit3 size={13} /> {hasQuotation ? 'Edit Quotation' : 'Create Quotation'}
+                        </button>
+                        <button
+                          type="button"
+                          className={`nexus-btn ${actionType === 'bank-approval' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
+                          style={{ padding: '7px 12px', fontSize: 12 }}
+                          onClick={() => openBankApprovalEditor(job)}
+                        >
+                          <Banknote size={13} /> {hasBankApproval ? 'Update Bank Appr.' : 'Bank Approval'}
+                        </button>
+                        <button
+                          type="button"
+                          className={`nexus-btn ${actionType === 'work-completion' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
+                          style={{ padding: '7px 12px', fontSize: 12 }}
+                          onClick={() => openWorkCompletionEditor(job)}
+                        >
+                          <Hammer size={13} /> {hasWorkCompletion ? 'Update Work Compl.' : 'Work Completion'}
+                        </button>
+                        <button
+                          type="button"
+                          className={`nexus-btn ${actionType === 'invoice' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
+                          style={{ padding: '7px 12px', fontSize: 12 }}
+                          onClick={() => openInvoiceEditor(job)}
+                        >
+                          <Receipt size={13} /> {hasInvoice ? 'View Invoice' : 'Create Invoice'}
                         </button>
                         <button
                           type="button"
                           className={`nexus-btn ${actionType === 'expense' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
-                          style={{ padding: '8px 16px', fontSize: 13 }}
+                          style={{ padding: '7px 12px', fontSize: 12 }}
                           onClick={() => setActionType(actionType === 'expense' ? null : 'expense')}
                         >
-                          <Camera size={14} /> Log On-site Expense
+                          <Camera size={13} /> Log Side Expense
+                        </button>
+                        <button
+                          type="button"
+                          className={`nexus-btn ${actionType === 'payment-status' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
+                          style={{ padding: '7px 12px', fontSize: 12 }}
+                          onClick={() => openPaymentStatusEditor(job)}
+                        >
+                          <CreditCard size={13} /> Payment Status
                         </button>
                         <button
                           type="button"
                           className={`nexus-btn ${actionType === 'payment' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
-                          style={{ padding: '8px 16px', fontSize: 13 }}
+                          style={{ padding: '7px 12px', fontSize: 12 }}
                           onClick={() => setActionType(actionType === 'payment' ? null : 'payment')}
                         >
-                          <DollarSign size={14} /> Log Client Payment
+                          <DollarSign size={13} /> Log Payment
                         </button>
                       </div>
 
@@ -528,6 +1078,13 @@ export default function EmployeeRealTimeDashboard() {
                               <div style={{ padding: 12, background: 'rgba(255,255,255,0.02)', borderRadius: 8, fontSize: 14, color: '#cbd5e1', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                                 {job.surveyReport.reportText}
                               </div>
+                              {job.surveyReport.imageUrl && (
+                                <div style={{ marginTop: 8 }}>
+                                  <a href={job.surveyReport.imageUrl} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <Image size={14} /> View Attached Survey Photo
+                                  </a>
+                                </div>
+                              )}
                               <p style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>Filed in database. To edit, modify below and save.</p>
                             </div>
                           ) : (
@@ -542,6 +1099,37 @@ export default function EmployeeRealTimeDashboard() {
                             style={{ minHeight: 120, marginTop: 12 }}
                           />
 
+                          {/* Survey Image Upload */}
+                          <div style={{ marginTop: 16, marginBottom: 12 }}>
+                            <label className="field-label">Attach Photo (Optional)</label>
+                            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                              <button type="button" className="nexus-btn nexus-btn-ghost" style={{ padding: '8px 12px', fontSize: 12, flex: 1 }} onClick={() => {
+                                const shot = webcamRef.current?.getScreenshot();
+                                if (shot) setCapturedSurveyImg(shot);
+                              }}>
+                                <Camera size={14} /> Capture Photo
+                              </button>
+                              <label className="nexus-btn nexus-btn-ghost" style={{ padding: '8px 12px', fontSize: 12, flex: 1, cursor: 'pointer', textAlign: 'center' }}>
+                                <Upload size={14} /> Upload Image
+                                <input type="file" accept="image/*" hidden onChange={handleSurveyFileUpload} />
+                              </label>
+                            </div>
+                            {(capturedSurveyImg || surveyImageUrl) && (
+                              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Image size={14} color="#00f2fe" />
+                                <a href={capturedSurveyImg || surveyImageUrl} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13 }}>View Attached Photo</a>
+                                <button
+                                  type="button"
+                                  className="nexus-btn nexus-btn-ghost"
+                                  style={{ padding: '2px 8px', fontSize: 10 }}
+                                  onClick={() => { setCapturedSurveyImg(null); setSurveyImageUrl(''); }}
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
                           <button
                             type="button"
                             className="nexus-btn nexus-btn-primary"
@@ -550,6 +1138,459 @@ export default function EmployeeRealTimeDashboard() {
                             disabled={savingSurvey}
                           >
                             <Save size={14} /> {savingSurvey ? 'Saving Report...' : 'Save Survey Report'}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Quotation Editable Panel */}
+                      {actionType === 'quotation' && (
+                        <div style={{ padding: 20, background: 'rgba(0,0,0,0.2)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.04)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                            <h3 style={{ fontSize: 16, margin: 0 }}>{editingQuotationId ? 'Edit Quotation' : 'Create New Quotation'}</h3>
+                            {editingQuotationId && (
+                              <span style={{ fontSize: 11, color: '#f59e0b', background: 'rgba(245,158,11,0.1)', padding: '4px 8px', borderRadius: 4 }}>
+                                Editing existing quotation
+                              </span>
+                            )}
+                          </div>
+
+                          <div style={{ marginBottom: 16 }}>
+                            <label className="field-label">PO Number (Optional)</label>
+                            <input
+                              className="nexus-input"
+                              value={quotationPoNumber}
+                              onChange={(e) => setQuotationPoNumber(e.target.value)}
+                              placeholder="e.g. PO-2024-001"
+                              style={{ marginTop: 4 }}
+                            />
+                          </div>
+
+                          <label className="field-label" style={{ marginBottom: 8 }}>Line Items</label>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {quotationLineItems.map((item, index) => (
+                              <div key={index} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <input
+                                  className="nexus-input"
+                                  style={{ flex: 2, padding: '8px 10px', fontSize: 13 }}
+                                  placeholder="Description"
+                                  value={item.description}
+                                  onChange={(e) => handleQuotationLineItemChange(index, 'description', e.target.value)}
+                                />
+                                <input
+                                  className="nexus-input"
+                                  type="number"
+                                  style={{ width: 70, padding: '8px 10px', fontSize: 13 }}
+                                  placeholder="Qty"
+                                  value={item.quantity}
+                                  onChange={(e) => handleQuotationLineItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
+                                />
+                                <input
+                                  className="nexus-input"
+                                  type="number"
+                                  style={{ width: 100, padding: '8px 10px', fontSize: 13 }}
+                                  placeholder="Rate"
+                                  value={item.rate}
+                                  onChange={(e) => handleQuotationLineItemChange(index, 'rate', parseFloat(e.target.value) || 0)}
+                                />
+                                <span style={{ fontSize: 13, color: '#00f2fe', fontWeight: 600, minWidth: 80, textAlign: 'right' }}>
+                                  Rs. {(item.quantity * item.rate).toLocaleString()}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="nexus-btn nexus-btn-ghost"
+                                  style={{ padding: 6, minWidth: 'auto' }}
+                                  onClick={() => removeQuotationLineItem(index)}
+                                  disabled={quotationLineItems.length <= 1}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                            <button type="button" className="nexus-btn nexus-btn-ghost" style={{ padding: '6px 12px', fontSize: 12 }} onClick={addQuotationLineItem}>
+                              <Plus size={14} /> Add Line Item
+                            </button>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: '#00f2fe' }}>
+                              Total: Rs. {quotationLineItems.reduce((sum, item) => sum + (item.quantity * item.rate), 0).toLocaleString()}
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="nexus-btn nexus-btn-primary"
+                            style={{ width: '100%', marginTop: 20 }}
+                            onClick={() => submitQuotation(job.id)}
+                            disabled={savingQuotation}
+                          >
+                            <Save size={14} /> {savingQuotation ? 'Saving Quotation...' : (editingQuotationId ? 'Update Quotation' : 'Create Quotation')}
+                          </button>
+
+                          {/* Quotation image display */}
+                          {quotation?.imageUrl && (
+                            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <Image size={14} color="#00f2fe" />
+                              <a href={quotation.imageUrl} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13 }}>View Quotation Document</a>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Bank Approval Panel */}
+                      {actionType === 'bank-approval' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, padding: 20, background: 'rgba(0,0,0,0.2)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.04)' }}>
+                          <div>
+                            <h3 style={{ fontSize: 16, marginBottom: 12 }}>{hasBankApproval ? 'Update Bank Approval' : 'Bank Approval'}</h3>
+                            
+                            <label className="field-label">Bank Name</label>
+                            <input
+                              className="nexus-input"
+                              value={bankName}
+                              onChange={(e) => setBankName(e.target.value)}
+                              placeholder="e.g. HBL, UBL, Alfalah"
+                              style={{ marginBottom: 12 }}
+                            />
+
+                            <label className="field-label">Account Number (Optional)</label>
+                            <input
+                              className="nexus-input"
+                              value={bankAccountNumber}
+                              onChange={(e) => setBankAccountNumber(e.target.value)}
+                              placeholder="e.g. 1234-5678-9012"
+                              style={{ marginBottom: 12 }}
+                            />
+
+                            <label className="field-label">Amount (Rs.)</label>
+                            <input
+                              className="nexus-input"
+                              type="number"
+                              value={bankAmount}
+                              onChange={(e) => setBankAmount(e.target.value)}
+                              placeholder="0.00"
+                              style={{ marginBottom: 12 }}
+                            />
+
+                            <label className="field-label">Status</label>
+                            <select
+                              className="nexus-input"
+                              value={bankStatus}
+                              onChange={(e) => setBankStatus(e.target.value)}
+                              style={{ marginBottom: 12 }}
+                            >
+                              <option value="PENDING">Pending</option>
+                              <option value="SUBMITTED">Submitted to Bank</option>
+                              <option value="APPROVED">Approved</option>
+                              <option value="REJECTED">Rejected</option>
+                            </select>
+
+                            <label className="field-label">Notes</label>
+                            <textarea
+                              className="nexus-textarea"
+                              value={bankNotes}
+                              onChange={(e) => setBankNotes(e.target.value)}
+                              placeholder="Additional notes about bank approval..."
+                              style={{ minHeight: 60, marginBottom: 12 }}
+                            />
+
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button type="button" className="nexus-btn nexus-btn-ghost" style={{ padding: '8px 12px', fontSize: 12, flex: 1 }} onClick={() => {
+                                const shot = webcamRef.current?.getScreenshot();
+                                if (shot) setCapturedBankImg(shot);
+                              }}>
+                                <Camera size={14} /> Capture Doc
+                              </button>
+                              <label className="nexus-btn nexus-btn-ghost" style={{ padding: '8px 12px', fontSize: 12, flex: 1, cursor: 'pointer', textAlign: 'center' }}>
+                                <Upload size={14} /> Upload Doc
+                                <input type="file" accept="image/*" hidden onChange={handleBankFileUpload} />
+                              </label>
+                            </div>
+
+                            <button
+                              type="button"
+                              className="nexus-btn nexus-btn-primary"
+                              style={{ width: '100%', marginTop: 16 }}
+                              onClick={() => submitBankApproval(job.id)}
+                              disabled={savingBank}
+                            >
+                              <Save size={14} /> {savingBank ? 'Saving...' : (hasBankApproval ? 'Update Bank Approval' : 'Save Bank Approval')}
+                            </button>
+                          </div>
+
+                          <div>
+                            <label className="field-label">Document Image / Proof</label>
+                            <div style={{ borderRadius: 8, overflow: 'hidden', background: '#0a0a0c', height: 230, border: '1px dashed rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              {!capturedBankImg ? (
+                                <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ) : (
+                                <img src={capturedBankImg} alt="Bank document" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                              )}
+                            </div>
+                            {capturedBankImg && (
+                              <button
+                                type="button"
+                                className="nexus-btn nexus-btn-ghost"
+                                style={{ marginTop: 8, padding: '4px 8px', fontSize: 11 }}
+                                onClick={() => { setCapturedBankImg(null); setBankImg(''); }}
+                              >
+                                Retake Photo
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Work Completion Panel */}
+                      {actionType === 'work-completion' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, padding: 20, background: 'rgba(0,0,0,0.2)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.04)' }}>
+                          <div>
+                            <h3 style={{ fontSize: 16, marginBottom: 12 }}>{hasWorkCompletion ? 'Update Work Completion' : 'Work Completion'}</h3>
+
+                            <label className="field-label">Work Status</label>
+                            <select
+                              className="nexus-input"
+                              value={workCompletionStatus}
+                              onChange={(e) => setWorkCompletionStatus(e.target.value)}
+                              style={{ marginBottom: 12 }}
+                            >
+                              <option value="PENDING">Pending</option>
+                              <option value="IN_PROGRESS">In Progress</option>
+                              <option value="COMPLETED">Completed</option>
+                              <option value="HOLD">On Hold</option>
+                              <option value="CANCELLED">Cancelled</option>
+                            </select>
+
+                            <label className="field-label">Work Amount (Rs.)</label>
+                            <input
+                              className="nexus-input"
+                              type="number"
+                              value={workCompletionAmount}
+                              onChange={(e) => setWorkCompletionAmount(e.target.value)}
+                              placeholder="0.00"
+                              style={{ marginBottom: 12 }}
+                            />
+
+                            <label className="field-label">Notes</label>
+                            <textarea
+                              className="nexus-textarea"
+                              value={workCompletionNotes}
+                              onChange={(e) => setWorkCompletionNotes(e.target.value)}
+                              placeholder="Describe work completion details..."
+                              style={{ minHeight: 80, marginBottom: 12 }}
+                            />
+
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button type="button" className="nexus-btn nexus-btn-ghost" style={{ padding: '8px 12px', fontSize: 12, flex: 1 }} onClick={() => {
+                                const shot = webcamRef.current?.getScreenshot();
+                                if (shot) setCapturedWorkImg(shot);
+                              }}>
+                                <Camera size={14} /> Capture Photo
+                              </button>
+                              <label className="nexus-btn nexus-btn-ghost" style={{ padding: '8px 12px', fontSize: 12, flex: 1, cursor: 'pointer', textAlign: 'center' }}>
+                                <Upload size={14} /> Upload Photo
+                                <input type="file" accept="image/*" hidden onChange={handleWorkFileUpload} />
+                              </label>
+                            </div>
+
+                            <button
+                              type="button"
+                              className="nexus-btn nexus-btn-primary"
+                              style={{ width: '100%', marginTop: 16 }}
+                              onClick={() => submitWorkCompletion(job.id)}
+                              disabled={savingWork}
+                            >
+                              <Save size={14} /> {savingWork ? 'Saving...' : (hasWorkCompletion ? 'Update Work Status' : 'Save Work Completion')}
+                            </button>
+                          </div>
+
+                          <div>
+                            <label className="field-label">Work Completion Photo</label>
+                            <div style={{ borderRadius: 8, overflow: 'hidden', background: '#0a0a0c', height: 230, border: '1px dashed rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              {!capturedWorkImg ? (
+                                <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ) : (
+                                <img src={capturedWorkImg} alt="Work completion" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                              )}
+                            </div>
+                            {capturedWorkImg && (
+                              <button
+                                type="button"
+                                className="nexus-btn nexus-btn-ghost"
+                                style={{ marginTop: 8, padding: '4px 8px', fontSize: 11 }}
+                                onClick={() => { setCapturedWorkImg(null); setWorkCompletionImg(''); }}
+                              >
+                                Retake Photo
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Invoice Panel */}
+                      {actionType === 'invoice' && (
+                        <div style={{ padding: 20, background: 'rgba(0,0,0,0.2)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.04)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                            <h3 style={{ fontSize: 16, margin: 0 }}>{editingInvoiceId ? 'Edit Invoice' : 'Create New Invoice'}</h3>
+                            {editingInvoiceId && (
+                              <span style={{ fontSize: 11, color: '#f59e0b', background: 'rgba(245,158,11,0.1)', padding: '4px 8px', borderRadius: 4 }}>
+                                Editing existing invoice
+                              </span>
+                            )}
+                          </div>
+
+                          <div style={{ marginBottom: 16 }}>
+                            <label className="field-label">PO Number (Optional)</label>
+                            <input
+                              className="nexus-input"
+                              value={invoicePoNumber}
+                              onChange={(e) => setInvoicePoNumber(e.target.value)}
+                              placeholder="e.g. PO-2024-001"
+                              style={{ marginTop: 4 }}
+                            />
+                          </div>
+
+                          <label className="field-label" style={{ marginBottom: 8 }}>Line Items</label>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {invoiceLineItems.map((item, index) => (
+                              <div key={index} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <input
+                                  className="nexus-input"
+                                  style={{ flex: 2, padding: '8px 10px', fontSize: 13 }}
+                                  placeholder="Description"
+                                  value={item.description}
+                                  onChange={(e) => handleInvoiceLineItemChange(index, 'description', e.target.value)}
+                                />
+                                <input
+                                  className="nexus-input"
+                                  type="number"
+                                  style={{ width: 70, padding: '8px 10px', fontSize: 13 }}
+                                  placeholder="Qty"
+                                  value={item.quantity}
+                                  onChange={(e) => handleInvoiceLineItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
+                                />
+                                <input
+                                  className="nexus-input"
+                                  type="number"
+                                  style={{ width: 100, padding: '8px 10px', fontSize: 13 }}
+                                  placeholder="Rate"
+                                  value={item.rate}
+                                  onChange={(e) => handleInvoiceLineItemChange(index, 'rate', parseFloat(e.target.value) || 0)}
+                                />
+                                <span style={{ fontSize: 13, color: '#00f2fe', fontWeight: 600, minWidth: 80, textAlign: 'right' }}>
+                                  Rs. {(item.quantity * item.rate).toLocaleString()}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="nexus-btn nexus-btn-ghost"
+                                  style={{ padding: 6, minWidth: 'auto' }}
+                                  onClick={() => removeInvoiceLineItem(index)}
+                                  disabled={invoiceLineItems.length <= 1}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                            <button type="button" className="nexus-btn nexus-btn-ghost" style={{ padding: '6px 12px', fontSize: 12 }} onClick={addInvoiceLineItem}>
+                              <Plus size={14} /> Add Line Item
+                            </button>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: '#00f2fe' }}>
+                              Total: Rs. {invoiceLineItems.reduce((sum, item) => sum + (item.quantity * item.rate), 0).toLocaleString()}
+                            </div>
+                          </div>
+
+                          {/* Invoice Image Upload */}
+                          <div style={{ marginTop: 16, marginBottom: 12 }}>
+                            <label className="field-label">Attach Invoice Document (Optional)</label>
+                            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                              <button type="button" className="nexus-btn nexus-btn-ghost" style={{ padding: '8px 12px', fontSize: 12, flex: 1 }} onClick={() => {
+                                const shot = webcamRef.current?.getScreenshot();
+                                if (shot) setCapturedInvoiceImg(shot);
+                              }}>
+                                <Camera size={14} /> Capture Document
+                              </button>
+                              <label className="nexus-btn nexus-btn-ghost" style={{ padding: '8px 12px', fontSize: 12, flex: 1, cursor: 'pointer', textAlign: 'center' }}>
+                                <Upload size={14} /> Upload Document
+                                <input type="file" accept="image/*" hidden onChange={handleInvoiceFileUpload} />
+                              </label>
+                            </div>
+                            {(capturedInvoiceImg || invoiceImg) && (
+                              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Image size={14} color="#00f2fe" />
+                                <a href={capturedInvoiceImg || invoiceImg} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13 }}>View Invoice Document</a>
+                                <button
+                                  type="button"
+                                  className="nexus-btn nexus-btn-ghost"
+                                  style={{ padding: '2px 8px', fontSize: 10 }}
+                                  onClick={() => { setCapturedInvoiceImg(null); setInvoiceImg(''); }}
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            className="nexus-btn nexus-btn-primary"
+                            style={{ width: '100%', marginTop: 20 }}
+                            onClick={() => submitInvoice(job.id)}
+                            disabled={savingInvoice}
+                          >
+                            <Save size={14} /> {savingInvoice ? 'Saving Invoice...' : (editingInvoiceId ? 'Update Invoice' : 'Create Invoice')}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Payment Status Panel */}
+                      {actionType === 'payment-status' && (
+                        <div style={{ padding: 20, background: 'rgba(0,0,0,0.2)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.04)' }}>
+                          <h3 style={{ fontSize: 16, marginBottom: 12 }}>Payment Status</h3>
+                          <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 16 }}>
+                            Set the overall payment status for this job. Use this to track whether the client has paid partially, fully, or not yet.
+                          </p>
+
+                          <label className="field-label">Select Payment Status</label>
+                          <div style={{ display: 'flex', gap: 12, marginTop: 8, marginBottom: 20 }}>
+                            {['PENDING', 'PARTIAL', 'PAID'].map((statusOption) => {
+                              const isActive = paymentStatus === statusOption;
+                              const colors = {
+                                PENDING: { bg: 'rgba(100,116,139,0.15)', border: 'rgba(100,116,139,0.3)', text: '#94a3b8', active: '#64748b' },
+                                PARTIAL: { bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.3)', text: '#f59e0b', active: '#f59e0b' },
+                                PAID: { bg: 'rgba(34,197,94,0.15)', border: 'rgba(34,197,94,0.3)', text: '#22c55e', active: '#22c55e' },
+                              }[statusOption];
+                              return (
+                                <button
+                                  key={statusOption}
+                                  type="button"
+                                  onClick={() => setPaymentStatus(statusOption)}
+                                  style={{
+                                    flex: 1,
+                                    padding: '12px 16px',
+                                    borderRadius: 8,
+                                    border: isActive ? `2px solid ${colors.active}` : `1px solid ${colors.border}`,
+                                    background: isActive ? colors.bg : 'transparent',
+                                    color: colors.text,
+                                    fontWeight: isActive ? 700 : 400,
+                                    fontSize: 14,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                  }}
+                                >
+                                  {statusOption === 'PENDING' ? 'Pending' : statusOption === 'PARTIAL' ? 'Partial Payment' : 'Fully Paid'}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <button
+                            type="button"
+                            className="nexus-btn nexus-btn-primary"
+                            onClick={() => updatePaymentStatus(job.id)}
+                          >
+                            <Save size={14} /> Update Payment Status to {paymentStatus === 'PENDING' ? 'Pending' : paymentStatus === 'PARTIAL' ? 'Partial Payment' : 'Fully Paid'}
                           </button>
                         </div>
                       )}
@@ -796,11 +1837,31 @@ export default function EmployeeRealTimeDashboard() {
                   </div>
                 </div>
 
+                {/* Entered By info */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12 }}>
+                  <div>
+                    <span className="field-label" style={{ marginBottom: 2, fontSize: 10 }}>Entered By</span>
+                    <div style={{ fontSize: 13, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <User size={12} color="#64748b" />
+                      {ticket.createdBy?.employeeName || ticket.createdBy?.email || (ticket.sender === 'Manual Entry' ? 'Manual Entry' : 'Auto-Ingested')}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="field-label" style={{ marginBottom: 2, fontSize: 10 }}>Gmail Account</span>
+                    <div style={{ fontSize: 13, color: '#e2e8f0' }}>
+                      {ticket.gmailAccount?.gmailEmail || '—'}
+                    </div>
+                  </div>
+                </div>
+
                 {ticket.jobMetadata && (
                   <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: 8, fontSize: 13, color: '#cbd5e1' }}>
                     <span style={{ color: '#00f2fe', fontWeight: 600 }}>{ticket.jobMetadata.clientName}</span>
                     {' · '}Site Branch: {ticket.jobMetadata.branchName}
                     {' · '}POC: {ticket.jobMetadata.personOfContact}
+                    {ticket.jobMetadata.assignedEmployee && (
+                      <span> · Assigned: {ticket.jobMetadata.assignedEmployee.employeeName}</span>
+                    )}
                   </div>
                 )}
               </div>

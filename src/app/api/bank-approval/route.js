@@ -10,7 +10,7 @@ export async function GET(request) {
 
     const where = jobMetadataId ? { jobMetadataId: Number(jobMetadataId) } : undefined;
 
-    const workCompletions = await prisma.workCompletion.findMany({
+    const bankApprovals = await prisma.bankApproval.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       include: {
@@ -21,16 +21,16 @@ export async function GET(request) {
       },
     });
 
-    return NextResponse.json({ workCompletions });
+    return NextResponse.json({ bankApprovals });
   } catch (error) {
-    console.error('WorkCompletion fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch work completions' }, { status: 500 });
+    console.error('BankApproval fetch error:', error);
+    return NextResponse.json({ error: 'Failed to fetch bank approvals' }, { status: 500 });
   }
 }
 
 export async function POST(request) {
   try {
-    const { jobMetadataId, amount, imageUrl, status, notes } = await request.json();
+    const { jobMetadataId, bankName, accountNumber, amount, imageUrl, notes, status } = await request.json();
     const authCookie = request.headers.get('x-user-id') || request.cookies.get('nexus_user')?.value;
     let userId = null;
     if (authCookie) {
@@ -40,25 +40,29 @@ export async function POST(request) {
       } catch {}
     }
 
-    if (!jobMetadataId || !status) {
-      return NextResponse.json({ error: 'jobMetadataId and status are required' }, { status: 400 });
+    if (!jobMetadataId) {
+      return NextResponse.json({ error: 'jobMetadataId is required' }, { status: 400 });
     }
 
-    // Upsert so there is only one status per job
-    const workCompletion = await prisma.workCompletion.upsert({
+    // Upsert so there is only one bank approval per job
+    const bankApproval = await prisma.bankApproval.upsert({
       where: { jobMetadataId: Number(jobMetadataId) },
       update: {
-        status,
+        bankName: bankName || null,
+        accountNumber: accountNumber || null,
         amount: Number(amount) || 0,
         imageUrl: imageUrl || null,
         notes: notes || null,
+        status: status || 'PENDING',
       },
       create: {
         jobMetadataId: Number(jobMetadataId),
-        status,
+        bankName: bankName || null,
+        accountNumber: accountNumber || null,
         amount: Number(amount) || 0,
         imageUrl: imageUrl || null,
         notes: notes || null,
+        status: status || 'PENDING',
         createdById: userId,
       },
       include: {
@@ -67,9 +71,9 @@ export async function POST(request) {
       },
     });
 
-    return NextResponse.json({ workCompletion }, { status: 201 });
+    return NextResponse.json({ bankApproval }, { status: 201 });
   } catch (error) {
-    console.error('WorkCompletion create/update error:', error);
-    return NextResponse.json({ error: 'Failed to update work status' }, { status: 500 });
+    console.error('BankApproval create/update error:', error);
+    return NextResponse.json({ error: 'Failed to save bank approval' }, { status: 500 });
   }
 }

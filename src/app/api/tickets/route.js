@@ -31,6 +31,7 @@ export async function GET(request) {
         jobMetadata: {
           include: {
             assignedEmployee: { select: { id: true, employeeName: true, email: true } },
+            createdBy: { select: { id: true, employeeName: true, email: true } },
           },
         },
       },

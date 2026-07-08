@@ -23,62 +23,64 @@ export async function GET(request) {
       whereClause = { assignedEmployeeId: user.id };
     }
 
-    // Use raw SQL to avoid Prisma client/schema mismatch issues
-    // This ensures the dashboard loads even if new DB columns don't exist yet
-    const employeeFilter = user && user.role === 'EMPLOYEE' ? `AND jm."assignedEmployeeId" = ${user.id}` : '';
+    // Progressive fallback: try full includes first, then simpler queries
+    let jobs;
     
-    const rows = await prisma.$queryRawUnsafe(`
-      SELECT 
-        jm.id, jm."ticketId", jm."clientName", jm."branchName", jm."personOfContact",
-        jm."workNature", jm."assignedEmployeeId", jm."manualEnteredBy", jm."createdById",
-        jm."createdAt", jm."updatedAt", jm."paymentProgress",
-        t.id as "ticket_id", t."serialNo" as "ticket_serialNo", t.subject as "ticket_subject", t.sender as "ticket_sender",
-        u.id as "employee_id", u."employeeName" as "employee_name", u.email as "employee_email"
-      FROM "JobMetadata" jm
-      LEFT JOIN "Ticket" t ON t.id = jm."ticketId"
-      LEFT JOIN "User" u ON u.id = jm."assignedEmployeeId"
-      WHERE 1=1 ${employeeFilter}
-      ORDER BY jm.id DESC
-    `);
-
-    // Map raw rows to the expected format
-    const jobs = rows.map(row => ({
-      id: row.id,
-      ticketId: row.ticketId,
-      clientName: row.clientName,
-      branchName: row.branchName,
-      personOfContact: row.personOfContact,
-      workNature: row.workNature,
-      assignedEmployeeId: row.assignedEmployeeId,
-      manualEnteredBy: row.manualEnteredBy,
-      createdById: row.createdById,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      paymentProgress: row.paymentProgress,
-      paymentStatus: 'PENDING',
-      ticket: row.ticket_id ? {
-        id: row.ticket_id,
-        serialNo: row.ticket_serialNo,
-        subject: row.ticket_subject,
-        sender: row.ticket_sender,
-      } : null,
-      assignedEmployee: row.employee_id ? {
-        id: row.employee_id,
-        employeeName: row.employee_name,
-        email: row.employee_email,
-      } : null,
-      surveyReport: null,
-      quotationInvoices: [],
-      expenses: [],
-      payments: [],
-      workCompletion: null,
-      bankApproval: null,
-    }));
+    // Attempt 1: Full query with all relations
+    try {
+      jobs = await prisma.jobMetadata.findMany({
+        where: whereClause,
+        orderBy: { id: 'desc' },
+        include: {
+          ticket: true,
+          createdBy: { select: { id: true, employeeName: true, email: true } },
+          assignedEmployee: { select: { id: true, employeeName: true, email: true } },
+          surveyReport: { select: { id: true, reportText: true, imageUrl: true, createdAt: true, createdBy: { select: { id: true, employeeName: true } } } },
+          quotationInvoices: { select: { id: true, documentType: true, status: true, lineItems: true, poNumber: true, imageUrl: true, createdAt: true, createdBy: { select: { id: true, employeeName: true } } } },
+          expenses: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true } },
+          payments: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true } },
+          workCompletion: { select: { id: true, status: true, amount: true, imageUrl: true, notes: true, createdAt: true, updatedAt: true } },
+          bankApproval: { select: { id: true, bankName: true, accountNumber: true, amount: true, status: true, imageUrl: true, notes: true, createdAt: true } },
+        },
+      });
+    } catch (fullErr) {
+      console.warn('Full jobs query failed, trying without new relations:', fullErr.message);
+      // Attempt 2: Without workCompletion/bankApproval (they may not exist in DB yet)
+      try {
+        jobs = await prisma.jobMetadata.findMany({
+          where: whereClause,
+          orderBy: { id: 'desc' },
+          include: {
+            ticket: true,
+            createdBy: { select: { id: true, employeeName: true, email: true } },
+            assignedEmployee: { select: { id: true, employeeName: true, email: true } },
+            surveyReport: { select: { id: true, reportText: true, imageUrl: true, createdAt: true } },
+            quotationInvoices: { select: { id: true, documentType: true, status: true, lineItems: true, poNumber: true, imageUrl: true, createdAt: true } },
+            expenses: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true } },
+            payments: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true } },
+          },
+        });
+      } catch (medErr) {
+        console.warn('Medium jobs query failed, trying minimal:', medErr.message);
+        // Attempt 3: Minimal query - just job + ticket + employee
+        jobs = await prisma.jobMetadata.findMany({
+          where: whereClause,
+          orderBy: { id: 'desc' },
+          include: {
+            ticket: true,
+            assignedEmployee: { select: { id: true, employeeName: true, email: true } },
+          },
+        });
+      }
+    }
 
     return NextResponse.json({ jobs });
   } catch (error) {
     console.error('Jobs fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch jobs', details: error.message }, { status: 500 });
+    const message = error.message || 'Unknown error';
+    const code = error.code || '';
+    const meta = error.meta ? JSON.stringify(error.meta) : '';
+    return NextResponse.json({ error: 'Failed to fetch jobs', details: message, code, meta }, { status: 500 });
   }
 }
 

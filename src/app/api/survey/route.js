@@ -29,8 +29,17 @@ export async function POST(request) {
     let userId = null;
     if (authCookie) {
       try {
-        const parsed = typeof authCookie === 'string' && authCookie.startsWith('{') ? JSON.parse(authCookie) : null;
-        userId = parsed?.id || null;
+        let parsed = null;
+        if (typeof authCookie === 'string') {
+          const decoded = decodeURIComponent(authCookie);
+          if (decoded.startsWith('{')) {
+            parsed = JSON.parse(decoded);
+          } else {
+            parsed = { id: decoded };
+          }
+        }
+        const parsedId = parsed?.id ? Number(parsed.id) : null;
+        userId = (parsedId && !isNaN(parsedId)) ? parsedId : null;
       } catch {}
     }
 

@@ -20,7 +20,12 @@ export async function GET(request) {
     let whereClause = undefined;
 
     if (user && user.role === 'EMPLOYEE') {
-      whereClause = { assignedEmployeeId: user.id };
+      const empId = user.id ? Number(user.id) : null;
+      if (empId && !isNaN(empId)) {
+        whereClause = { assignedEmployeeId: empId };
+      } else {
+        whereClause = { assignedEmployeeId: -1 }; // Hide jobs if employee ID is invalid/missing
+      }
     }
 
     // Progressive fallback: try full includes first, then simpler queries
@@ -79,7 +84,12 @@ export async function GET(request) {
     console.error('Jobs fetch error:', error);
     const message = error.message || 'Unknown error';
     const code = error.code || '';
-    const meta = error.meta ? JSON.stringify(error.meta) : '';
+    let meta = '';
+    try {
+      meta = error.meta ? JSON.stringify(error.meta) : '';
+    } catch {
+      meta = String(error.meta || '');
+    }
     return NextResponse.json({ error: 'Failed to fetch jobs', details: message, code, meta }, { status: 500 });
   }
 }
@@ -89,7 +99,8 @@ export async function POST(request) {
     const { ticketId, clientName, branchName, personOfContact, workNature, assignedEmployeeId, manualEnteredBy } =
       await request.json();
     const user = getUserFromCookie(request);
-    const userId = user?.id || null;
+    const parsedId = user?.id ? Number(user.id) : null;
+    const userId = (parsedId && !isNaN(parsedId)) ? parsedId : null;
 
     if (!ticketId || !clientName || !branchName || !personOfContact || !workNature) {
       return NextResponse.json({ error: 'All job metadata fields are required' }, { status: 400 });

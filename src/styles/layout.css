@@ -301,10 +301,8 @@
 
 .a4-letterhead {
   display: flex;
-  align-items: flex-start;
-  border-bottom: 2px solid var(--corporate-blue);
-  padding-bottom: 16px;
-  margin-bottom: 24px;
+  align-items: center;
+  margin-bottom: 32px;
 }
 
 .a4-title-bar {

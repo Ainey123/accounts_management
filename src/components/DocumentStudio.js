@@ -4,12 +4,21 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { Download, Lock, Plus, X, FileText } from 'lucide-react';
+import { Download, Lock, Plus, X, FileText, Globe, Mail } from 'lucide-react';
 import { useJob } from '@/components/JobContext';
 import JobSelector from '@/components/JobSelector';
 import { apiFetch } from '@/lib/api';
 
 const DEFAULT_LINE = { sr: 1, description: '', unit: 'Nos', qty: 1, rate: 0, amount: 0 };
+
+const formatDate = (dateInput) => {
+  const date = dateInput ? new Date(dateInput) : new Date();
+  if (isNaN(date.getTime())) return '';
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
 
 export default function DocumentStudio({ documentType = 'QUOTATION', jobId: propJobId, job: propJob, onSaveSuccess }) {
   const { activeJob, activeJobId: contextJobId, jobs } = useJob();
@@ -22,6 +31,7 @@ export default function DocumentStudio({ documentType = 'QUOTATION', jobId: prop
   const [lineItems, setLineItems] = useState([{ ...DEFAULT_LINE }]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   const title =
     documentType === 'INVOICE'
@@ -117,6 +127,9 @@ export default function DocumentStudio({ documentType = 'QUOTATION', jobId: prop
   const handleDownloadPDF = async () => {
     const element = pdfRef.current;
     if (!element) return;
+    setIsGeneratingPDF(true);
+    // Give React state update a moment to render read-only text before screenshotting
+    await new Promise((resolve) => setTimeout(resolve, 150));
     const hidden = document.querySelectorAll('.hide-in-pdf');
     hidden.forEach((el) => { el.style.display = 'none'; });
     try {
@@ -132,6 +145,7 @@ export default function DocumentStudio({ documentType = 'QUOTATION', jobId: prop
       setMessage('PDF generation failed.');
     } finally {
       hidden.forEach((el) => { el.style.display = ''; });
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -182,105 +196,167 @@ export default function DocumentStudio({ documentType = 'QUOTATION', jobId: prop
       {message && <div className={message.includes('success') ? 'alert-success' : 'alert-error'} style={{ marginBottom: 20 }}>{message}</div>}
 
       <div ref={pdfRef} className="a4-document">
-        <div className="a4-letterhead">
-          <div style={{ width: 80, height: 80, marginRight: 24, flexShrink: 0, position: 'relative' }}>
+        <div className="a4-letterhead" style={{ borderBottom: 'none' }}>
+          <div style={{ width: 120, height: 120, marginRight: 24, flexShrink: 0, position: 'relative' }}>
             <Image
               src="/logo.png"
-              alt="Company Logo"
+              alt="FES Logo"
               fill
+              sizes="120px"
+              priority
               style={{ objectFit: 'contain' }}
               onError={(e) => {
-                e.currentTarget.style.display = 'none';
+                console.error("Logo image failed to load");
               }}
             />
           </div>
-          <div style={{ flex: 1 }}>
-            <h1 style={{ margin: '0 0 8px', color: '#1e40af', fontSize: 28, fontWeight: 900, textTransform: 'uppercase' }}>
-              FES FAST Engineering Solutions
-            </h1>
-            <p style={{ margin: '0 0 4px', fontSize: 12, color: '#475569' }}>fastengineeringsolutions.com</p>
-            <p style={{ margin: '0 0 4px', fontSize: 12, color: '#475569' }}>info@fastengineeringsolutions.com</p>
-            <p style={{ margin: 0, fontSize: 12, color: '#475569' }}>fastsales.services@gmail.com</p>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: 4 }}>
+              <span style={{ margin: 0, color: '#C1272D', fontSize: '34px', fontWeight: 900, textTransform: 'uppercase', fontFamily: 'Arial, sans-serif', letterSpacing: '0.5px' }}>
+                FAST
+              </span>
+              <span style={{ margin: 0, color: '#1B4372', fontSize: '24px', fontWeight: 700, fontFamily: 'Arial, sans-serif', marginLeft: '6px', letterSpacing: '0.2px' }}>
+                Engineering Solutions
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#1B4372', fontWeight: '500' }}>
+                <Globe size={12} style={{ color: '#1B4372' }} />
+                <span>www.fastengineeringsolutions.com</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#1B4372', fontWeight: '500' }}>
+                <Mail size={12} style={{ color: '#1B4372' }} />
+                <span>info@fastengineeringsolutions.com</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#1B4372', fontWeight: '500' }}>
+                <Mail size={12} style={{ color: '#1B4372' }} />
+                <span>fastsales.services@gmail.com</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24, fontSize: 13, lineHeight: 1.6 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24, fontSize: 13, lineHeight: 1.5, color: '#1e293b', fontFamily: 'Arial, sans-serif' }}>
           <div style={{ flex: 1, paddingRight: 20 }}>
-            <div style={{ display: 'flex', marginBottom: 4 }}>
-              <strong style={{ marginRight: 4 }}>Attn:</strong>
-              <span>{job?.personOfContact || '—'}</span>
+            <div style={{ marginBottom: 4 }}>
+              <span style={{ textDecoration: 'underline', fontWeight: 'bold' }}>
+                Attn. {job?.personOfContact ? job.personOfContact.toUpperCase() : '—'}
+              </span>
             </div>
-            <div style={{ fontWeight: 'bold', marginBottom: 4 }}>{job?.clientName || '—'}</div>
-            <div style={{ display: 'flex' }}>
-              <strong style={{ marginRight: 4 }}>Site:</strong>
-              <span>{job?.branchName || '—'}</span>
+            <div style={{ fontWeight: 'bold', marginBottom: 4 }}>
+              {job?.clientName ? job.clientName.toUpperCase() : '—'}
+            </div>
+            <div style={{ marginBottom: 4 }}>
+              <strong>Site : </strong>
+              <span>{job?.branchName ? job.branchName.toUpperCase() : '—'}</span>
+            </div>
+            <div>
+              <span>{job?.workNature ? job.workNature.toUpperCase() : '—'}</span>
             </div>
           </div>
-          <div style={{ flex: 1, maxWidth: 200 }}>
-            <div style={{ display: 'flex', marginBottom: 4 }}>
-              <strong style={{ marginRight: 4 }}>Date:</strong>
-              <span>{job?.ticket?.exactDate ? new Date(job.ticket.exactDate).toLocaleDateString() : new Date().toLocaleDateString()}</span>
+          <div style={{ width: '220px', flexShrink: 0 }}>
+            <div style={{ marginBottom: 4 }}>
+              <strong style={{ display: 'inline-block', width: '60px' }}>Date:</strong>
+              <span>{formatDate(job?.ticket?.exactDate)}</span>
             </div>
-            <div style={{ display: 'flex' }}>
-              <strong style={{ marginRight: 4 }}>Ref.No:</strong>
+            <div>
+              <strong style={{ display: 'inline-block', width: '60px' }}>Ref.No:</strong>
               <span>{job?.ticket?.serialNo || '—'}</span>
             </div>
           </div>
         </div>
 
-        <div className="a4-title-bar">{title}</div>
+        <div className="a4-title-bar" style={{ backgroundColor: '#1b4372' }}>{title}</div>
 
-        <p style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 24, color: '#334155' }}>
+        <p style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 24, color: '#334155', fontFamily: 'Arial, sans-serif' }}>
           Dear Sir,<br /><br />
           With reference to the mentioned subject and detailed Engineering Survey of Site, please find the below detailed prices.
         </p>
 
-        <table className="a4-table">
+        <table className="a4-table" style={{ fontFamily: 'Arial, sans-serif' }}>
           <thead>
             <tr>
-              <th style={{ width: '5%' }}>Sr.#</th>
-              <th style={{ width: '55%' }}>Description</th>
-              <th style={{ width: '10%' }}>Unit</th>
-              <th style={{ width: '10%', textAlign: 'center' }}>Qty</th>
-              <th style={{ width: '10%', textAlign: 'right' }}>Rate</th>
-              <th style={{ width: '10%', textAlign: 'right' }}>Amount</th>
+              <th style={{ width: '6%', textAlign: 'center', backgroundColor: '#1b4372', borderColor: '#cbd5e1', padding: '10px 8px' }}>Sr.#</th>
+              <th style={{ width: '54%', backgroundColor: '#1b4372', borderColor: '#cbd5e1', padding: '10px 8px' }}>Description</th>
+              <th style={{ width: '10%', textAlign: 'center', backgroundColor: '#1b4372', borderColor: '#cbd5e1', padding: '10px 8px' }}>Unit</th>
+              <th style={{ width: '10%', textAlign: 'center', backgroundColor: '#1b4372', borderColor: '#cbd5e1', padding: '10px 8px' }}>Qty</th>
+              <th style={{ width: '10%', textAlign: 'right', backgroundColor: '#1b4372', borderColor: '#cbd5e1', padding: '10px 8px' }}>Rate</th>
+              <th style={{ width: '10%', textAlign: 'right', backgroundColor: '#1b4372', borderColor: '#cbd5e1', padding: '10px 8px' }}>Amount</th>
             </tr>
           </thead>
           <tbody>
-            {lineItems.map((item, index) => (
-              <tr key={index}>
-                <td style={{ padding: 8, textAlign: 'center' }}>{index + 1}</td>
-                <td>
-                  <textarea
-                    className="a4-cell-input"
-                    value={item.description}
-                    onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                    disabled={isLocked}
-                    rows={2}
-                    placeholder="Enter description..."
-                  />
-                </td>
-                <td>
-                  <input className="a4-cell-input" value={item.unit} onChange={(e) => handleItemChange(index, 'unit', e.target.value)} disabled={isLocked} />
-                </td>
-                <td>
-                  <input className="a4-cell-input" type="number" value={item.qty} onChange={(e) => handleItemChange(index, 'qty', e.target.value)} disabled={isLocked} style={{ textAlign: 'center' }} />
-                </td>
-                <td>
-                  <input className="a4-cell-input" type="number" value={item.rate} onChange={(e) => handleItemChange(index, 'rate', e.target.value)} disabled={isLocked} style={{ textAlign: 'right' }} />
-                </td>
-                <td style={{ padding: 8, textAlign: 'right', fontWeight: 'bold' }}>
-                  {(Number(item.amount) || 0).toLocaleString()}
-                </td>
-              </tr>
-            ))}
+            {lineItems.map((item, index) => {
+              const isReadOnly = isLocked || isGeneratingPDF;
+              return (
+                <tr key={index}>
+                  <td style={{ padding: '10px 8px', textAlign: 'center', verticalAlign: 'middle', borderColor: '#cbd5e1', fontSize: '13px' }}>{index + 1}</td>
+                  <td style={{ verticalAlign: 'top', borderColor: '#cbd5e1' }}>
+                    {isReadOnly ? (
+                      <div style={{ padding: '10px 8px', whiteSpace: 'pre-wrap', minHeight: '36px', fontSize: '13px', lineHeight: '1.5', color: '#1e293b' }}>
+                        {item.description}
+                      </div>
+                    ) : (
+                      <textarea
+                        className="a4-cell-input"
+                        value={item.description}
+                        onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                        rows={2}
+                        placeholder="Enter description..."
+                        style={{ padding: '8px', display: 'block', resize: 'vertical' }}
+                      />
+                    )}
+                  </td>
+                  <td style={{ verticalAlign: 'middle', textAlign: 'center', borderColor: '#cbd5e1' }}>
+                    {isReadOnly ? (
+                      <span style={{ fontSize: '13px' }}>{item.unit}</span>
+                    ) : (
+                      <input 
+                        className="a4-cell-input" 
+                        value={item.unit} 
+                        onChange={(e) => handleItemChange(index, 'unit', e.target.value)} 
+                        style={{ textAlign: 'center' }} 
+                      />
+                    )}
+                  </td>
+                  <td style={{ verticalAlign: 'middle', textAlign: 'center', borderColor: '#cbd5e1' }}>
+                    {isReadOnly ? (
+                      <span style={{ fontSize: '13px' }}>{item.qty}</span>
+                    ) : (
+                      <input 
+                        className="a4-cell-input" 
+                        type="number" 
+                        value={item.qty} 
+                        onChange={(e) => handleItemChange(index, 'qty', e.target.value)} 
+                        style={{ textAlign: 'center' }} 
+                      />
+                    )}
+                  </td>
+                  <td style={{ verticalAlign: 'middle', textAlign: 'right', borderColor: '#cbd5e1', paddingRight: isReadOnly ? '8px' : '0' }}>
+                    {isReadOnly ? (
+                      <span style={{ fontSize: '13px' }}>{(Number(item.rate) || 0).toLocaleString()}</span>
+                    ) : (
+                      <input 
+                        className="a4-cell-input" 
+                        type="number" 
+                        value={item.rate} 
+                        onChange={(e) => handleItemChange(index, 'rate', e.target.value)} 
+                        style={{ textAlign: 'right' }} 
+                      />
+                    )}
+                  </td>
+                  <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 'bold', verticalAlign: 'middle', borderColor: '#cbd5e1', fontSize: '13px' }}>
+                    {(Number(item.amount) || 0).toLocaleString()}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={5} style={{ padding: 10, textAlign: 'right', fontWeight: 'bold', borderTop: '2px solid #1e40af' }}>
+              <td colSpan={5} style={{ padding: '12px 10px', textAlign: 'right', fontWeight: 'bold', borderTop: '2px solid #1b4372', borderColor: '#cbd5e1', color: '#1e293b', fontSize: '13px' }}>
                 GRAND TOTAL (Rs):
               </td>
-              <td style={{ padding: 10, textAlign: 'right', fontWeight: 'bold', borderTop: '2px solid #1e40af' }}>
+              <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: 'bold', borderTop: '2px solid #1b4372', borderColor: '#cbd5e1', color: '#1e293b', fontSize: '13px' }}>
                 {totalAmount.toLocaleString()}
               </td>
             </tr>
@@ -288,7 +364,7 @@ export default function DocumentStudio({ documentType = 'QUOTATION', jobId: prop
         </table>
 
         {!isLocked && (
-          <button type="button" className="hide-in-pdf nexus-btn nexus-btn-ghost" onClick={addRow} style={{ marginTop: 16, color: '#1e40af', borderColor: '#cbd5e1' }}>
+          <button type="button" className="hide-in-pdf nexus-btn nexus-btn-ghost" onClick={addRow} style={{ marginTop: 16, color: '#1b4372', borderColor: '#cbd5e1' }}>
             <Plus size={16} /> Add Row
           </button>
         )}

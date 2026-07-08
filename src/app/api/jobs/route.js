@@ -23,21 +23,42 @@ export async function GET(request) {
       whereClause = { assignedEmployeeId: user.id };
     }
 
-    const jobs = await prisma.jobMetadata.findMany({
-      where: whereClause,
-      orderBy: { id: 'desc' },
-      include: {
-        ticket: true,
-        createdBy: { select: { id: true, employeeName: true, email: true } },
-        assignedEmployee: { select: { id: true, employeeName: true, email: true } },
-        surveyReport: { select: { id: true, reportText: true, imageUrl: true, createdAt: true, createdBy: { select: { id: true, employeeName: true } } } },
-        quotationInvoices: { select: { id: true, documentType: true, status: true, lineItems: true, poNumber: true, imageUrl: true, createdAt: true, createdBy: { select: { id: true, employeeName: true } } } },
-        expenses: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true } },
-        payments: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true } },
-        workCompletion: { select: { id: true, status: true, amount: true, imageUrl: true, notes: true, createdAt: true, updatedAt: true } },
-        bankApproval: { select: { id: true, bankName: true, accountNumber: true, amount: true, status: true, imageUrl: true, notes: true, createdAt: true } },
-      },
-    });
+    // Try to include all relations including new ones (workCompletion, bankApproval)
+    // Fall back to basic relations if DB schema hasn't been updated yet
+    let jobs;
+    try {
+      jobs = await prisma.jobMetadata.findMany({
+        where: whereClause,
+        orderBy: { id: 'desc' },
+        include: {
+          ticket: true,
+          createdBy: { select: { id: true, employeeName: true, email: true } },
+          assignedEmployee: { select: { id: true, employeeName: true, email: true } },
+          surveyReport: { select: { id: true, reportText: true, imageUrl: true, createdAt: true, createdBy: { select: { id: true, employeeName: true } } } },
+          quotationInvoices: { select: { id: true, documentType: true, status: true, lineItems: true, poNumber: true, imageUrl: true, createdAt: true, createdBy: { select: { id: true, employeeName: true } } } },
+          expenses: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true } },
+          payments: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true } },
+          workCompletion: { select: { id: true, status: true, amount: true, imageUrl: true, notes: true, createdAt: true, updatedAt: true } },
+          bankApproval: { select: { id: true, bankName: true, accountNumber: true, amount: true, status: true, imageUrl: true, notes: true, createdAt: true } },
+        },
+      });
+    } catch (includeErr) {
+      // Fallback: new tables (workCompletion, bankApproval) may not exist yet
+      jobs = await prisma.jobMetadata.findMany({
+        where: whereClause,
+        orderBy: { id: 'desc' },
+        include: {
+          ticket: true,
+          createdBy: { select: { id: true, employeeName: true, email: true } },
+          assignedEmployee: { select: { id: true, employeeName: true, email: true } },
+          surveyReport: { select: { id: true, reportText: true, imageUrl: true, createdAt: true, createdBy: { select: { id: true, employeeName: true } } } },
+          quotationInvoices: { select: { id: true, documentType: true, status: true, lineItems: true, poNumber: true, imageUrl: true, createdAt: true } },
+          expenses: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true } },
+          payments: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true } },
+        },
+      });
+    }
+
     return NextResponse.json({ jobs });
   } catch (error) {
     console.error('Jobs fetch error:', error);

@@ -14,6 +14,10 @@ export default function middleware(request) {
 
   if (!authCookie) {
     if (isPublic) return NextResponse.next();
+    // For API routes, return JSON 401 instead of redirecting to HTML page
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
     return NextResponse.redirect(new URL('/', request.url));
   }
 

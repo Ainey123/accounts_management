@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Webcam from 'react-webcam';
 import {
   Mail, RefreshCw, Activity, CheckCircle, DollarSign,
-  User, AlertCircle, FileText, Camera, Upload, ChevronRight, Save, ClipboardList, Check
+  User, AlertCircle, FileText, Camera, Upload, ChevronRight, Save, ClipboardList, Check, Search
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
@@ -18,6 +18,7 @@ export default function EmployeeRealTimeDashboard() {
   const [tickets, setTickets] = useState([]);
   const [stats, setStats] = useState({ assigned: 0, completed: 0, surveys: 0, expenses: 0, payments: 0 });
   const [message, setMessage] = useState('');
+  const [jobSearch, setJobSearch] = useState('');
   
   // Inline actions states
   const [expandedJobId, setExpandedJobId] = useState(null);
@@ -44,6 +45,15 @@ export default function EmployeeRealTimeDashboard() {
   
   const webcamRef = useRef(null);
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dloxdnqfm';
+
+  const filteredJobs = (() => {
+    if (!jobSearch.trim()) return jobs;
+    const q = jobSearch.toLowerCase();
+    return (jobs || []).filter((j) =>
+      (j.ticket?.subject || '').toLowerCase().includes(q) ||
+      (j.ticket?.serialNo || '').toLowerCase().includes(q)
+    );
+  })();
 
   const loadDashboardData = async () => {
     setLoading(true);
@@ -344,14 +354,29 @@ export default function EmployeeRealTimeDashboard() {
       ) : activeTab === 'tasks' ? (
         /* MY ASSIGNED JOBS TAB */
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ position: 'relative' }}>
+            <Search size={16} style={{ position: 'absolute', left: 10, top: 12, color: '#64748b' }} />
+            <input
+              className="nexus-input"
+              style={{ paddingLeft: 32 }}
+              placeholder="Search by subject or ticket number..."
+              value={jobSearch}
+              onChange={(e) => setJobSearch(e.target.value)}
+            />
+          </div>
           {jobs.length === 0 ? (
             <div className="glass-card" style={{ padding: 48, textAlign: 'center', color: '#94a3b8' }}>
               <AlertCircle size={40} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
               <p>No active jobs currently assigned to you.</p>
               <p style={{ fontSize: 13, marginTop: 4 }}>Admins assign incoming tickets from the Job Intake Grid.</p>
             </div>
+          ) : filteredJobs.length === 0 ? (
+            <div className="glass-card" style={{ padding: 48, textAlign: 'center', color: '#94a3b8' }}>
+              <AlertCircle size={40} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
+              <p>No jobs match your search.</p>
+            </div>
           ) : (
-            jobs.map((job) => {
+            filteredJobs.map((job) => {
               const hasSurvey = !!job.surveyReport;
               const quotations = job.quotationInvoices || [];
               const quotation = quotations.find((q) => q.documentType === 'QUOTATION');
@@ -736,14 +761,26 @@ export default function EmployeeRealTimeDashboard() {
           ) : (
             tickets.map((ticket) => (
               <div key={ticket.id} className="glass-card ticket-summary" style={{ padding: 20 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                  <div style={{ background: 'rgba(0,242,254,0.08)', padding: 8, borderRadius: 6 }}>
-                    <Mail size={16} color="#00f2fe" />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ background: 'rgba(0,242,254,0.08)', padding: 8, borderRadius: 6 }}>
+                      <Mail size={16} color="#00f2fe" />
+                    </div>
+                    <div>
+                      <span className="field-label" style={{ marginBottom: 0, fontSize: 10 }}>Ticket No.</span>
+                      <div style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 700, fontSize: 15 }}>{ticket.serialNo}</div>
+                    </div>
                   </div>
-                  <div>
-                    <span className="field-label" style={{ marginBottom: 0, fontSize: 10 }}>Ingestion Serial</span>
-                    <div style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 700, fontSize: 13 }}>{ticket.serialNo}</div>
-                  </div>
+                  {ticket.jobMetadata && (
+                    <span className="status-pill active" style={{ fontSize: 11, background: 'rgba(20, 184, 166, 0.1)', color: '#14b8a6', border: '1px solid rgba(20,184,166,0.2)' }}>
+                      {ticket.jobMetadata.workNature}
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ marginBottom: 12 }}>
+                  <span className="field-label" style={{ marginBottom: 2, fontSize: 10 }}>Subject</span>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: '#e2e8f0', lineHeight: 1.4 }}>{ticket.subject}</div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12 }}>
@@ -759,10 +796,13 @@ export default function EmployeeRealTimeDashboard() {
                   </div>
                 </div>
 
-                <div>
-                  <span className="field-label" style={{ marginBottom: 2, fontSize: 10 }}>Subject Line</span>
-                  <div style={{ fontSize: 14, fontWeight: 500 }}>{ticket.subject}</div>
-                </div>
+                {ticket.jobMetadata && (
+                  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: 8, fontSize: 13, color: '#cbd5e1' }}>
+                    <span style={{ color: '#00f2fe', fontWeight: 600 }}>{ticket.jobMetadata.clientName}</span>
+                    {' · '}Site Branch: {ticket.jobMetadata.branchName}
+                    {' · '}POC: {ticket.jobMetadata.personOfContact}
+                  </div>
+                )}
               </div>
             ))
           )}

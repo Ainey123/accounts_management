@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
+import DocumentStudio from '@/components/DocumentStudio';
 
 export default function EmployeeRealTimeDashboard() {
   const { user } = useAuth();
@@ -1145,95 +1146,7 @@ export default function EmployeeRealTimeDashboard() {
                       {/* Quotation Editable Panel */}
                       {actionType === 'quotation' && (
                         <div style={{ padding: 20, background: 'rgba(0,0,0,0.2)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.04)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                            <h3 style={{ fontSize: 16, margin: 0 }}>{editingQuotationId ? 'Edit Quotation' : 'Create New Quotation'}</h3>
-                            {editingQuotationId && (
-                              <span style={{ fontSize: 11, color: '#f59e0b', background: 'rgba(245,158,11,0.1)', padding: '4px 8px', borderRadius: 4 }}>
-                                Editing existing quotation
-                              </span>
-                            )}
-                          </div>
-
-                          <div style={{ marginBottom: 16 }}>
-                            <label className="field-label">PO Number (Optional)</label>
-                            <input
-                              className="nexus-input"
-                              value={quotationPoNumber}
-                              onChange={(e) => setQuotationPoNumber(e.target.value)}
-                              placeholder="e.g. PO-2024-001"
-                              style={{ marginTop: 4 }}
-                            />
-                          </div>
-
-                          <label className="field-label" style={{ marginBottom: 8 }}>Line Items</label>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            {quotationLineItems.map((item, index) => (
-                              <div key={index} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                <input
-                                  className="nexus-input"
-                                  style={{ flex: 2, padding: '8px 10px', fontSize: 13 }}
-                                  placeholder="Description"
-                                  value={item.description}
-                                  onChange={(e) => handleQuotationLineItemChange(index, 'description', e.target.value)}
-                                />
-                                <input
-                                  className="nexus-input"
-                                  type="number"
-                                  style={{ width: 70, padding: '8px 10px', fontSize: 13 }}
-                                  placeholder="Qty"
-                                  value={item.quantity}
-                                  onChange={(e) => handleQuotationLineItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
-                                />
-                                <input
-                                  className="nexus-input"
-                                  type="number"
-                                  style={{ width: 100, padding: '8px 10px', fontSize: 13 }}
-                                  placeholder="Rate"
-                                  value={item.rate}
-                                  onChange={(e) => handleQuotationLineItemChange(index, 'rate', parseFloat(e.target.value) || 0)}
-                                />
-                                <span style={{ fontSize: 13, color: '#00f2fe', fontWeight: 600, minWidth: 80, textAlign: 'right' }}>
-                                  Rs. {(item.quantity * item.rate).toLocaleString()}
-                                </span>
-                                <button
-                                  type="button"
-                                  className="nexus-btn nexus-btn-ghost"
-                                  style={{ padding: 6, minWidth: 'auto' }}
-                                  onClick={() => removeQuotationLineItem(index)}
-                                  disabled={quotationLineItems.length <= 1}
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-                            <button type="button" className="nexus-btn nexus-btn-ghost" style={{ padding: '6px 12px', fontSize: 12 }} onClick={addQuotationLineItem}>
-                              <Plus size={14} /> Add Line Item
-                            </button>
-                            <div style={{ fontSize: 16, fontWeight: 700, color: '#00f2fe' }}>
-                              Total: Rs. {quotationLineItems.reduce((sum, item) => sum + (item.quantity * item.rate), 0).toLocaleString()}
-                            </div>
-                          </div>
-
-                          <button
-                            type="button"
-                            className="nexus-btn nexus-btn-primary"
-                            style={{ width: '100%', marginTop: 20 }}
-                            onClick={() => submitQuotation(job.id)}
-                            disabled={savingQuotation}
-                          >
-                            <Save size={14} /> {savingQuotation ? 'Saving Quotation...' : (editingQuotationId ? 'Update Quotation' : 'Create Quotation')}
-                          </button>
-
-                          {/* Quotation image display */}
-                          {quotation?.imageUrl && (
-                            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <Image size={14} color="#00f2fe" />
-                              <a href={quotation.imageUrl} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13 }}>View Quotation Document</a>
-                            </div>
-                          )}
+                          <DocumentStudio documentType="QUOTATION" jobId={job.id} job={job} onSaveSuccess={loadDashboardData} />
                         </div>
                       )}
 
@@ -1429,118 +1342,7 @@ export default function EmployeeRealTimeDashboard() {
                       {/* Invoice Panel */}
                       {actionType === 'invoice' && (
                         <div style={{ padding: 20, background: 'rgba(0,0,0,0.2)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.04)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                            <h3 style={{ fontSize: 16, margin: 0 }}>{editingInvoiceId ? 'Edit Invoice' : 'Create New Invoice'}</h3>
-                            {editingInvoiceId && (
-                              <span style={{ fontSize: 11, color: '#f59e0b', background: 'rgba(245,158,11,0.1)', padding: '4px 8px', borderRadius: 4 }}>
-                                Editing existing invoice
-                              </span>
-                            )}
-                          </div>
-
-                          <div style={{ marginBottom: 16 }}>
-                            <label className="field-label">PO Number (Optional)</label>
-                            <input
-                              className="nexus-input"
-                              value={invoicePoNumber}
-                              onChange={(e) => setInvoicePoNumber(e.target.value)}
-                              placeholder="e.g. PO-2024-001"
-                              style={{ marginTop: 4 }}
-                            />
-                          </div>
-
-                          <label className="field-label" style={{ marginBottom: 8 }}>Line Items</label>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            {invoiceLineItems.map((item, index) => (
-                              <div key={index} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                <input
-                                  className="nexus-input"
-                                  style={{ flex: 2, padding: '8px 10px', fontSize: 13 }}
-                                  placeholder="Description"
-                                  value={item.description}
-                                  onChange={(e) => handleInvoiceLineItemChange(index, 'description', e.target.value)}
-                                />
-                                <input
-                                  className="nexus-input"
-                                  type="number"
-                                  style={{ width: 70, padding: '8px 10px', fontSize: 13 }}
-                                  placeholder="Qty"
-                                  value={item.quantity}
-                                  onChange={(e) => handleInvoiceLineItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
-                                />
-                                <input
-                                  className="nexus-input"
-                                  type="number"
-                                  style={{ width: 100, padding: '8px 10px', fontSize: 13 }}
-                                  placeholder="Rate"
-                                  value={item.rate}
-                                  onChange={(e) => handleInvoiceLineItemChange(index, 'rate', parseFloat(e.target.value) || 0)}
-                                />
-                                <span style={{ fontSize: 13, color: '#00f2fe', fontWeight: 600, minWidth: 80, textAlign: 'right' }}>
-                                  Rs. {(item.quantity * item.rate).toLocaleString()}
-                                </span>
-                                <button
-                                  type="button"
-                                  className="nexus-btn nexus-btn-ghost"
-                                  style={{ padding: 6, minWidth: 'auto' }}
-                                  onClick={() => removeInvoiceLineItem(index)}
-                                  disabled={invoiceLineItems.length <= 1}
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-                            <button type="button" className="nexus-btn nexus-btn-ghost" style={{ padding: '6px 12px', fontSize: 12 }} onClick={addInvoiceLineItem}>
-                              <Plus size={14} /> Add Line Item
-                            </button>
-                            <div style={{ fontSize: 16, fontWeight: 700, color: '#00f2fe' }}>
-                              Total: Rs. {invoiceLineItems.reduce((sum, item) => sum + (item.quantity * item.rate), 0).toLocaleString()}
-                            </div>
-                          </div>
-
-                          {/* Invoice Image Upload */}
-                          <div style={{ marginTop: 16, marginBottom: 12 }}>
-                            <label className="field-label">Attach Invoice Document (Optional)</label>
-                            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                              <button type="button" className="nexus-btn nexus-btn-ghost" style={{ padding: '8px 12px', fontSize: 12, flex: 1 }} onClick={() => {
-                                const shot = webcamRef.current?.getScreenshot();
-                                if (shot) setCapturedInvoiceImg(shot);
-                              }}>
-                                <Camera size={14} /> Capture Document
-                              </button>
-                              <label className="nexus-btn nexus-btn-ghost" style={{ padding: '8px 12px', fontSize: 12, flex: 1, cursor: 'pointer', textAlign: 'center' }}>
-                                <Upload size={14} /> Upload Document
-                                <input type="file" accept="image/*" hidden onChange={handleInvoiceFileUpload} />
-                              </label>
-                            </div>
-                            {(capturedInvoiceImg || invoiceImg) && (
-                              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <Image size={14} color="#00f2fe" />
-                                <a href={capturedInvoiceImg || invoiceImg} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13 }}>View Invoice Document</a>
-                                <button
-                                  type="button"
-                                  className="nexus-btn nexus-btn-ghost"
-                                  style={{ padding: '2px 8px', fontSize: 10 }}
-                                  onClick={() => { setCapturedInvoiceImg(null); setInvoiceImg(''); }}
-                                >
-                                  <Trash2 size={12} />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            className="nexus-btn nexus-btn-primary"
-                            style={{ width: '100%', marginTop: 20 }}
-                            onClick={() => submitInvoice(job.id)}
-                            disabled={savingInvoice}
-                          >
-                            <Save size={14} /> {savingInvoice ? 'Saving Invoice...' : (editingInvoiceId ? 'Update Invoice' : 'Create Invoice')}
-                          </button>
+                          <DocumentStudio documentType="INVOICE" jobId={job.id} job={job} onSaveSuccess={loadDashboardData} />
                         </div>
                       )}
 

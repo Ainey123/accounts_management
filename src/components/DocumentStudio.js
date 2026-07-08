@@ -11,8 +11,10 @@ import { apiFetch } from '@/lib/api';
 
 const DEFAULT_LINE = { sr: 1, description: '', unit: 'Nos', qty: 1, rate: 0, amount: 0 };
 
-export default function DocumentStudio({ documentType = 'QUOTATION' }) {
-  const { activeJob, activeJobId } = useJob();
+export default function DocumentStudio({ documentType = 'QUOTATION', jobId: propJobId, job: propJob, onSaveSuccess }) {
+  const { activeJob, activeJobId: contextJobId, jobs } = useJob();
+  const activeJobId = propJobId || contextJobId;
+  const job = propJob || (propJobId ? jobs.find(j => j.id === propJobId) : activeJob);
   const pdfRef = useRef(null);
   const genRef = useRef(0);
   const [isLocked, setIsLocked] = useState(false);
@@ -102,6 +104,9 @@ export default function DocumentStudio({ documentType = 'QUOTATION' }) {
         setDocumentId(document.id);
       }
       setMessage('Document saved successfully.');
+      if (onSaveSuccess) {
+        onSaveSuccess();
+      }
     } catch (err) {
       setMessage(err.message);
     } finally {
@@ -131,29 +136,49 @@ export default function DocumentStudio({ documentType = 'QUOTATION' }) {
   };
 
   const totalAmount = lineItems.reduce((acc, item) => acc + (Number(item.amount) || 0), 0);
-  const job = activeJob;
+
+  const isEmbedded = !!propJobId;
 
   return (
     <div>
-      <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
-        <div>
-          <h1>{documentType === 'INVOICE' ? 'Invoice Studio' : 'Quotation Studio'}</h1>
-          <p>Official A4 letterhead document with PDF export.</p>
+      {isEmbedded ? (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+          <h3 style={{ fontSize: 16, margin: 0 }}>
+            {documentType === 'INVOICE' ? 'Invoice Studio' : 'Quotation Studio'}
+          </h3>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" className="nexus-btn nexus-btn-ghost" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => setIsLocked(!isLocked)}>
+              <Lock size={13} /> {isLocked ? 'Unlock' : 'Lock Edit'}
+            </button>
+            <button type="button" className="nexus-btn nexus-btn-ghost" style={{ padding: '6px 12px', fontSize: 12 }} onClick={saveDocument} disabled={saving}>
+              Save
+            </button>
+            <button type="button" className="nexus-btn nexus-btn-primary" style={{ padding: '6px 12px', fontSize: 12 }} onClick={handleDownloadPDF}>
+              <Download size={13} /> Download PDF
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button type="button" className="nexus-btn nexus-btn-ghost" onClick={() => setIsLocked(!isLocked)}>
-            <Lock size={16} /> {isLocked ? 'Unlock' : 'Lock Edit'}
-          </button>
-          <button type="button" className="nexus-btn nexus-btn-ghost" onClick={saveDocument} disabled={saving}>
-            Save
-          </button>
-          <button type="button" className="nexus-btn nexus-btn-primary" onClick={handleDownloadPDF}>
-            <Download size={16} /> Download PDF
-          </button>
-        </div>
-      </header>
+      ) : (
+        <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
+          <div>
+            <h1>{documentType === 'INVOICE' ? 'Invoice Studio' : 'Quotation Studio'}</h1>
+            <p>Official A4 letterhead document with PDF export.</p>
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button type="button" className="nexus-btn nexus-btn-ghost" onClick={() => setIsLocked(!isLocked)}>
+              <Lock size={16} /> {isLocked ? 'Unlock' : 'Lock Edit'}
+            </button>
+            <button type="button" className="nexus-btn nexus-btn-ghost" onClick={saveDocument} disabled={saving}>
+              Save
+            </button>
+            <button type="button" className="nexus-btn nexus-btn-primary" onClick={handleDownloadPDF}>
+              <Download size={16} /> Download PDF
+            </button>
+          </div>
+        </header>
+      )}
 
-      <JobSelector />
+      {!isEmbedded && <JobSelector />}
       {message && <div className={message.includes('success') ? 'alert-success' : 'alert-error'} style={{ marginBottom: 20 }}>{message}</div>}
 
       <div ref={pdfRef} className="a4-document">

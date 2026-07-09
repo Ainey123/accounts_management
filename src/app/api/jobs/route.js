@@ -34,7 +34,7 @@ export async function GET(request) {
     try {
       jobs = await prisma.jobMetadata.findMany({
         where: whereClause,
-        orderBy: { id: 'desc' },
+        orderBy: { id: 'asc' },
         include: {
           ticket: true,
           createdBy: { select: { id: true, employeeName: true, email: true } },
@@ -53,7 +53,7 @@ export async function GET(request) {
       try {
         jobs = await prisma.jobMetadata.findMany({
           where: whereClause,
-          orderBy: { id: 'desc' },
+          orderBy: { id: 'asc' },
           include: {
             ticket: true,
             createdBy: { select: { id: true, employeeName: true, email: true } },
@@ -70,7 +70,7 @@ export async function GET(request) {
         try {
           jobs = await prisma.jobMetadata.findMany({
             where: whereClause,
-            orderBy: { id: 'desc' },
+            orderBy: { id: 'asc' },
             include: {
               ticket: true,
               assignedEmployee: { select: { id: true, employeeName: true, email: true } },

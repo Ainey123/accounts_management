@@ -853,9 +853,12 @@ export default function EmployeeRealTimeDashboard() {
                       </div>
                       <h2 style={{ fontSize: 20, marginBottom: 4 }}>{job.clientName}</h2>
                       <p style={{ color: '#94a3b8', fontSize: 14 }}>Site Branch: {job.branchName} · POC: {job.personOfContact}</p>
-                      {/* Subject display */}
+                      {/* Subject and Creator display */}
                       <p style={{ color: '#64748b', fontSize: 13, marginTop: 4, fontStyle: 'italic' }}>
                         Subject: {job.ticket?.subject || '—'}
+                      </p>
+                      <p style={{ color: '#64748b', fontSize: 13, marginTop: 2 }}>
+                        Entered By: <strong style={{ color: '#94a3b8' }}>{job.manualEnteredBy || job.createdBy?.employeeName || 'System'}</strong>
                       </p>
                     </div>
 

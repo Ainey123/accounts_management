@@ -1556,9 +1556,14 @@ export default function EmployeeRealTimeDashboard() {
                           <h4 style={{ fontSize: 13, color: '#94a3b8', marginBottom: 8 }}>Expenses History for this Job ({job.expenses.length})</h4>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                             {job.expenses.map((e, index) => (
-                              <div key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 12px', background: 'rgba(0,0,0,0.1)', borderRadius: 6, fontSize: 13 }}>
+                              <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', background: 'rgba(0,0,0,0.1)', borderRadius: 6, fontSize: 13 }}>
                                 <span>{e.summaryNotes}</span>
-                                <span style={{ fontWeight: 600, color: '#f87171' }}>Rs. {e.amount.toLocaleString()}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  {e.imageUrl && (
+                                    <a href={e.imageUrl} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 11, textDecoration: 'none' }}>📷 Receipt</a>
+                                  )}
+                                  <span style={{ fontWeight: 600, color: '#f87171' }}>Rs. {e.amount.toLocaleString()}</span>
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -1571,14 +1576,105 @@ export default function EmployeeRealTimeDashboard() {
                           <h4 style={{ fontSize: 13, color: '#94a3b8', marginBottom: 8 }}>Payments History for this Job ({job.payments.length})</h4>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                             {job.payments.map((p, index) => (
-                              <div key={index} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 12px', background: 'rgba(0,0,0,0.1)', borderRadius: 6, fontSize: 13 }}>
+                              <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', background: 'rgba(0,0,0,0.1)', borderRadius: 6, fontSize: 13 }}>
                                 <span>{p.summaryNotes}</span>
-                                <span style={{ fontWeight: 600, color: '#10b981' }}>Rs. {p.amount.toLocaleString()}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  {p.imageUrl && (
+                                    <a href={p.imageUrl} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 11, textDecoration: 'none' }}>📷 Receipt</a>
+                                  )}
+                                  <span style={{ fontWeight: 600, color: '#10b981' }}>Rs. {p.amount.toLocaleString()}</span>
+                                </div>
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
+
+                      {/* ═══════ Uploaded Documents & Photos Gallery ═══════ */}
+                      {(() => {
+                        const docs = [];
+                        // Survey photo
+                        if (job.surveyReport?.imageUrl) {
+                          docs.push({ label: 'Survey Photo', url: job.surveyReport.imageUrl, date: job.surveyReport.createdAt, by: job.surveyReport.createdBy?.employeeName });
+                        }
+                        // Quotation image
+                        const quot = (job.quotationInvoices || []).find(q => q.documentType === 'QUOTATION');
+                        if (quot?.imageUrl) {
+                          docs.push({ label: 'Quotation', url: quot.imageUrl, date: quot.createdAt, by: quot.createdBy?.employeeName });
+                        }
+                        // Invoice image
+                        const inv = (job.quotationInvoices || []).find(q => q.documentType === 'INVOICE');
+                        if (inv?.imageUrl) {
+                          docs.push({ label: 'Invoice', url: inv.imageUrl, date: inv.createdAt, by: inv.createdBy?.employeeName });
+                        }
+                        // Bank approval doc
+                        if (job.bankApproval?.imageUrl) {
+                          docs.push({ label: 'Bank Approval', url: job.bankApproval.imageUrl, date: job.bankApproval.createdAt });
+                        }
+                        // Work completion photo
+                        if (job.workCompletion?.imageUrl) {
+                          docs.push({ label: 'Work Completion', url: job.workCompletion.imageUrl, date: job.workCompletion.createdAt });
+                        }
+                        // Expense receipts
+                        (job.expenses || []).forEach((e, i) => {
+                          if (e.imageUrl) {
+                            docs.push({ label: `Expense #${i + 1}`, url: e.imageUrl, date: e.createdAt, note: e.summaryNotes });
+                          }
+                        });
+                        // Payment receipts
+                        (job.payments || []).forEach((p, i) => {
+                          if (p.imageUrl) {
+                            docs.push({ label: `Payment #${i + 1}`, url: p.imageUrl, date: p.createdAt, note: p.summaryNotes });
+                          }
+                        });
+
+                        if (docs.length === 0) return null;
+
+                        return (
+                          <div style={{ padding: 16, background: 'rgba(255,255,255,0.01)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
+                            <h4 style={{ fontSize: 13, color: '#00f2fe', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <Camera size={14} /> Uploaded Documents & Photos ({docs.length})
+                            </h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+                              {docs.map((doc, idx) => (
+                                <a
+                                  key={idx}
+                                  href={doc.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    background: 'rgba(0,0,0,0.2)',
+                                    borderRadius: 8,
+                                    overflow: 'hidden',
+                                    border: '1px solid rgba(255,255,255,0.06)',
+                                    textDecoration: 'none',
+                                    transition: 'border-color 0.2s, transform 0.2s',
+                                  }}
+                                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(0,242,254,0.3)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.transform = 'none'; }}
+                                >
+                                  <div style={{ width: '100%', height: 100, overflow: 'hidden', background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <img
+                                      src={doc.url}
+                                      alt={doc.label}
+                                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                      onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = '<span style="color:#64748b;font-size:11px;">Preview unavailable</span>'; }}
+                                    />
+                                  </div>
+                                  <div style={{ padding: '8px 10px' }}>
+                                    <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', marginBottom: 2 }}>{doc.label}</div>
+                                    {doc.by && <div style={{ fontSize: 10, color: '#94a3b8' }}>By: {doc.by}</div>}
+                                    {doc.note && <div style={{ fontSize: 10, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.note}</div>}
+                                    {doc.date && <div style={{ fontSize: 9, color: '#475569', marginTop: 2 }}>{new Date(doc.date).toLocaleDateString()}</div>}
+                                  </div>
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                     </div>
                   )}

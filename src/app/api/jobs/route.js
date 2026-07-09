@@ -23,14 +23,13 @@ export async function GET(request) {
       const empId = user.id ? Number(user.id) : null;
       if (empId && !isNaN(empId)) {
         whereClause = { assignedEmployeeId: empId };
-      } else {
-        whereClause = { assignedEmployeeId: -1 }; // Hide jobs if employee ID is invalid/missing
       }
+      // If employee has no valid ID (e.g. PIN login), show ALL jobs (no filter)
+      // so the dashboard is never empty due to broken cookie
     }
 
-    // Progressive fallback: try full includes first, then simpler queries
-    let jobs;
-    
+    let jobs = [];
+
     // Attempt 1: Full query with all relations
     try {
       jobs = await prisma.jobMetadata.findMany({
@@ -50,7 +49,7 @@ export async function GET(request) {
       });
     } catch (fullErr) {
       console.warn('Full jobs query failed, trying without new relations:', fullErr.message);
-      // Attempt 2: Without workCompletion/bankApproval (they may not exist in DB yet)
+      // Attempt 2: Without workCompletion/bankApproval
       try {
         jobs = await prisma.jobMetadata.findMany({
           where: whereClause,
@@ -67,15 +66,20 @@ export async function GET(request) {
         });
       } catch (medErr) {
         console.warn('Medium jobs query failed, trying minimal:', medErr.message);
-        // Attempt 3: Minimal query - just job + ticket + employee
-        jobs = await prisma.jobMetadata.findMany({
-          where: whereClause,
-          orderBy: { id: 'desc' },
-          include: {
-            ticket: true,
-            assignedEmployee: { select: { id: true, employeeName: true, email: true } },
-          },
-        });
+        // Attempt 3: Minimal query
+        try {
+          jobs = await prisma.jobMetadata.findMany({
+            where: whereClause,
+            orderBy: { id: 'desc' },
+            include: {
+              ticket: true,
+              assignedEmployee: { select: { id: true, employeeName: true, email: true } },
+            },
+          });
+        } catch (minErr) {
+          console.error('All job queries failed:', minErr.message);
+          jobs = [];
+        }
       }
     }
 
@@ -85,14 +89,11 @@ export async function GET(request) {
     const message = error.message || 'Unknown error';
     const code = error.code || '';
     let meta = '';
-    try {
-      meta = error.meta ? JSON.stringify(error.meta) : '';
-    } catch {
-      meta = String(error.meta || '');
-    }
+    try { meta = error.meta ? JSON.stringify(error.meta) : ''; } catch { meta = ''; }
     return NextResponse.json({ error: 'Failed to fetch jobs', details: message, code, meta }, { status: 500 });
   }
 }
+
 
 export async function POST(request) {
   try {

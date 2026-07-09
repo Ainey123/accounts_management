@@ -5,14 +5,32 @@ import { sanitizeUser } from '@/lib/api';
 
 export async function GET() {
   try {
-    const users = await prisma.user.findMany({
-      orderBy: { id: 'asc' },
-      include: {
-        assignedJobs: {
-          include: { ticket: { select: { serialNo: true } } },
+    let users = [];
+    try {
+      users = await prisma.user.findMany({
+        orderBy: { id: 'asc' },
+        include: {
+          assignedJobs: {
+            include: { ticket: { select: { serialNo: true } } },
+          },
         },
-      },
-    });
+      });
+    } catch (fullErr) {
+      console.warn('Full users query failed, trying minimal:', fullErr.message);
+      try {
+        users = await prisma.user.findMany({
+          orderBy: { id: 'asc' },
+          include: {
+            assignedJobs: true,
+          }
+        });
+      } catch (medErr) {
+        console.warn('Medium users query failed, trying basic:', medErr.message);
+        users = await prisma.user.findMany({
+          orderBy: { id: 'asc' },
+        });
+      }
+    }
     return NextResponse.json({ users: users.map(sanitizeUser) });
   } catch (error) {
     console.error('Users fetch error:', error);

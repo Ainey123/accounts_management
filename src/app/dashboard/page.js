@@ -184,14 +184,17 @@ export default function EmployeeRealTimeDashboard() {
   }, [actionType]);
 
   const handleSurveyFileUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
     try {
-      setMessage('Uploading survey photo...');
-      const url = await uploadToCloudinary(file);
-      setSurveyImageUrl(url);
-      setCapturedSurveyImg(url);
-      setMessage('Survey photo uploaded successfully.');
+      setMessage(`Uploading ${files.length} file(s)...`);
+      const newUrls = [];
+      for (const file of files) {
+        const url = await uploadToCloudinary(file);
+        newUrls.push(url);
+      }
+      setSurveyImageUrl(prev => prev ? `${prev},${newUrls.join(',')}` : newUrls.join(','));
+      setMessage('Files uploaded successfully.');
     } catch (err) {
       setMessage('Upload error: ' + err.message);
     }
@@ -315,15 +318,19 @@ export default function EmployeeRealTimeDashboard() {
     setSavingSurvey(true);
     setMessage('');
     try {
-      let finalUrl = surveyImageUrl;
+      let finalUrls = surveyImageUrl ? surveyImageUrl.split(',') : [];
       if (capturedSurveyImg && capturedSurveyImg.startsWith('data:')) {
         const blob = await fetch(capturedSurveyImg).then((r) => r.blob());
-        finalUrl = await uploadToCloudinary(blob);
+        const camUrl = await uploadToCloudinary(blob);
+        finalUrls.push(camUrl);
+      } else if (capturedSurveyImg && capturedSurveyImg.startsWith('http')) {
+        if (!finalUrls.includes(capturedSurveyImg)) finalUrls.push(capturedSurveyImg);
       }
+      let finalUrl = finalUrls.length > 0 ? finalUrls.join(',') : null;
 
       await apiFetch('/api/survey', {
         method: 'POST',
-        body: JSON.stringify({ jobMetadataId: jobId, reportText: surveyText, imageUrl: finalUrl || null }),
+        body: JSON.stringify({ jobMetadataId: jobId, reportText: surveyText, imageUrl: finalUrl }),
       });
       setMessage('Survey report submitted successfully!');
       setSurveyText('');
@@ -1083,10 +1090,12 @@ export default function EmployeeRealTimeDashboard() {
                                 {job.surveyReport.reportText}
                               </div>
                               {job.surveyReport.imageUrl && (
-                                <div style={{ marginTop: 8 }}>
-                                  <a href={job.surveyReport.imageUrl} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <Image size={14} /> View Attached Survey Document/Photo
-                                  </a>
+                                <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                  {job.surveyReport.imageUrl.split(',').map((url, i) => (
+                                    <a key={i} href={url} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                      <Image size={14} /> View Attached Survey Document/Photo {job.surveyReport.imageUrl.includes(',') ? i + 1 : ''}
+                                    </a>
+                                  ))}
                                 </div>
                               )}
                               <p style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>Filed in database. To edit, modify below and save.</p>
@@ -1115,21 +1124,43 @@ export default function EmployeeRealTimeDashboard() {
                               </button>
                               <label className="nexus-btn nexus-btn-ghost" style={{ padding: '8px 12px', fontSize: 12, flex: 1, cursor: 'pointer', textAlign: 'center' }}>
                                 <Upload size={14} /> Upload Photo/PDF
-                                <input type="file" accept="image/*,application/pdf" hidden onChange={handleSurveyFileUpload} />
+                                <input type="file" accept="image/*,application/pdf" hidden multiple onChange={handleSurveyFileUpload} />
                               </label>
                             </div>
                             {(capturedSurveyImg || surveyImageUrl) && (
-                              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <Image size={14} color="#00f2fe" />
-                                <a href={capturedSurveyImg || surveyImageUrl} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13 }}>View Attached Document/Photo</a>
-                                <button
-                                  type="button"
-                                  className="nexus-btn nexus-btn-ghost"
-                                  style={{ padding: '2px 8px', fontSize: 10 }}
-                                  onClick={() => { setCapturedSurveyImg(null); setSurveyImageUrl(''); }}
-                                >
-                                  <Trash2 size={12} />
-                                </button>
+                              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                {capturedSurveyImg && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <Image size={14} color="#00f2fe" />
+                                    <a href={capturedSurveyImg} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13 }}>View Captured Photo</a>
+                                    <button
+                                      type="button"
+                                      className="nexus-btn nexus-btn-ghost"
+                                      style={{ padding: '2px 8px', fontSize: 10 }}
+                                      onClick={() => setCapturedSurveyImg(null)}
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </div>
+                                )}
+                                {surveyImageUrl && surveyImageUrl.split(',').map((url, i) => (
+                                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <Image size={14} color="#00f2fe" />
+                                    <a href={url} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13 }}>View Attached Document/Photo {surveyImageUrl.includes(',') ? i + 1 : ''}</a>
+                                    <button
+                                      type="button"
+                                      className="nexus-btn nexus-btn-ghost"
+                                      style={{ padding: '2px 8px', fontSize: 10 }}
+                                      onClick={() => {
+                                        const arr = surveyImageUrl.split(',');
+                                        arr.splice(i, 1);
+                                        setSurveyImageUrl(arr.join(','));
+                                      }}
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </div>
+                                ))}
                               </div>
                             )}
                           </div>
@@ -1595,7 +1626,9 @@ export default function EmployeeRealTimeDashboard() {
                         const docs = [];
                         // Survey photo
                         if (job.surveyReport?.imageUrl) {
-                          docs.push({ label: 'Survey Photo', url: job.surveyReport.imageUrl, date: job.surveyReport.createdAt, by: job.surveyReport.createdBy?.employeeName });
+                          job.surveyReport.imageUrl.split(',').forEach((url, i) => {
+                            docs.push({ label: `Survey Document/Photo ${job.surveyReport.imageUrl.includes(',') ? i + 1 : ''}`, url: url, date: job.surveyReport.createdAt, by: job.surveyReport.createdBy?.employeeName });
+                          });
                         }
                         // Quotation image
                         const quot = (job.quotationInvoices || []).find(q => q.documentType === 'QUOTATION');

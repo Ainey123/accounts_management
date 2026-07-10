@@ -30,22 +30,26 @@ export default function SurveyCanvasPage() {
   }, [activeJobId]);
 
   const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
     try {
-      setMessage('Uploading photo...');
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'unsigned-preset');
+      setMessage(`Uploading ${files.length} file(s)...`);
+      const newUrls = [];
       const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dpqj7b0k7'; // Fallback
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error?.message || 'Upload failed');
-      setImageUrl(data.secure_url);
-      setMessage('Screenshot uploaded successfully.');
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'unsigned-preset');
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || 'Upload failed');
+        newUrls.push(data.secure_url);
+      }
+      setImageUrl(prev => prev ? `${prev},${newUrls.join(',')}` : newUrls.join(','));
+      setMessage('Files uploaded successfully.');
     } catch (err) {
       setMessage('Upload error: ' + err.message);
     }
@@ -88,10 +92,12 @@ export default function SurveyCanvasPage() {
 
       <div style={{ marginBottom: 16 }}>
         <label className="field-label">Attach Photo or PDF Document (Optional)</label>
-        <input type="file" accept="image/*,application/pdf" onChange={handleFileUpload} className="nexus-input" />
+        <input type="file" accept="image/*,application/pdf" multiple onChange={handleFileUpload} className="nexus-input" />
         {imageUrl && (
-          <div style={{ marginTop: 8 }}>
-            <a href={imageUrl} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13 }}>View Attached Document/Photo</a>
+          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {imageUrl.split(',').map((url, i) => (
+              <a key={i} href={url} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13 }}>View Attached Document/Photo {imageUrl.includes(',') ? i + 1 : ''}</a>
+            ))}
           </div>
         )}
       </div>

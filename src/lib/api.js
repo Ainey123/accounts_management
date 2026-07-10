@@ -19,6 +19,11 @@ export async function apiFetch(path, options = {}) {
   }
 
   if (!res.ok) {
+    if (res.status === 401) {
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+    }
     throw new Error(data.error || `Request failed (${res.status})`);
   }
   return data;

@@ -38,7 +38,7 @@ export default function SurveyCanvasPage() {
       formData.append('file', file);
       formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'unsigned-preset');
       const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dpqj7b0k7'; // Fallback
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -87,11 +87,11 @@ export default function SurveyCanvasPage() {
       {message && <div className={message.includes('saved') ? 'alert-success' : 'alert-error'} style={{ marginBottom: 20 }}>{message}</div>}
 
       <div style={{ marginBottom: 16 }}>
-        <label className="field-label">Attach Screenshot (Optional)</label>
-        <input type="file" accept="image/*" onChange={handleFileUpload} className="nexus-input" />
+        <label className="field-label">Attach Photo or PDF Document (Optional)</label>
+        <input type="file" accept="image/*,application/pdf" onChange={handleFileUpload} className="nexus-input" />
         {imageUrl && (
           <div style={{ marginTop: 8 }}>
-            <a href={imageUrl} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13 }}>View Attached Screenshot</a>
+            <a href={imageUrl} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13 }}>View Attached Document/Photo</a>
           </div>
         )}
       </div>

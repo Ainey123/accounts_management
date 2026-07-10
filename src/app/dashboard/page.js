@@ -155,7 +155,7 @@ export default function EmployeeRealTimeDashboard() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'unsigned-preset');
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
       method: 'POST',
       body: formData,
     });
@@ -1085,7 +1085,7 @@ export default function EmployeeRealTimeDashboard() {
                               {job.surveyReport.imageUrl && (
                                 <div style={{ marginTop: 8 }}>
                                   <a href={job.surveyReport.imageUrl} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <Image size={14} /> View Attached Survey Photo
+                                    <Image size={14} /> View Attached Survey Document/Photo
                                   </a>
                                 </div>
                               )}
@@ -1114,14 +1114,14 @@ export default function EmployeeRealTimeDashboard() {
                                 <Camera size={14} /> Capture Photo
                               </button>
                               <label className="nexus-btn nexus-btn-ghost" style={{ padding: '8px 12px', fontSize: 12, flex: 1, cursor: 'pointer', textAlign: 'center' }}>
-                                <Upload size={14} /> Upload Image
-                                <input type="file" accept="image/*" hidden onChange={handleSurveyFileUpload} />
+                                <Upload size={14} /> Upload Photo/PDF
+                                <input type="file" accept="image/*,application/pdf" hidden onChange={handleSurveyFileUpload} />
                               </label>
                             </div>
                             {(capturedSurveyImg || surveyImageUrl) && (
                               <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <Image size={14} color="#00f2fe" />
-                                <a href={capturedSurveyImg || surveyImageUrl} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13 }}>View Attached Photo</a>
+                                <a href={capturedSurveyImg || surveyImageUrl} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13 }}>View Attached Document/Photo</a>
                                 <button
                                   type="button"
                                   className="nexus-btn nexus-btn-ghost"
@@ -1657,7 +1657,7 @@ export default function EmployeeRealTimeDashboard() {
                                 >
                                   <div style={{ width: '100%', height: 100, overflow: 'hidden', background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <img
-                                      src={doc.url}
+                                      src={doc.url.replace(/\.pdf$/i, '.jpg')}
                                       alt={doc.label}
                                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                       onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = '<span style="color:#64748b;font-size:11px;">Preview unavailable</span>'; }}

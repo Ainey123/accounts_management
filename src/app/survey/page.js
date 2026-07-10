@@ -14,6 +14,11 @@ export default function SurveyCanvasPage() {
   const [saving, setSaving] = useState(false);
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dloxdnqfm';
 
+  const isPdfUrl = (url) => {
+    const cleanUrl = (url || '').split('?')[0].toLowerCase();
+    return cleanUrl.endsWith('.pdf') || (url || '').toLowerCase().includes('/pdf/');
+  };
+
   useEffect(() => {
     if (!activeJobId) return;
     apiFetch(`/api/survey?jobMetadataId=${activeJobId}`)
@@ -95,9 +100,29 @@ export default function SurveyCanvasPage() {
         <input type="file" accept="image/*,application/pdf" multiple onChange={handleFileUpload} className="nexus-input" />
         {imageUrl && (
           <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {imageUrl.split(',').map((url, i) => (
-              <a key={i} href={url} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13 }}>View Attached Document/Photo {imageUrl.includes(',') ? i + 1 : ''}</a>
-            ))}
+            {imageUrl.split(',').map((url, i) => {
+              const isPdf = isPdfUrl(url);
+              return (
+                <div key={i} style={{ padding: 12, border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, background: 'rgba(255,255,255,0.02)' }}>
+                  <a href={url} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13 }}>
+                    View Attached {isPdf ? 'PDF' : 'Document/Photo'} {imageUrl.includes(',') ? i + 1 : ''}
+                  </a>
+                  {isPdf ? (
+                    <iframe
+                      src={url}
+                      title={`Survey PDF ${i + 1}`}
+                      style={{ width: '100%', height: 420, marginTop: 10, border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, background: '#0a0a0c' }}
+                    />
+                  ) : (
+                    <img
+                      src={url}
+                      alt={`Survey attachment ${i + 1}`}
+                      style={{ display: 'block', maxWidth: '100%', maxHeight: 320, marginTop: 10, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)' }}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

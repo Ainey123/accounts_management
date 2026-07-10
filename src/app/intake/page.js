@@ -368,7 +368,7 @@ export default function IntakeGridPage() {
                 const j = t.jobMetadata;
                 return (
                   <tr key={t.id}>
-                    <td style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 600 }}>{list.length - index}</td>
+                    <td style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 600 }}>{t.serialNo}</td>
                     <td>{j.clientName}</td>
                     <td>{j.branchName}</td>
                     <td>

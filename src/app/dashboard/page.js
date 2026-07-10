@@ -20,6 +20,10 @@ export default function EmployeeRealTimeDashboard() {
   const [stats, setStats] = useState({ assigned: 0, completed: 0, surveys: 0, expenses: 0, payments: 0 });
   const [message, setMessage] = useState('');
   const [jobSearch, setJobSearch] = useState('');
+  const [feedSearch, setFeedSearch] = useState('');
+  const [feedMonth, setFeedMonth] = useState('');
+  const [feedDate, setFeedDate] = useState('');
+  const [feedPerson, setFeedPerson] = useState('');
   
   // Inline actions states
   const [expandedJobId, setExpandedJobId] = useState(null);
@@ -94,6 +98,79 @@ export default function EmployeeRealTimeDashboard() {
       (j.branchName || '').toLowerCase().includes(q)
     );
   })();
+
+  const getTicketEntryPerson = (ticket) =>
+    ticket.createdBy?.employeeName ||
+    ticket.createdBy?.email ||
+    ticket.jobMetadata?.createdBy?.employeeName ||
+    ticket.jobMetadata?.createdBy?.email ||
+    ticket.jobMetadata?.manualEnteredBy ||
+    (ticket.sender === 'Manual Entry' ? 'Manual Entry' : 'Auto-Ingested');
+
+  const feedPersonOptions = Array.from(
+    new Set((tickets || []).map(getTicketEntryPerson).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
+
+  const getLocalDateKey = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const filteredTickets = (tickets || []).filter((ticket) => {
+    const dateKey = getLocalDateKey(ticket.exactDate);
+    const monthKey = dateKey.slice(0, 7);
+    const enteredBy = getTicketEntryPerson(ticket);
+
+    if (feedDate && dateKey !== feedDate) return false;
+    if (feedMonth && monthKey !== feedMonth) return false;
+    if (feedPerson && enteredBy !== feedPerson) return false;
+
+    if (!feedSearch.trim()) return true;
+    const q = feedSearch.toLowerCase();
+    return (
+      (ticket.subject || '').toLowerCase().includes(q) ||
+      (ticket.sender || '').toLowerCase().includes(q) ||
+      (ticket.serialNo || '').toLowerCase().includes(q) ||
+      (ticket.gmailAccount?.gmailEmail || '').toLowerCase().includes(q) ||
+      (enteredBy || '').toLowerCase().includes(q) ||
+      (ticket.jobMetadata?.clientName || '').toLowerCase().includes(q) ||
+      (ticket.jobMetadata?.branchName || '').toLowerCase().includes(q) ||
+      (ticket.jobMetadata?.assignedEmployee?.employeeName || '').toLowerCase().includes(q)
+    );
+  });
+
+  const isPdfDocumentUrl = (url) => {
+    const cleanUrl = (url || '').split('?')[0].toLowerCase();
+    return cleanUrl.endsWith('.pdf') || (url || '').toLowerCase().includes('/pdf/');
+  };
+
+  const renderDocumentPreview = (doc) => {
+    const url = doc.url || '';
+    const isPdf = isPdfDocumentUrl(url);
+
+    if (isPdf) {
+      return (
+        <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, color: '#cbd5e1' }}>
+          <FileText size={24} color="#00f2fe" />
+          <span style={{ fontSize: 11 }}>Open PDF</span>
+        </div>
+      );
+    }
+
+    return (
+      <img
+        src={url}
+        alt={doc.label}
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+      />
+    );
+  };
 
   const loadDashboardData = async () => {
     setLoading(true);
@@ -785,7 +862,7 @@ export default function EmployeeRealTimeDashboard() {
           className={`nav-panel ${activeTab === 'feed' ? 'active' : ''}`}
           style={{ padding: '12px 24px', borderRadius: '12px 12px 0 0', border: 'none', background: 'transparent' }}
         >
-          Incoming Ingestion Stream ({tickets.length})
+          Incoming Ingestion Stream ({filteredTickets.length}/{tickets.length})
         </button>
       </div>
 
@@ -1090,15 +1167,25 @@ export default function EmployeeRealTimeDashboard() {
                                 {job.surveyReport.reportText}
                               </div>
                               {job.surveyReport.imageUrl && (
-                                <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                  {job.surveyReport.imageUrl.split(',').map((url, i) => (
-                                    <a key={i} href={url} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                      <Image size={14} /> View Attached Survey Document/Photo {job.surveyReport.imageUrl.includes(',') ? i + 1 : ''}
-                                    </a>
-                                  ))}
+                                <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                  {job.surveyReport.imageUrl.split(',').map((url, i) => {
+                                    const isPdf = isPdfDocumentUrl(url);
+                                    return (
+                                      <div key={i}>
+                                        {isPdf ? (
+                                          <embed src={url} type="application/pdf" width="100%" height="350px" style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)' }} />
+                                        ) : (
+                                          <img src={url} alt={`Survey ${i+1}`} style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)' }} />
+                                        )}
+                                        <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                                          {isPdf ? 'PDF Document' : 'Photo'} {job.surveyReport.imageUrl.includes(',') ? i + 1 : ''}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               )}
-                              <p style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>Filed in database. To edit, modify below and save.</p>
+                              <p style={{ fontSize: 11, color: '#64748b', marginTop: 12 }}>Filed in database. Modify below and save to update.</p>
                             </div>
                           ) : (
                             <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>Enter details of the on-site checkup and findings to proceed.</p>
@@ -1689,12 +1776,7 @@ export default function EmployeeRealTimeDashboard() {
                                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.transform = 'none'; }}
                                 >
                                   <div style={{ width: '100%', height: 100, overflow: 'hidden', background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <img
-                                      src={doc.url.replace(/\.pdf$/i, '.jpg')}
-                                      alt={doc.label}
-                                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                      onError={(e) => { e.target.style.display = 'none'; e.target.parentElement.innerHTML = '<span style="color:#64748b;font-size:11px;">Preview unavailable</span>'; }}
-                                    />
+                                    {renderDocumentPreview(doc)}
                                   </div>
                                   <div style={{ padding: '8px 10px' }}>
                                     <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', marginBottom: 2 }}>{doc.label}</div>
@@ -1720,21 +1802,64 @@ export default function EmployeeRealTimeDashboard() {
       ) : (
         /* INCOMING OPERATIONS FEED TAB */
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <h2>Gmail Complaint Ingestion Stream</h2>
-            <button type="button" className="nexus-btn nexus-btn-ghost" onClick={loadDashboardData} style={{ padding: '8px 12px', fontSize: 12 }}>
-              <RefreshCw size={14} /> Refresh Stream
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button type="button" className="nexus-btn nexus-btn-ghost" onClick={loadDashboardData} style={{ padding: '8px 12px', fontSize: 12 }}>
+                <RefreshCw size={14} /> Refresh Stream
+              </button>
+            </div>
+          </div>
+
+          <div className="glass-card" style={{ padding: 16, display: 'grid', gridTemplateColumns: 'minmax(220px, 1.4fr) repeat(3, minmax(150px, 1fr)) auto', gap: 12, alignItems: 'end' }}>
+            <div>
+              <label className="field-label">Search Gmail / Name</label>
+              <div style={{ position: 'relative' }}>
+                <Search size={16} style={{ position: 'absolute', left: 10, top: 10, color: '#64748b' }} />
+                <input
+                  className="nexus-input"
+                  style={{ paddingLeft: 32 }}
+                  placeholder="Gmail, sender, subject, Ibrahim..."
+                  value={feedSearch}
+                  onChange={(e) => setFeedSearch(e.target.value)}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="field-label">Exact Date</label>
+              <input className="nexus-input" type="date" value={feedDate} onChange={(e) => setFeedDate(e.target.value)} />
+            </div>
+            <div>
+              <label className="field-label">Month</label>
+              <input className="nexus-input" type="month" value={feedMonth} onChange={(e) => setFeedMonth(e.target.value)} />
+            </div>
+            <div>
+              <label className="field-label">Entered By</label>
+              <select className="nexus-select" value={feedPerson} onChange={(e) => setFeedPerson(e.target.value)}>
+                <option value="">All people</option>
+                {feedPersonOptions.map((person) => (
+                  <option key={person} value={person}>{person}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              className="nexus-btn nexus-btn-ghost"
+              style={{ padding: '10px 12px', fontSize: 12 }}
+              onClick={() => { setFeedSearch(''); setFeedDate(''); setFeedMonth(''); setFeedPerson(''); }}
+            >
+              Clear
             </button>
           </div>
 
-          {tickets.length === 0 ? (
+          {filteredTickets.length === 0 ? (
             <div className="glass-card" style={{ padding: 48, textAlign: 'center', color: '#94a3b8' }}>
               <AlertCircle size={40} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
-              <p>No new complaints in the ingestion stream.</p>
-              <p style={{ fontSize: 13, marginTop: 4 }}>The background daemon scanner checks connected Gmails continuously.</p>
+              <p>{tickets.length ? 'No feed entries match your filters.' : 'No new complaints in the ingestion stream.'}</p>
+              <p style={{ fontSize: 13, marginTop: 4 }}>{tickets.length ? 'Try clearing date, month, or person filters.' : 'The background daemon scanner checks connected Gmails continuously.'}</p>
             </div>
           ) : (
-            tickets.map((ticket) => (
+            filteredTickets.map((ticket) => (
               <div key={ticket.id} className="glass-card ticket-summary" style={{ padding: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1777,7 +1902,7 @@ export default function EmployeeRealTimeDashboard() {
                     <span className="field-label" style={{ marginBottom: 2, fontSize: 10 }}>Entered By</span>
                     <div style={{ fontSize: 13, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <User size={12} color="#64748b" />
-                      {ticket.createdBy?.employeeName || ticket.createdBy?.email || (ticket.sender === 'Manual Entry' ? 'Manual Entry' : 'Auto-Ingested')}
+                      {getTicketEntryPerson(ticket)}
                     </div>
                   </div>
                   <div>

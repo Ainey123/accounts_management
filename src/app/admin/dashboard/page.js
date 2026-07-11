@@ -24,6 +24,9 @@ export default function AdminCommandCenter() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [ticketFilter, setTicketFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [feedDate, setFeedDate] = useState('');
+  const [feedMonth, setFeedMonth] = useState('');
+  const [feedPerson, setFeedPerson] = useState('');
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [passwordUserId, setPasswordUserId] = useState(null);
   const [passwordForm, setPasswordForm] = useState({ password: '', confirmPassword: '' });
@@ -179,17 +182,48 @@ export default function AdminCommandCenter() {
     }
   };
 
+  const getTicketEntryPerson = (ticket) =>
+    ticket.jobMetadata?.createdBy?.employeeName ||
+    ticket.jobMetadata?.createdBy?.email ||
+    ticket.jobMetadata?.manualEnteredBy ||
+    (ticket.sender === 'Manual Entry' ? 'Manual Entry' : 'Auto-Ingested');
+
+  const feedPersonOptions = Array.from(
+    new Set((tickets || []).map(getTicketEntryPerson).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
+
+  const getLocalDateKey = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const filteredTickets = tickets.filter((t) => {
     if (ticketFilter === 'pending') return !t.jobMetadata;
     if (ticketFilter === 'intake') return !!t.jobMetadata;
     return true;
   }).filter((t) => {
+    const dateKey = getLocalDateKey(t.exactDate);
+    const monthKey = dateKey.slice(0, 7);
+    const enteredBy = getTicketEntryPerson(t);
+
+    if (feedDate && dateKey !== feedDate) return false;
+    if (feedMonth && monthKey !== feedMonth) return false;
+    if (feedPerson && enteredBy !== feedPerson) return false;
+
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
       t.subject?.toLowerCase().includes(q) ||
       t.sender?.toLowerCase().includes(q) ||
-      t.serialNo?.toLowerCase().includes(q)
+      t.serialNo?.toLowerCase().includes(q) ||
+      t.gmailAccount?.gmailEmail?.toLowerCase().includes(q) ||
+      (enteredBy || '').toLowerCase().includes(q) ||
+      t.jobMetadata?.clientName?.toLowerCase().includes(q) ||
+      t.jobMetadata?.branchName?.toLowerCase().includes(q)
     );
   });
 
@@ -429,21 +463,34 @@ export default function AdminCommandCenter() {
               <button type="button" className="nexus-btn nexus-btn-ghost" onClick={handleCleanInvalidSerials} style={{ color: '#ef4444' }}>
                 <Trash2 size={16} /> Renumber Serials (1,2,3)
               </button>
-              <select className="nexus-select" value={ticketFilter} onChange={(e) => setTicketFilter(e.target.value)} style={{ width: 'auto' }}>
-                <option value="all">All</option>
-                <option value="pending">Pending Only</option>
-                <option value="intake">Intake Only</option>
-              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
               <div style={{ position: 'relative' }}>
                 <Search size={16} style={{ position: 'absolute', left: 10, top: 10, color: '#64748b' }} />
                 <input
                   className="nexus-input"
                   style={{ paddingLeft: 32, width: 220 }}
-                  placeholder="Search tickets..."
+                  placeholder="Search by subject, serial, sender..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
+              <input className="nexus-input" type="date" value={feedDate} onChange={(e) => setFeedDate(e.target.value)} title="Exact Date" />
+              <input className="nexus-input" type="month" value={feedMonth} onChange={(e) => setFeedMonth(e.target.value)} title="Month" />
+              <select className="nexus-select" value={feedPerson} onChange={(e) => setFeedPerson(e.target.value)}>
+                <option value="">All people</option>
+                {feedPersonOptions.map((person) => (
+                  <option key={person} value={person}>{person}</option>
+                ))}
+              </select>
+              <select className="nexus-select" value={ticketFilter} onChange={(e) => setTicketFilter(e.target.value)}>
+                <option value="all">All Tickets</option>
+                <option value="pending">Pending Intake</option>
+                <option value="intake">Intake Completed</option>
+              </select>
+              <button type="button" className="nexus-btn nexus-btn-ghost" onClick={handleCleanInvalidSerials} style={{ color: '#ef4444' }}>
+                <Trash2 size={16} /> Renumber Serials (1,2,3)
+              </button>
             </div>
           </div>
 
@@ -456,13 +503,12 @@ export default function AdminCommandCenter() {
                 <th>Sender</th>
                 <th>Subject</th>
                 <th>Status</th>
-                <th>Created By</th>
+                <th>Assigned To</th>
+                <th>Entered By</th>
               </tr>
             </thead>
             <tbody>
               {filteredTickets.map((t) => {
-                const isManual = t.sender === 'Manual Entry' || t.gmailMessageId?.startsWith('manual-');
-                const creatorInfo = t.createdBy ? `${t.createdBy.employeeName}` : (isManual ? 'Unknown' : t.gmailAccount?.gmailEmail || '—');
                 return (
                   <tr key={t.id}>
                     <td style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 600 }}>{t.serialNo}</td>
@@ -475,12 +521,15 @@ export default function AdminCommandCenter() {
                         {t.jobMetadata ? 'Intake Done' : 'Pending'}
                       </span>
                     </td>
-                    <td style={{ fontSize: 12, color: '#a78bfa' }}>{creatorInfo}</td>
+                    <td>{t.jobMetadata?.assignedEmployee?.employeeName || '—'}</td>
+                    <td style={{ color: '#94a3b8', fontSize: 12 }}>
+                      {getTicketEntryPerson(t)}
+                    </td>
                   </tr>
                 );
               })}
               {filteredTickets.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No tickets found.</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No tickets found.</td></tr>
               )}
             </tbody>
           </table>

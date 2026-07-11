@@ -133,7 +133,7 @@ export default function PaymentStatusPage() {
                   const progress = job.paymentProgress || 0;
                   return (
                     <tr key={job.id}>
-                      <td style={{ fontFamily: 'monospace', color: '#00f2fe' }}>{job.ticket?.serialNo || job.id}</td>
+                      <td style={{ fontFamily: 'monospace', color: '#00f2fe' }}>{job.ticket?.serialNo}</td>
                       <td>{job.clientName}</td>
                       <td>{job.branchName}</td>
                       <td style={{ maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.ticket?.subject || '—'}</td>

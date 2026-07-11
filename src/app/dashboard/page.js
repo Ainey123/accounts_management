@@ -925,7 +925,7 @@ export default function EmployeeRealTimeDashboard() {
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                         <span style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 700, fontSize: 13, padding: '4px 8px', background: 'rgba(0,242,254,0.08)', borderRadius: 4 }}>
-                          {job.ticket?.serialNo || `JOB-${job.id}`}
+                          {job.ticket?.serialNo}
                         </span>
                         <span className="status-pill active" style={{ fontSize: 11, background: 'rgba(20, 184, 166, 0.1)', color: '#14b8a6', border: '1px solid rgba(20,184,166,0.2)' }}>
                           {job.workNature}
@@ -1173,7 +1173,12 @@ export default function EmployeeRealTimeDashboard() {
                                     return (
                                       <div key={i}>
                                         {isPdf ? (
-                                          <embed src={url} type="application/pdf" width="100%" height="350px" style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)' }} />
+                                          <div style={{ padding: 16, background: 'rgba(0,0,0,0.3)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
+                                            <div style={{ fontSize: 14, fontWeight: 600, color: '#e2e8f0', marginBottom: 12 }}>PDF Document {job.surveyReport.imageUrl.includes(',') ? i + 1 : ''}</div>
+                                            <a href={url} target="_blank" rel="noreferrer" className="nexus-btn nexus-btn-primary" style={{ padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
+                                              View Full PDF Document
+                                            </a>
+                                          </div>
                                         ) : (
                                           <img src={url} alt={`Survey ${i+1}`} style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)' }} />
                                         )}

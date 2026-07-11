@@ -35,13 +35,13 @@ export default function AuthProvider({ children }) {
         }
       } catch {}
 
+      // No valid cookie found — clear any stale localStorage to prevent ghost sessions
       const stored = localStorage.getItem('nexus_user');
       if (stored) {
-        try {
-          setUser(JSON.parse(stored));
-        } catch {
-          localStorage.removeItem('nexus_user');
-        }
+        // Cookie is gone but localStorage still has user data — this causes the redirect loop
+        // Clear it so the user stays on the login page cleanly
+        localStorage.removeItem('nexus_user');
+        localStorage.removeItem('nexus_active_job');
       }
       setIsHydrated(true);
     };

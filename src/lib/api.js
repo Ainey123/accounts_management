@@ -1,3 +1,5 @@
+let _redirecting401 = false;
+
 export async function apiFetch(path, options = {}) {
   const method = options.method || 'GET';
   const url = method === 'GET' ? `${path}${path.includes('?') ? '&' : '?'}t=${Date.now()}` : path;
@@ -19,11 +21,21 @@ export async function apiFetch(path, options = {}) {
   }
 
   if (!res.ok) {
-    if (res.status === 401) {
-      if (typeof window !== 'undefined') {
+    if (res.status === 401 && typeof window !== 'undefined') {
+      // Never redirect for auth endpoints (login/logout) — just throw
+      const isAuthPath = path.startsWith('/api/auth/');
+      if (!isAuthPath && !_redirecting401) {
+        _redirecting401 = true;
         localStorage.removeItem('nexus_user');
+        localStorage.removeItem('nexus_active_job');
         document.cookie = 'nexus_user=; path=/; max-age=0';
-        window.location.href = '/';
+        // Only redirect if we are NOT already on the login page
+        if (window.location.pathname !== '/') {
+          window.location.href = '/';
+        } else {
+          // Already on login page, just reset the flag after a delay
+          setTimeout(() => { _redirecting401 = false; }, 2000);
+        }
       }
     }
     throw new Error(data.error || `Request failed (${res.status})`);

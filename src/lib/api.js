@@ -21,6 +21,8 @@ export async function apiFetch(path, options = {}) {
   if (!res.ok) {
     if (res.status === 401) {
       if (typeof window !== 'undefined') {
+        localStorage.removeItem('nexus_user');
+        document.cookie = 'nexus_user=; path=/; max-age=0';
         window.location.href = '/';
       }
     }

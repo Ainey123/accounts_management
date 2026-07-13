@@ -49,7 +49,12 @@ export default function JobProvider({ children }) {
   }, [activeJobId, setActiveJobId]);
 
   useEffect(() => {
-    refreshJobs();
+    // Only fetch jobs if the user is actually logged in (has auth cookie)
+    // This prevents 401 errors on the login page which cause the redirect loop
+    const hasCookie = document.cookie.split('; ').some((c) => c.startsWith('nexus_user='));
+    if (hasCookie) {
+      refreshJobs();
+    }
   }, []);
 
   const activeJob = (jobs || []).find((j) => j.id === activeJobId) || null;

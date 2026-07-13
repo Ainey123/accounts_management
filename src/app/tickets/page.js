@@ -28,6 +28,15 @@ export default function EmployeeAllTickets() {
     loadTickets();
   }, []);
 
+  const getStatusPillProps = (status) => {
+    switch (status) {
+      case 'RELEVANT': return { background: 'rgba(74,222,128,0.15)', color: '#4ade80' };
+      case 'IRRELEVANT': return { background: 'rgba(248,113,113,0.15)', color: '#f87171' };
+      case 'CANCELLED': return { background: 'rgba(148,163,184,0.15)', color: '#94a3b8' };
+      default: return { background: 'rgba(245,158,11,0.15)', color: '#f59e0b' };
+    }
+  };
+
   const getTicketEntryPerson = (ticket) =>
     ticket.jobMetadata?.createdBy?.employeeName ||
     ticket.jobMetadata?.createdBy?.email ||
@@ -120,7 +129,8 @@ export default function EmployeeAllTickets() {
                   <th>Time</th>
                   <th>Sender</th>
                   <th>Subject</th>
-                  <th>Status</th>
+                  <th>Relevance</th>
+                  <th>Intake</th>
                   <th>Assigned To</th>
                   <th>Entered By</th>
                 </tr>
@@ -128,7 +138,7 @@ export default function EmployeeAllTickets() {
               <tbody>
                 {filteredTickets.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No tickets found.</td>
+                    <td colSpan={8} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No tickets found.</td>
                   </tr>
                 ) : (
                   filteredTickets.map((t) => (
@@ -138,6 +148,11 @@ export default function EmployeeAllTickets() {
                       <td>{t.time}</td>
                       <td>{t.sender}</td>
                       <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject}</td>
+                      <td>
+                        <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, ...getStatusPillProps(t.status) }}>
+                          {t.status || 'PENDING'}
+                        </span>
+                      </td>
                       <td>
                         <span className={`status-pill ${t.jobMetadata ? 'active' : ''}`} style={!t.jobMetadata ? { background: 'rgba(248,113,113,0.2)', color: '#f87171' } : {}}>
                           {t.jobMetadata ? 'Intake Done' : 'Pending'}

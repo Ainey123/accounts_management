@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { prisma } from '@/lib/prisma';
-import { nextTicketSerialNo } from '@/lib/serial';
+import { nextTicketSerialNo, renumberTicketsByDate, findDuplicateTicketBySubject } from '@/lib/serial';
 
 function getBaseUrl() {
   if (process.env.NODE_ENV === 'production') {
@@ -144,10 +144,7 @@ async function syncAccount(account) {
             hour12: true,
           });
 
-          const existingTicket = await prisma.ticket.findFirst({
-            where: { subject },
-            select: { id: true, serialNo: true },
-          });
+          const existingTicket = await findDuplicateTicketBySubject(subject);
 
           if (!existingTicket) {
             const serialNo = await nextTicketSerialNo();
@@ -247,6 +244,13 @@ export async function POST(request) {
     }
 
     const totalSynced = results.reduce((sum, r) => sum + (r.synced || 0), 0);
+
+    // Re-rank every ticket's serial number by its actual email date (oldest first)
+    // so serials always read chronologically, no matter what order Gmail returned
+    // messages in during this sync.
+    if (totalSynced > 0) {
+      await renumberTicketsByDate().catch((e) => console.error('Renumber after sync failed:', e.message));
+    }
 
     return NextResponse.json({
       success: true,

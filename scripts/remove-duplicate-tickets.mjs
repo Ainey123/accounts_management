@@ -5,25 +5,47 @@ const prisma = new PrismaClient();
 async function removeDuplicateTickets() {
   console.log('Scanning for duplicate tickets by subject...\n');
 
-  // Get all tickets ordered by creation date (oldest first)
+  // Get all tickets ordered by actual email/entry date (oldest first)
   const allTickets = await prisma.ticket.findMany({
-    orderBy: { createdAt: 'asc' },
-    select: { id: true, subject: true, serialNo: true, createdAt: true },
+    orderBy: { exactDate: 'asc' },
+    select: { id: true, subject: true, serialNo: true, exactDate: true, jobMetadata: { select: { id: true } } },
   });
 
   console.log(`Total tickets found: ${allTickets.length}\n`);
 
-  const seen = new Map(); // subject -> first ticket id
-  const toDelete = [];
-
+  const groups = new Map(); // normalized subject -> tickets
   for (const ticket of allTickets) {
     const key = ticket.subject.trim().toLowerCase();
-    if (seen.has(key)) {
-      toDelete.push(ticket.id);
-      console.log(`DUPLICATE: #${ticket.serialNo} "${ticket.subject.substring(0, 60)}" (will delete, keeping #${seen.get(key)})`);
-    } else {
-      seen.set(key, ticket.serialNo);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(ticket);
+  }
+
+  const toDelete = [];
+  let skippedConflicts = 0;
+
+  for (const group of groups.values()) {
+    if (group.length <= 1) continue;
+
+    const withMetadata = group.filter((t) => t.jobMetadata);
+    if (withMetadata.length > 1) {
+      // Multiple duplicates already have real job data attached — never
+      // auto-delete work data. Leave this group for manual review.
+      skippedConflicts += group.length;
+      console.log(`CONFLICT: "${group[0].subject.substring(0, 60)}" has ${withMetadata.length} copies with job data — skipping, review manually.`);
+      continue;
     }
+
+    const keepId = withMetadata.length === 1 ? withMetadata[0].id : group[0].id; // earliest by exactDate if none have job data
+    for (const t of group) {
+      if (t.id !== keepId) {
+        toDelete.push(t.id);
+        console.log(`DUPLICATE: #${t.serialNo} "${t.subject.substring(0, 60)}" (will delete, keeping ticket id ${keepId})`);
+      }
+    }
+  }
+
+  if (skippedConflicts > 0) {
+    console.log(`\n${skippedConflicts} tickets left untouched due to conflicting job data.`);
   }
 
   if (toDelete.length === 0) {

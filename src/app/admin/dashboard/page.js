@@ -5,7 +5,7 @@ import {
   Users, Activity, UserPlus, Trash2, X, UserCheck, ShieldAlert,
   Settings, Mail, FileText, RefreshCw, Filter, Search,
   DollarSign, Globe, Phone, MapPin, Save, Eye, Key,
-  TrendingUp, TrendingDown, Check
+  TrendingUp, TrendingDown, Check, ClipboardCopy
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
@@ -488,9 +488,6 @@ export default function AdminCommandCenter() {
                 <option value="pending">Pending Intake</option>
                 <option value="intake">Intake Completed</option>
               </select>
-              <button type="button" className="nexus-btn nexus-btn-ghost" onClick={handleCleanInvalidSerials} style={{ color: '#ef4444' }}>
-                <Trash2 size={16} /> Renumber Serials (1,2,3)
-              </button>
             </div>
           </div>
 
@@ -498,6 +495,7 @@ export default function AdminCommandCenter() {
             <thead>
               <tr>
                 <th>Serial</th>
+                <th>Copy</th>
                 <th>Date</th>
                 <th>Time</th>
                 <th>Sender</th>
@@ -512,6 +510,20 @@ export default function AdminCommandCenter() {
                 return (
                   <tr key={t.id}>
                     <td style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 600 }}>{t.serialNo}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="nexus-btn nexus-btn-ghost"
+                        onClick={() => {
+                          navigator.clipboard.writeText(t.serialNo);
+                          setMessage(`Copied ${t.serialNo}`);
+                        }}
+                        title="Copy Serial"
+                        style={{ padding: 4 }}
+                      >
+                        <ClipboardCopy size={14} />
+                      </button>
+                    </td>
                     <td>{new Date(t.exactDate).toLocaleDateString()}</td>
                     <td>{t.time}</td>
                     <td>{t.sender}</td>
@@ -529,7 +541,7 @@ export default function AdminCommandCenter() {
                 );
               })}
               {filteredTickets.length === 0 && (
-                <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No tickets found.</td></tr>
+                <tr><td colSpan={9} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No tickets found.</td></tr>
               )}
             </tbody>
           </table>

@@ -254,20 +254,6 @@ export default function IntakeGridPage() {
               )}
             </span>
             <div style={{ display: 'flex', gap: 8 }}>
-              {selectedTicket.status !== 'RELEVANT' && (
-                <button type="button" className="nexus-btn" style={{ background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid #4ade80', fontSize: 12, padding: '6px 16px' }} onClick={() => handleUpdateTicketStatus(selectedTicket.id, 'RELEVANT')} disabled={updatingStatus}>
-                  Mark Relevant
-                </button>
-              )}
-              {selectedTicket.status !== 'IRRELEVANT' && (
-                <button type="button" className="nexus-btn" style={{ background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid #f87171', fontSize: 12, padding: '6px 16px' }} onClick={() => handleUpdateTicketStatus(selectedTicket.id, 'IRRELEVANT')} disabled={updatingStatus}>
-                  Mark Irrelevant
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
 
       <form onSubmit={handleSubmit} className="glass-card" style={{ position: 'relative' }}>
         <div className="intake-grid" style={{ opacity: loadingData ? 0.5 : 1, pointerEvents: loadingData ? 'none' : 'auto' }}>
@@ -363,22 +349,6 @@ export default function IntakeGridPage() {
                 });
               if (list.length === 0) {
                 return <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No entries yet.</td></tr>;
-              }
-              return list.map((t, index) => {
-                const j = t.jobMetadata;
-                return (
-                  <tr key={t.id}>
-                    <td style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 600 }}>{t.serialNo}</td>
-                    <td>{j.clientName}</td>
-                    <td>{j.branchName}</td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: 260 }}>
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{t.subject || '—'}</span>
-                        <button
-                          type="button"
-                          className="nexus-btn nexus-btn-ghost"
-                          onClick={() => handleCopyJobSubject(t.subject)}
-                          style={{ padding: 4, minWidth: 'auto', flexShrink: 0 }}
                           title="Copy subject"
                         >
                           <Copy size={12} />

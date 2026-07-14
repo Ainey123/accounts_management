@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Search, RefreshCw } from 'lucide-react';
+import { Search, RefreshCw, ClipboardCopy } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
 export default function EmployeeAllTickets() {
@@ -116,6 +116,7 @@ export default function EmployeeAllTickets() {
               <thead>
                 <tr>
                   <th>Serial</th>
+                  <th>Copy</th>
                   <th>Date</th>
                   <th>Time</th>
                   <th>Sender</th>
@@ -128,12 +129,26 @@ export default function EmployeeAllTickets() {
               <tbody>
                 {filteredTickets.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No tickets found.</td>
+                    <td colSpan={9} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No tickets found.</td>
                   </tr>
                 ) : (
                   filteredTickets.map((t) => (
                     <tr key={t.id}>
                       <td style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 600 }}>{t.serialNo}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="nexus-btn nexus-btn-ghost"
+                          onClick={() => {
+                            navigator.clipboard.writeText(t.serialNo);
+                            setMessage(`Copied ${t.serialNo}`);
+                          }}
+                          title="Copy Serial"
+                          style={{ padding: 4 }}
+                        >
+                          <ClipboardCopy size={14} />
+                        </button>
+                      </td>
                       <td>{new Date(t.exactDate).toLocaleDateString()}</td>
                       <td>{t.time}</td>
                       <td>{t.sender}</td>

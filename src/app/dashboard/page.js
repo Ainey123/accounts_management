@@ -99,6 +99,15 @@ export default function EmployeeRealTimeDashboard() {
     );
   })();
 
+  const getStatusPillProps = (status) => {
+    switch (status) {
+      case 'RELEVANT': return { background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.3)' };
+      case 'IRRELEVANT': return { background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)' };
+      case 'CANCELLED': return { background: 'rgba(148,163,184,0.1)', color: '#94a3b8', border: '1px solid rgba(148,163,184,0.3)' };
+      default: return null; // PENDING — no pill, keeps the feed uncluttered
+    }
+  };
+
   const getTicketEntryPerson = (ticket) =>
     ticket.createdBy?.employeeName ||
     ticket.createdBy?.email ||
@@ -1876,11 +1885,18 @@ export default function EmployeeRealTimeDashboard() {
                       <div style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 700, fontSize: 15 }}>{ticket.serialNo}</div>
                     </div>
                   </div>
-                  {ticket.jobMetadata && (
-                    <span className="status-pill active" style={{ fontSize: 11, background: 'rgba(20, 184, 166, 0.1)', color: '#14b8a6', border: '1px solid rgba(20,184,166,0.2)' }}>
-                      {ticket.jobMetadata.workNature}
-                    </span>
-                  )}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {getStatusPillProps(ticket.status) && (
+                      <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, ...getStatusPillProps(ticket.status) }}>
+                        {ticket.status}
+                      </span>
+                    )}
+                    {ticket.jobMetadata && (
+                      <span className="status-pill active" style={{ fontSize: 11, background: 'rgba(20, 184, 166, 0.1)', color: '#14b8a6', border: '1px solid rgba(20,184,166,0.2)' }}>
+                        {ticket.jobMetadata.workNature}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div style={{ marginBottom: 12 }}>

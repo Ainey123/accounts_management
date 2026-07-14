@@ -128,6 +128,8 @@ export default function IntakeGridPage() {
         setMessage('Ticket marked as irrelevant.');
       } else if (newStatus === 'RELEVANT') {
         setMessage('Ticket marked as relevant. You can now fill in client name and metadata.');
+      } else if (newStatus === 'CANCELLED') {
+        setMessage('Ticket marked as cancelled.');
       }
     } catch (err) {
       setMessage(err.message);
@@ -250,7 +252,10 @@ export default function IntakeGridPage() {
           <div style={{ marginTop: 16, padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid rgba(255,255,255,0.05)' }}>
             <span style={{ fontSize: 14, color: '#94a3b8' }}>
               {selectedTicket.status === 'PENDING' ? 'Is this ticket relevant?' : (
-                <>Ticket Relevance: <strong style={{ color: selectedTicket.status === 'RELEVANT' ? '#4ade80' : '#f87171', marginLeft: 6 }}>{selectedTicket.status}</strong></>
+                <>Ticket Status: <strong style={{
+                  color: selectedTicket.status === 'RELEVANT' ? '#4ade80' : selectedTicket.status === 'CANCELLED' ? '#94a3b8' : '#f87171',
+                  marginLeft: 6,
+                }}>{selectedTicket.status}</strong></>
               )}
             </span>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -262,6 +267,11 @@ export default function IntakeGridPage() {
               {selectedTicket.status !== 'IRRELEVANT' && (
                 <button type="button" className="nexus-btn" style={{ background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid #f87171', fontSize: 12, padding: '6px 16px' }} onClick={() => handleUpdateTicketStatus(selectedTicket.id, 'IRRELEVANT')} disabled={updatingStatus}>
                   Mark Irrelevant
+                </button>
+              )}
+              {selectedTicket.status !== 'CANCELLED' && (
+                <button type="button" className="nexus-btn" style={{ background: 'rgba(148,163,184,0.1)', color: '#94a3b8', border: '1px solid #94a3b8', fontSize: 12, padding: '6px 16px' }} onClick={() => handleUpdateTicketStatus(selectedTicket.id, 'CANCELLED')} disabled={updatingStatus}>
+                  Cancel
                 </button>
               )}
             </div>

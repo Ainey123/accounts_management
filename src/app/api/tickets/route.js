@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { nextTicketSerialNo } from '@/lib/serial';
+import { nextTicketSerialNo, renumberTicketsByDate, findDuplicateTicketBySubject } from '@/lib/serial';
 
 async function withRetry(fn, retries = 3, delay = 500) {
   for (let i = 0; i < retries; i++) {
@@ -55,9 +55,17 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Subject is required' }, { status: 400 });
     }
 
+    const duplicate = await withRetry(() => findDuplicateTicketBySubject(subject));
+    if (duplicate) {
+      return NextResponse.json(
+        { error: `Job already intake — a ticket with this subject already exists (Serial #${duplicate.serialNo}).` },
+        { status: 409 }
+      );
+    }
+
     const serialNo = await withRetry(() => nextTicketSerialNo());
     const now = new Date();
-    const ticket = await withRetry(() => prisma.ticket.create({
+    const created = await withRetry(() => prisma.ticket.create({
       data: {
         serialNo,
         subject,
@@ -68,9 +76,17 @@ export async function POST(request) {
         createdById: createdById ? Number(createdById) : undefined,
         status: 'RELEVANT',
       },
+    }));
+
+    // Re-rank all serials chronologically by exactDate so the register always
+    // reads Jan -> now in ascending, gap-free serial order.
+    await withRetry(() => renumberTicketsByDate());
+
+    const ticket = await withRetry(() => prisma.ticket.findUnique({
+      where: { id: created.id },
       include: {
-        createdBy: { select: { id: true, employeeName: true, email: true } }
-      }
+        createdBy: { select: { id: true, employeeName: true, email: true } },
+      },
     }));
 
     return NextResponse.json({ ticket }, { status: 201 });

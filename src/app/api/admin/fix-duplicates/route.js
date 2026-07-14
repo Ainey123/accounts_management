@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { renumberTicketsByDate } from '@/lib/serial';
 
 function getAuthUser(request) {
   const authCookie = request.cookies.get('nexus_user');
@@ -11,19 +12,6 @@ function getAuthUser(request) {
   }
 }
 
-// Single atomic renumber: assigns 1, 2, 3... to all tickets ordered by creation.
-async function renumberAllTickets() {
-  await prisma.$executeRawUnsafe(`
-    UPDATE "Ticket" AS t
-    SET "serialNo" = sub."newSerial"
-    FROM (
-      SELECT id, CAST(ROW_NUMBER() OVER (ORDER BY "createdAt" ASC, id ASC) AS TEXT) AS "newSerial"
-      FROM "Ticket"
-    ) AS sub
-    WHERE t.id = sub.id;
-  `);
-}
-
 export async function POST(request) {
   const user = getAuthUser(request);
   if (!user || user.role !== 'ADMIN') {
@@ -32,20 +20,42 @@ export async function POST(request) {
 
   try {
     const allTickets = await prisma.ticket.findMany({
-      orderBy: { createdAt: 'asc' },
-      select: { id: true, subject: true, sender: true, serialNo: true, createdAt: true },
+      orderBy: { exactDate: 'asc' },
+      select: { id: true, subject: true, serialNo: true, exactDate: true, jobMetadata: { select: { id: true } } },
     });
 
-    // Find duplicates by subject only
-    const seen = new Map();
-    const toDelete = [];
-
+    // Group tickets by normalized subject (same subject == same ticket, regardless of date/sender)
+    const groups = new Map();
     for (const ticket of allTickets) {
       const key = ticket.subject.trim().toLowerCase();
-      if (seen.has(key)) {
-        toDelete.push(ticket.id);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(ticket);
+    }
+
+    const toDelete = [];
+    let skippedConflicts = 0;
+
+    for (const group of groups.values()) {
+      if (group.length <= 1) continue;
+
+      const withMetadata = group.filter((t) => t.jobMetadata);
+      if (withMetadata.length > 1) {
+        // Two or more duplicates already have real job data attached — never
+        // auto-delete work data. Leave this group for manual review.
+        skippedConflicts += group.length;
+        continue;
+      }
+
+      if (withMetadata.length === 1) {
+        // Keep the ticket that already has job metadata; the rest are unactioned dupes.
+        const keepId = withMetadata[0].id;
+        for (const t of group) {
+          if (t.id !== keepId) toDelete.push(t.id);
+        }
       } else {
-        seen.set(key, ticket.id);
+        // No job metadata on any of them yet — keep the earliest (oldest exactDate).
+        const [, ...rest] = group; // group is already sorted by exactDate ascending
+        for (const t of rest) toDelete.push(t.id);
       }
     }
 
@@ -55,10 +65,10 @@ export async function POST(request) {
       });
     }
 
-    // Renumber all serials sequentially (1, 2, 3...) in a single atomic statement
-    await renumberAllTickets();
+    // Renumber all serials chronologically by exactDate in a single atomic statement
+    await renumberTicketsByDate();
 
-    return NextResponse.json({ success: true, deleted: toDelete.length });
+    return NextResponse.json({ success: true, deleted: toDelete.length, skippedConflicts });
   } catch (error) {
     console.error('Fix duplicates error:', error);
     return NextResponse.json({ error: 'Failed to fix duplicates' }, { status: 500 });
@@ -72,9 +82,9 @@ export async function DELETE(request) {
   }
 
   try {
-    // Safely renumber ALL tickets sequentially as plain numbers (1, 2, 3...)
-    // without deleting any data.
-    await renumberAllTickets();
+    // Safely renumber ALL tickets sequentially as plain numbers (1, 2, 3...),
+    // ordered chronologically by exactDate, without deleting any data.
+    await renumberTicketsByDate();
 
     return NextResponse.json({ success: true, renumbered: await prisma.ticket.count() });
   } catch (error) {

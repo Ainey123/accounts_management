@@ -161,10 +161,11 @@ export default function AdminCommandCenter() {
   };
 
   const handleFixDuplicates = async () => {
-    if (!confirm('This will remove duplicate tickets with same subject and sender. Continue?')) return;
+    if (!confirm('This will remove duplicate tickets that share the exact same subject (ignoring date/sender), keeping whichever copy already has job data. Continue?')) return;
     try {
       const result = await apiFetch('/api/admin/fix-duplicates', { method: 'POST' });
-      setMessage(`Removed ${result.deleted} duplicate tickets.`);
+      const conflictNote = result.skippedConflicts ? ` ${result.skippedConflicts} tickets left untouched for manual review (multiple copies already have job data).` : '';
+      setMessage(`Removed ${result.deleted} duplicate tickets.${conflictNote}`);
       await loadAll();
     } catch (err) {
       setMessage('Fix duplicates failed: ' + err.message);
@@ -179,6 +180,15 @@ export default function AdminCommandCenter() {
       await loadAll();
     } catch (err) {
       setMessage('Clean failed: ' + err.message);
+    }
+  };
+
+  const getStatusPillProps = (status) => {
+    switch (status) {
+      case 'RELEVANT': return { background: 'rgba(74,222,128,0.15)', color: '#4ade80' };
+      case 'IRRELEVANT': return { background: 'rgba(248,113,113,0.15)', color: '#f87171' };
+      case 'CANCELLED': return { background: 'rgba(148,163,184,0.15)', color: '#94a3b8' };
+      default: return { background: 'rgba(245,158,11,0.15)', color: '#f59e0b' };
     }
   };
 
@@ -201,9 +211,18 @@ export default function AdminCommandCenter() {
     return `${year}-${month}-${day}`;
   };
 
+  const ticketCounts = {
+    relevant: tickets.filter((t) => t.status === 'RELEVANT').length,
+    irrelevant: tickets.filter((t) => t.status === 'IRRELEVANT').length,
+    cancelled: tickets.filter((t) => t.status === 'CANCELLED').length,
+  };
+
   const filteredTickets = tickets.filter((t) => {
     if (ticketFilter === 'pending') return !t.jobMetadata;
     if (ticketFilter === 'intake') return !!t.jobMetadata;
+    if (ticketFilter === 'relevant') return t.status === 'RELEVANT';
+    if (ticketFilter === 'irrelevant') return t.status === 'IRRELEVANT';
+    if (ticketFilter === 'cancelled') return t.status === 'CANCELLED';
     return true;
   }).filter((t) => {
     const dateKey = getLocalDateKey(t.exactDate);
@@ -294,6 +313,32 @@ export default function AdminCommandCenter() {
                 ))}
               </div>
             )}
+          </section>
+
+          <section className="glass-card">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+              <Filter size={20} color="#a78bfa" />
+              <h2 style={{ fontSize: 18, margin: 0 }}>Ticket Relevance</h2>
+            </div>
+            <div className="admin-metrics-row">
+              {[
+                { key: 'relevant', label: 'Relevant', value: ticketCounts.relevant, color: '#4ade80' },
+                { key: 'irrelevant', label: 'Irrelevant', value: ticketCounts.irrelevant, color: '#f87171' },
+                { key: 'cancelled', label: 'Cancelled', value: ticketCounts.cancelled, color: '#94a3b8' },
+              ].map((m) => (
+                <button
+                  key={m.key}
+                  type="button"
+                  className="metric-tile"
+                  style={{ cursor: 'pointer', width: '100%', font: 'inherit' }}
+                  onClick={() => { setTicketFilter(m.key); setActiveTab('tickets'); }}
+                  title={`View ${m.label.toLowerCase()} tickets`}
+                >
+                  <div className="metric-digit" style={{ color: m.color }}>{m.value}</div>
+                  <div className="metric-tile-label">{m.label}</div>
+                </button>
+              ))}
+            </div>
           </section>
 
           <section className="glass-card">
@@ -487,6 +532,9 @@ export default function AdminCommandCenter() {
                 <option value="all">All Tickets</option>
                 <option value="pending">Pending Intake</option>
                 <option value="intake">Intake Completed</option>
+                <option value="relevant">Relevant</option>
+                <option value="irrelevant">Irrelevant</option>
+                <option value="cancelled">Cancelled</option>
               </select>
               <button type="button" className="nexus-btn nexus-btn-ghost" onClick={handleCleanInvalidSerials} style={{ color: '#ef4444' }}>
                 <Trash2 size={16} /> Renumber Serials (1,2,3)
@@ -502,7 +550,8 @@ export default function AdminCommandCenter() {
                 <th>Time</th>
                 <th>Sender</th>
                 <th>Subject</th>
-                <th>Status</th>
+                <th>Relevance</th>
+                <th>Intake</th>
                 <th>Assigned To</th>
                 <th>Entered By</th>
               </tr>
@@ -517,6 +566,11 @@ export default function AdminCommandCenter() {
                     <td>{t.sender}</td>
                     <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject}</td>
                     <td>
+                      <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, ...getStatusPillProps(t.status) }}>
+                        {t.status || 'PENDING'}
+                      </span>
+                    </td>
+                    <td>
                       <span className={`status-pill ${t.jobMetadata ? 'active' : ''}`} style={!t.jobMetadata ? { background: 'rgba(248,113,113,0.2)', color: '#f87171' } : {}}>
                         {t.jobMetadata ? 'Intake Done' : 'Pending'}
                       </span>
@@ -529,7 +583,7 @@ export default function AdminCommandCenter() {
                 );
               })}
               {filteredTickets.length === 0 && (
-                <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No tickets found.</td></tr>
+                <tr><td colSpan={9} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No tickets found.</td></tr>
               )}
             </tbody>
           </table>

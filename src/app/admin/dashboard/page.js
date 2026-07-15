@@ -389,6 +389,7 @@ export default function AdminCommandCenter() {
               <tr>
                 <th>Name</th>
                 <th>Login</th>
+                <th>PIN</th>
                 <th>Role</th>
                 <th>Active Job</th>
                 <th>Status</th>
@@ -402,6 +403,7 @@ export default function AdminCommandCenter() {
                   <tr key={u.id}>
                     <td style={{ fontWeight: 600 }}>{u.employeeName}</td>
                     <td style={{ fontSize: 12, color: '#64748b' }}>{u.role === 'EMPLOYEE' ? 'PIN Login' : u.email}</td>
+                    <td style={{ fontSize: 13, fontWeight: 600, color: '#f59e0b', letterSpacing: 2 }}>{u.role === 'EMPLOYEE' ? (u.pin || '—') : '—'}</td>
                     <td>
                       <span className={`status-pill ${u.role === 'ADMIN' ? 'active' : ''}`} style={u.role === 'ADMIN' ? { background: 'rgba(167,139,250,0.2)', color: '#a78bfa' } : {}}>
                         {u.role}

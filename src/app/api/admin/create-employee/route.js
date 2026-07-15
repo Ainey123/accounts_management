@@ -33,8 +33,8 @@ export async function POST(request) {
       // Update their PIN (admin is resetting it)
       const updated = await prisma.user.update({
         where: { id: existing.id },
-        data: { password: hashPin(pinStr) },
-        select: { id: true, employeeName: true, role: true, activeStatus: true, createdAt: true },
+        data: { password: pinStr },
+        select: { id: true, employeeName: true, role: true, activeStatus: true, createdAt: true, password: true },
       });
       return NextResponse.json({ employee: updated, action: 'pin_updated' }, { status: 200 });
     }
@@ -46,11 +46,11 @@ export async function POST(request) {
       data: {
         employeeName: name,
         email: safeEmail,
-        password: hashPin(pinStr),
+        password: pinStr,
         role: 'EMPLOYEE',
         activeStatus: true,
       },
-      select: { id: true, employeeName: true, role: true, activeStatus: true, createdAt: true },
+      select: { id: true, employeeName: true, role: true, activeStatus: true, createdAt: true, password: true },
     });
 
     // Migrate/Shift existing data for this employee

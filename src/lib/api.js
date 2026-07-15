@@ -46,5 +46,8 @@ export async function apiFetch(path, options = {}) {
 export function sanitizeUser(user) {
   if (!user) return null;
   const { password, ...safe } = user;
+  if (user.role === 'EMPLOYEE') {
+    safe.pin = password;
+  }
   return safe;
 }

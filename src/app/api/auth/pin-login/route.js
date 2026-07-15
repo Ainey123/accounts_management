@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPin } from '@/lib/pinHash';
+import { verifyPassword } from '@/lib/password';
 
 export async function POST(request) {
   const body = await request.json();
@@ -52,7 +53,16 @@ export async function POST(request) {
     // Verify PIN — support both hashed (new) and plain-text (legacy) comparison
     const hashedInput = hashPin(pinStr);
     const storedPin = employee.password || '';
-    const isMatch = storedPin === hashedInput || storedPin === pinStr;
+    
+    let isMatch = storedPin === hashedInput || storedPin === pinStr;
+    
+    if (!isMatch) {
+      try {
+        isMatch = verifyPassword(pinStr, storedPin);
+      } catch(e) {
+        // Ignore verifyPassword errors (e.g. if storedPin is not a valid scrypt format)
+      }
+    }
 
     if (!isMatch) {
       return NextResponse.json({ error: 'Incorrect PIN' }, { status: 401 });

@@ -2,6 +2,12 @@ import { PrismaClient } from '../generated/client';
 
 const globalForPrisma = globalThis;
 
+if (typeof BigInt.prototype.toJSON !== 'function') {
+  BigInt.prototype.toJSON = function () {
+    return this.toString();
+  };
+}
+
 function createPrismaClient() {
   const databaseUrl = process.env.DATABASE_URL || '';
   // Add connection pool params for Vercel serverless if not already present

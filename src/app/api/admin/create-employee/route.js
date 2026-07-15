@@ -56,15 +56,25 @@ export async function POST(request) {
     // Migrate/Shift existing data for this employee
     try {
       // 1. Shift jobs where manualEnteredBy matches the employee's name
-      await prisma.jobMetadata.updateMany({
+      // Prisma does not support mode: 'insensitive' in updateMany, so we fetch IDs first
+      const jobsToUpdate = await prisma.jobMetadata.findMany({
         where: {
           manualEnteredBy: { equals: name, mode: 'insensitive' },
         },
-        data: {
-          assignedEmployeeId: employee.id,
-          createdById: employee.id,
-        },
+        select: { id: true },
       });
+      
+      const initialJobIds = jobsToUpdate.map(j => j.id);
+
+      if (initialJobIds.length > 0) {
+        await prisma.jobMetadata.updateMany({
+          where: { id: { in: initialJobIds } },
+          data: {
+            assignedEmployeeId: employee.id,
+            createdById: employee.id,
+          },
+        });
+      }
 
       // Fetch the shifted jobs to migrate related tickets, surveys, quotations, etc.
       const userJobs = await prisma.jobMetadata.findMany({

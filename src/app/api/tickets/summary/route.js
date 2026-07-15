@@ -6,14 +6,23 @@ import { prisma } from '@/lib/prisma';
  * Returns aggregated ticket counts by status and workNature (service type).
  * Used by the employee dashboard to show summary cards.
  */
-export async function GET() {
+export async function GET(request) {
   try {
+    const authCookie = request.cookies.get('nexus_user');
+    let user = null;
+    if (authCookie) {
+      try {
+        user = JSON.parse(authCookie.value);
+      } catch (e) {}
+    }
+
     // All tickets with their jobMetadata workNature and workCompletion status
     const jobs = await prisma.jobMetadata.findMany({
       select: {
         id: true,
         workNature: true,
         paymentStatus: true,
+        assignedEmployeeId: true,
         workCompletion: { select: { status: true } },
         quotationInvoices: { select: { status: true, documentType: true } },
       },
@@ -49,15 +58,25 @@ export async function GET() {
         jobStatus = 'CANCELLED';
       }
 
+      // Add to global totals
       if (jobStatus === 'COMPLETED') {
         summary.completed++;
-        bucket.completed++;
       } else if (jobStatus === 'CANCELLED') {
         summary.cancelled++;
-        bucket.cancelled++;
       } else {
         summary.inProcess++;
-        bucket.inProcess++;
+      }
+
+      // Add to individual breakdown ONLY if admin or assigned to this employee
+      const shouldIncludeInBreakdown = user?.role === 'ADMIN' || job.assignedEmployeeId === user?.id;
+      if (shouldIncludeInBreakdown) {
+        if (jobStatus === 'COMPLETED') {
+          bucket.completed++;
+        } else if (jobStatus === 'CANCELLED') {
+          bucket.cancelled++;
+        } else {
+          bucket.inProcess++;
+        }
       }
     }
 

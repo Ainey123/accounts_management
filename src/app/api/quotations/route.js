@@ -143,3 +143,24 @@ export async function PATCH(request) {
     return NextResponse.json({ error: 'Failed to update document' }, { status: 500 });
   }
 }
+
+export async function DELETE(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = Number(searchParams.get('id'));
+
+    if (!id) {
+      return NextResponse.json({ error: 'Document id is required' }, { status: 400 });
+    }
+
+    await prisma.quotationInvoice.delete({ where: { id } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Quotation delete error:', error);
+    if (error.code === 'P2025') {
+      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+    }
+    return NextResponse.json({ error: 'Failed to delete document' }, { status: 500 });
+  }
+}

@@ -18,6 +18,7 @@ export default function EmployeeRealTimeDashboard() {
   const [jobs, setJobs] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [stats, setStats] = useState({ assigned: 0, completed: 0, surveys: 0, expenses: 0, payments: 0 });
+  const [ticketSummary, setTicketSummary] = useState(null);
   const [message, setMessage] = useState('');
   const [jobSearch, setJobSearch] = useState('');
   const [feedSearch, setFeedSearch] = useState('');
@@ -200,6 +201,14 @@ export default function EmployeeRealTimeDashboard() {
       const payments = (fetchedJobs || []).reduce((sum, j) => sum + (j.payments || []).reduce((s, p) => s + p.amount, 0), 0);
 
       setStats({ assigned, completed, surveys, expenses, payments });
+
+      // 5. Load ticket summary for dashboard cards
+      try {
+        const summaryRes = await apiFetch('/api/tickets/summary');
+        setTicketSummary(summaryRes.summary || null);
+      } catch (summaryErr) {
+        console.warn('Ticket summary load error:', summaryErr);
+      }
     } catch (err) {
       console.error('Dashboard load error:', err);
     } finally {
@@ -845,6 +854,67 @@ export default function EmployeeRealTimeDashboard() {
           })}
         </div>
       </section>
+
+      {/* TICKET SUMMARY CARDS */}
+      {ticketSummary && (
+        <section className="glass-card" style={{ padding: '24px 32px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <Activity size={20} color="#00f2fe" />
+            <h2 style={{ fontSize: 18, margin: 0, fontWeight: 700 }}>Ticket Status Overview</h2>
+          </div>
+
+          {/* Main Summary Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+            {[
+              { label: 'Total Tickets', value: ticketSummary.total, color: '#3b82f6', bg: 'rgba(59,130,246,0.08)' },
+              { label: 'In Process', value: ticketSummary.inProcess, color: '#f59e0b', bg: 'rgba(245,158,11,0.08)' },
+              { label: 'Cancelled', value: ticketSummary.cancelled, color: '#ef4444', bg: 'rgba(239,68,68,0.08)' },
+              { label: 'Completed', value: ticketSummary.completed, color: '#22c55e', bg: 'rgba(34,197,94,0.08)' },
+            ].map((card) => (
+              <div key={card.label} style={{ padding: '20px 16px', background: card.bg, borderRadius: 12, border: `1px solid ${card.color}30`, textAlign: 'center' }}>
+                <div style={{ fontSize: 32, fontWeight: 800, color: card.color, marginBottom: 4 }}>{card.value}</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{card.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Breakdown by Work Nature */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+            {[
+              { label: 'WAPDA', key: 'WAPDA', icon: '⚡', color: '#f59e0b' },
+              { label: 'Electrical', key: 'ELECTRICAL', icon: '🔌', color: '#3b82f6' },
+              { label: 'Maintenance', key: 'MAINTENANCE', icon: '🔧', color: '#a78bfa' },
+              { label: 'Project', key: 'PROJECT', icon: '📋', color: '#10b981' },
+            ].map((dept) => {
+              const data = ticketSummary.byNature?.[dept.key] || { inProcess: 0, cancelled: 0, completed: 0 };
+              const deptTotal = data.inProcess + data.cancelled + data.completed;
+              return (
+                <div key={dept.key} style={{ padding: 16, background: 'rgba(0,0,0,0.15)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.04)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <span style={{ fontSize: 18 }}>{dept.icon}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: dept.color }}>{dept.label}</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 18, fontWeight: 800, color: '#e2e8f0' }}>{deptTotal}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                      <span style={{ color: '#f59e0b' }}>● In Process</span>
+                      <span style={{ fontWeight: 700, color: '#f59e0b' }}>{data.inProcess}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                      <span style={{ color: '#ef4444' }}>● Cancelled</span>
+                      <span style={{ fontWeight: 700, color: '#ef4444' }}>{data.cancelled}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                      <span style={{ color: '#22c55e' }}>● Completed</span>
+                      <span style={{ fontWeight: 700, color: '#22c55e' }}>{data.completed}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* NAVIGATION TABS */}
       <div style={{ display: 'flex', gap: 12, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 1 }}>

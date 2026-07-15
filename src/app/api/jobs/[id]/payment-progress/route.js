@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function PATCH(request, { params }) {
+export async function PATCH(request, context) {
   try {
     const { paymentProgress } = await request.json();
+    const params = await context.params;
     const jobId = Number(params.id);
 
     if (typeof paymentProgress !== 'number' || paymentProgress < 0 || paymentProgress > 100) {

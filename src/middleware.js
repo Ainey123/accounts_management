@@ -10,7 +10,8 @@ export default function middleware(request) {
     pathname.startsWith('/api/seed') ||
     pathname.startsWith('/api/gmail/callback') ||
     pathname === '/api/gmail-sync' ||
-    pathname === '/api/fix-db';
+    pathname === '/api/fix-db' ||
+    pathname === '/api/employees';
 
   if (!authCookie) {
     if (isPublic) return NextResponse.next();

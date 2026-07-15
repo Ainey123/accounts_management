@@ -277,11 +277,12 @@ export default function DocumentStudio({ documentType = 'QUOTATION', jobId: prop
           <thead>
             <tr>
               <th style={{ width: '6%', textAlign: 'center', backgroundColor: '#1b4372', borderColor: '#cbd5e1', padding: '10px 8px' }}>Sr.#</th>
-              <th style={{ width: '54%', backgroundColor: '#1b4372', borderColor: '#cbd5e1', padding: '10px 8px' }}>Description</th>
+              <th style={{ width: isLocked ? '54%' : '48%', backgroundColor: '#1b4372', borderColor: '#cbd5e1', padding: '10px 8px' }}>Description</th>
               <th style={{ width: '10%', textAlign: 'center', backgroundColor: '#1b4372', borderColor: '#cbd5e1', padding: '10px 8px' }}>Unit</th>
               <th style={{ width: '10%', textAlign: 'center', backgroundColor: '#1b4372', borderColor: '#cbd5e1', padding: '10px 8px' }}>Qty</th>
               <th style={{ width: '10%', textAlign: 'right', backgroundColor: '#1b4372', borderColor: '#cbd5e1', padding: '10px 8px' }}>Rate</th>
               <th style={{ width: '10%', textAlign: 'right', backgroundColor: '#1b4372', borderColor: '#cbd5e1', padding: '10px 8px' }}>Amount</th>
+              {!isLocked && !isGeneratingPDF && <th className="hide-in-pdf" style={{ width: '6%', textAlign: 'center', backgroundColor: '#1b4372', borderColor: '#cbd5e1', padding: '10px 8px' }}></th>}
             </tr>
           </thead>
           <tbody>
@@ -347,6 +348,27 @@ export default function DocumentStudio({ documentType = 'QUOTATION', jobId: prop
                   <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 'bold', verticalAlign: 'middle', borderColor: '#cbd5e1', fontSize: '13px' }}>
                     {(Number(item.amount) || 0).toLocaleString()}
                   </td>
+                  {!isReadOnly && (
+                    <td className="hide-in-pdf" style={{ textAlign: 'center', verticalAlign: 'middle', borderColor: '#cbd5e1', padding: '4px' }}>
+                      <button
+                        type="button"
+                        onClick={() => removeRow(index)}
+                        disabled={lineItems.length <= 1}
+                        title="Delete row"
+                        style={{
+                          background: lineItems.length <= 1 ? 'rgba(255,255,255,0.03)' : 'rgba(239,68,68,0.1)',
+                          border: '1px solid rgba(239,68,68,0.2)',
+                          borderRadius: 4,
+                          color: lineItems.length <= 1 ? '#64748b' : '#ef4444',
+                          cursor: lineItems.length <= 1 ? 'not-allowed' : 'pointer',
+                          padding: '4px 6px',
+                          fontSize: 12,
+                        }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -359,6 +381,7 @@ export default function DocumentStudio({ documentType = 'QUOTATION', jobId: prop
               <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: 'bold', borderTop: '2px solid #1b4372', borderColor: '#cbd5e1', color: '#1e293b', fontSize: '13px' }}>
                 {totalAmount.toLocaleString()}
               </td>
+              {!isLocked && !isGeneratingPDF && <td className="hide-in-pdf" style={{ borderColor: '#cbd5e1' }}></td>}
             </tr>
           </tfoot>
         </table>

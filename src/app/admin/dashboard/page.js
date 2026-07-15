@@ -18,7 +18,7 @@ export default function AdminCommandCenter() {
   const [settings, setSettings] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form, setForm] = useState({ employeeName: '', email: '', password: '', role: 'EMPLOYEE' });
+  const [form, setForm] = useState({ employeeName: '', pin: '' });
   const [message, setMessage] = useState('');
   const [registering, setRegistering] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -68,13 +68,14 @@ export default function AdminCommandCenter() {
     e.preventDefault();
     setRegistering(true);
     try {
-      await apiFetch('/api/users', {
+      const res = await apiFetch('/api/admin/create-employee', {
         method: 'POST',
-        body: JSON.stringify(form),
+        body: JSON.stringify({ employeeName: form.employeeName, pin: form.pin }),
       });
-      setForm({ employeeName: '', email: '', password: '', role: 'EMPLOYEE' });
+      const action = res.action === 'pin_updated' ? 'PIN updated' : 'Employee created';
+      setForm({ employeeName: '', pin: '' });
       setIsModalOpen(false);
-      setMessage('User registered successfully.');
+      setMessage(`${action}: ${form.employeeName}`);
       await loadAll();
     } catch (err) {
       setMessage(err.message);
@@ -387,7 +388,7 @@ export default function AdminCommandCenter() {
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Email</th>
+                <th>Login</th>
                 <th>Role</th>
                 <th>Active Job</th>
                 <th>Status</th>
@@ -400,7 +401,7 @@ export default function AdminCommandCenter() {
                 return (
                   <tr key={u.id}>
                     <td style={{ fontWeight: 600 }}>{u.employeeName}</td>
-                    <td>{u.email}</td>
+                    <td style={{ fontSize: 12, color: '#64748b' }}>{u.role === 'EMPLOYEE' ? 'PIN Login' : u.email}</td>
                     <td>
                       <span className={`status-pill ${u.role === 'ADMIN' ? 'active' : ''}`} style={u.role === 'ADMIN' ? { background: 'rgba(167,139,250,0.2)', color: '#a78bfa' } : {}}>
                         {u.role}
@@ -688,39 +689,49 @@ export default function AdminCommandCenter() {
 
       {/* EMPLOYEE MODAL */}
       {isModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent' }} onClick={() => setIsModalOpen(false)}>
-          <div className="glass-card" style={{ width: '100%', maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }} onClick={() => setIsModalOpen(false)}>
+          <div className="glass-card" style={{ width: '100%', maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <UserCheck size={20} color="#00f2fe" />
-                <h3 style={{ margin: 0 }}>Create User Account</h3>
+                <h3 style={{ margin: 0 }}>Add Employee Login</h3>
               </div>
               <button type="button" className="nexus-btn nexus-btn-ghost" onClick={() => setIsModalOpen(false)} style={{ padding: 8 }}>
                 <X size={18} />
               </button>
             </div>
+            <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 20 }}>
+              Enter the employee&apos;s name and assign them a 4-6 digit PIN.
+              If the employee already exists, their PIN will be updated.
+            </p>
             <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label className="field-label">Full Name</label>
-                <input className="nexus-input" required value={form.employeeName} onChange={(e) => setForm({ ...form, employeeName: e.target.value })} />
+                <label className="field-label">Employee Name</label>
+                <input
+                  className="nexus-input"
+                  required
+                  placeholder="e.g. Ibrahim, Rizwan"
+                  value={form.employeeName}
+                  onChange={(e) => setForm({ ...form, employeeName: e.target.value })}
+                />
               </div>
               <div>
-                <label className="field-label">Email (Login ID)</label>
-                <input className="nexus-input" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-              </div>
-              <div>
-                <label className="field-label">Password</label>
-                <input className="nexus-input" type="password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-              </div>
-              <div>
-                <label className="field-label">Role</label>
-                <select className="nexus-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-                  <option value="EMPLOYEE">Employee</option>
-                  <option value="ADMIN">Admin</option>
-                </select>
+                <label className="field-label">Login PIN (4-6 digits)</label>
+                <input
+                  className="nexus-input"
+                  type="password"
+                  inputMode="numeric"
+                  required
+                  placeholder="e.g. 1234"
+                  value={form.pin}
+                  maxLength={6}
+                  pattern="\d{4,6}"
+                  onChange={(e) => setForm({ ...form, pin: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                />
+                <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>The employee uses this PIN to log in — no email required.</p>
               </div>
               <button type="submit" className="nexus-btn nexus-btn-primary" disabled={registering}>
-                {registering ? 'Creating...' : 'Create Account'}
+                <Key size={15} /> {registering ? 'Saving...' : 'Save Employee'}
               </button>
             </form>
           </div>

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function PATCH(request, { params }) {
+export async function PATCH(request, context) {
   try {
+    const params = await context.params;
     const id = parseInt(params.id, 10);
     if (isNaN(id)) {
       return NextResponse.json({ error: 'Invalid ticket ID' }, { status: 400 });

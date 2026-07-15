@@ -33,10 +33,11 @@ export default function DocumentStudio({ documentType = 'QUOTATION', jobId: prop
   const [message, setMessage] = useState('');
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
+  const nature = job?.workNature ? job.workNature.toUpperCase() : 'MAINTENANCE';
   const title =
     documentType === 'INVOICE'
-      ? 'INVOICE FOR MAINTENANCE WORK'
-      : 'QUOTATION FOR MAINTENANCE WORK';
+      ? `INVOICE FOR ${nature} WORK`
+      : `QUOTATION FOR ${nature} WORK`;
 
   const loadDocument = useCallback(async () => {
     const gen = ++genRef.current;
@@ -52,6 +53,19 @@ export default function DocumentStudio({ documentType = 'QUOTATION', jobId: prop
         const items = Array.isArray(doc.lineItems) ? doc.lineItems : [];
         setLineItems(items.length ? items : [{ ...DEFAULT_LINE }]);
       } else {
+        if (documentType === 'INVOICE') {
+          try {
+            const res = await apiFetch(`/api/quotations?jobMetadataId=${activeJobId}&documentType=QUOTATION`);
+            if (res.documents && res.documents.length) {
+              setDocumentId(null);
+              const items = Array.isArray(res.documents[0].lineItems) ? res.documents[0].lineItems : [];
+              setLineItems(items.length ? items : [{ ...DEFAULT_LINE }]);
+              return;
+            }
+          } catch (e) {
+            console.error('Failed to carry over quotation', e);
+          }
+        }
         setDocumentId(null);
         setLineItems([{ ...DEFAULT_LINE }]);
       }
@@ -261,7 +275,7 @@ export default function DocumentStudio({ documentType = 'QUOTATION', jobId: prop
             </div>
             <div>
               <strong style={{ display: 'inline-block', width: '60px' }}>Ref.No:</strong>
-              <span>{job?.ticket?.serialNo || '—'}</span>
+              <span>{job?.ticket?.serialNo ? `${documentType === 'INVOICE' ? 'I' : 'Q'}${job.ticket.serialNo}` : '—'}</span>
             </div>
           </div>
         </div>

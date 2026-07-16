@@ -11,6 +11,40 @@ function getAuthUser(request) {
   }
 }
 
+/**
+ * Normalize a subject line for deduplication:
+ * - Strip RE:, Fwd:, Fw:, [External], [EXT] prefixes (case-insensitive, repeated)
+ * - Collapse whitespace
+ */
+function normalizeSubject(subject) {
+  if (!subject) return '';
+  let s = subject.trim();
+  // Repeatedly strip known prefixes
+  let prev = null;
+  while (prev !== s) {
+    prev = s;
+    s = s
+      .replace(/^\s*re\s*:/i, '')
+      .replace(/^\s*fwd?\s*:/i, '')
+      .replace(/^\s*\[external\]\s*/i, '')
+      .replace(/^\s*\[ext\]\s*/i, '')
+      .replace(/^\s*\[spam\]\s*/i, '')
+      .trim();
+  }
+  // Also collapse extra spaces
+  return s.replace(/\s+/g, ' ').toLowerCase();
+}
+
+/**
+ * Extract a ticket/job reference number from a subject.
+ * Looks for patterns like "Ticket No :163755", "Ticket#163755", "Ticket No. 163755"
+ */
+function extractTicketRef(subject) {
+  if (!subject) return null;
+  const match = subject.match(/ticket\s*(?:no\.?|#|:)?\s*:?\s*(\d{4,})/i);
+  return match ? match[1] : null;
+}
+
 // Single atomic renumber: assigns 1, 2, 3... to all tickets ordered by creation.
 async function renumberAllTickets() {
   await prisma.$executeRawUnsafe(`
@@ -36,29 +70,56 @@ export async function POST(request) {
       select: { id: true, subject: true, sender: true, serialNo: true, createdAt: true },
     });
 
-    // Find duplicates by subject only
-    const seen = new Map();
+    // Build dedup map using BOTH normalized subject AND extracted ticket ref number
+    const seenNormalized = new Map(); // normalizedSubject -> id
+    const seenTicketRef = new Map();  // ticketRefNumber -> id
     const toDelete = [];
 
     for (const ticket of allTickets) {
-      const key = ticket.subject.trim().toLowerCase();
-      if (seen.has(key)) {
+      const normalized = normalizeSubject(ticket.subject);
+      const ticketRef = extractTicketRef(ticket.subject);
+
+      // Check if a ticket with the same ticket reference number already exists
+      if (ticketRef && seenTicketRef.has(ticketRef)) {
         toDelete.push(ticket.id);
-      } else {
-        seen.set(key, ticket.id);
+        continue;
       }
+
+      // Check if a ticket with the same normalized subject already exists
+      if (seenNormalized.has(normalized)) {
+        toDelete.push(ticket.id);
+        continue;
+      }
+
+      // Mark as seen
+      seenNormalized.set(normalized, ticket.id);
+      if (ticketRef) seenTicketRef.set(ticketRef, ticket.id);
     }
 
+    // Delete duplicates that don't have a jobMetadata (to avoid data loss)
+    let actuallyDeleted = 0;
     if (toDelete.length > 0) {
-      await prisma.ticket.deleteMany({
-        where: { id: { in: toDelete } },
+      // Only delete tickets that have no job attached (safe to remove)
+      const safeToDelete = await prisma.ticket.findMany({
+        where: { id: { in: toDelete }, jobMetadata: null },
+        select: { id: true },
       });
+      const safeIds = safeToDelete.map((t) => t.id);
+
+      if (safeIds.length > 0) {
+        await prisma.ticket.deleteMany({ where: { id: { in: safeIds } } });
+        actuallyDeleted = safeIds.length;
+      }
     }
 
     // Renumber all serials sequentially (1, 2, 3...) in a single atomic statement
     await renumberAllTickets();
 
-    return NextResponse.json({ success: true, deleted: toDelete.length });
+    return NextResponse.json({
+      success: true,
+      deleted: actuallyDeleted,
+      skippedWithJob: toDelete.length - actuallyDeleted,
+    });
   } catch (error) {
     console.error('Fix duplicates error:', error);
     return NextResponse.json({ error: 'Failed to fix duplicates' }, { status: 500 });

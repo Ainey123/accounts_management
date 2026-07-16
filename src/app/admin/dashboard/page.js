@@ -12,6 +12,7 @@ import { apiFetch } from '@/lib/api';
 export default function AdminCommandCenter() {
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState(null);
+  const [employeeMatrix, setEmployeeMatrix] = useState([]);
   const [financials, setFinancials] = useState(null);
   const [tickets, setTickets] = useState([]);
   const [gmailAccounts, setGmailAccounts] = useState([]);
@@ -44,6 +45,7 @@ export default function AdminCommandCenter() {
     ]);
     setUsers(userRes.users || []);
     setStats(statsRes.stats);
+    setEmployeeMatrix(statsRes.employeeMatrix || []);
     setFinancials(finRes.financials);
     setTickets(ticketsRes.tickets || []);
     setGmailAccounts(gmailRes.accounts || []);
@@ -293,6 +295,83 @@ export default function AdminCommandCenter() {
                     <div className="metric-tile-label">{m.label}</div>
                   </div>
                 ))}
+              </div>
+            )}
+          </section>
+
+          {/* EMPLOYEE BUSINESS CARD MATRIX */}
+          <section className="glass-card">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <Users size={20} color="#00f2fe" />
+              <h2 style={{ fontSize: 18, margin: 0 }}>Employee Business Card Matrix</h2>
+            </div>
+            <p style={{ color: '#64748b', fontSize: 12, marginBottom: 20 }}>
+              Per-employee breakdown of all business card statuses (total across all tickets)
+            </p>
+            {employeeMatrix.length === 0 ? (
+              <div style={{ padding: 24, textAlign: 'center', color: '#64748b' }}>No employees found.</div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Employee</th>
+                      <th style={{ color: '#f59e0b' }}>Not Entered</th>
+                      <th style={{ color: '#00f2fe' }}>Entered</th>
+                      <th style={{ color: '#ef4444' }}>Cancelled</th>
+                      <th style={{ color: '#22c55e' }}>Relevant</th>
+                      <th style={{ color: '#a78bfa' }}>Quotation Sent</th>
+                      <th style={{ color: '#3b82f6' }}>Invoice Sent</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {employeeMatrix.map((emp) => (
+                      <tr key={emp.employeeId}>
+                        <td style={{ fontWeight: 600 }}>{emp.employeeName}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', padding: '2px 10px', borderRadius: 8, fontWeight: 700, fontSize: 14 }}>
+                            {stats?.totalNotEntered ?? '—'}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span style={{ background: 'rgba(0,242,254,0.1)', color: '#00f2fe', padding: '2px 10px', borderRadius: 8, fontWeight: 700, fontSize: 14 }}>
+                            {emp.entered}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '2px 10px', borderRadius: 8, fontWeight: 700, fontSize: 14 }}>
+                            {emp.cancelled}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', padding: '2px 10px', borderRadius: 8, fontWeight: 700, fontSize: 14 }}>
+                            {emp.relevant}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa', padding: '2px 10px', borderRadius: 8, fontWeight: 700, fontSize: 14 }}>
+                            {emp.quotationSent}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6', padding: '2px 10px', borderRadius: 8, fontWeight: 700, fontSize: 14 }}>
+                            {emp.invoiceSent}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {/* Totals row */}
+                    <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)', fontWeight: 700 }}>
+                      <td style={{ color: '#a78bfa', fontWeight: 700 }}>TOTALS</td>
+                      <td style={{ textAlign: 'center', color: '#f59e0b', fontWeight: 700 }}>{stats?.totalNotEntered ?? '—'}</td>
+                      <td style={{ textAlign: 'center', color: '#00f2fe', fontWeight: 700 }}>{stats?.enteredEmails ?? '—'}</td>
+                      <td style={{ textAlign: 'center', color: '#ef4444', fontWeight: 700 }}>{employeeMatrix.reduce((s, e) => s + e.cancelled, 0)}</td>
+                      <td style={{ textAlign: 'center', color: '#22c55e', fontWeight: 700 }}>{employeeMatrix.reduce((s, e) => s + e.relevant, 0)}</td>
+                      <td style={{ textAlign: 'center', color: '#a78bfa', fontWeight: 700 }}>{stats?.generatedQuotes ?? '—'}</td>
+                      <td style={{ textAlign: 'center', color: '#3b82f6', fontWeight: 700 }}>{stats?.generatedInvoices ?? '—'}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             )}
           </section>

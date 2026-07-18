@@ -5,7 +5,8 @@ import {
   Users, Activity, UserPlus, Trash2, X, UserCheck, ShieldAlert,
   Settings, Mail, FileText, RefreshCw, Filter, Search,
   DollarSign, Globe, Phone, MapPin, Save, Eye, Key,
-  TrendingUp, TrendingDown, Check, ClipboardCopy
+  TrendingUp, TrendingDown, Check, ClipboardCopy,
+  CheckCircle, AlertCircle, XCircle
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
@@ -298,6 +299,68 @@ export default function AdminCommandCenter() {
               </div>
             )}
           </section>
+
+          {/* EMAIL STATUS CARDS — Relevant / Irrelevant / Cancelled */}
+          {stats && (
+            <section style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
+              {/* Relevant */}
+              <div className="glass-card" style={{ padding: '28px 24px', border: '1px solid rgba(34,197,94,0.25)', background: 'rgba(34,197,94,0.04)', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', top: -16, right: -16, width: 80, height: 80, borderRadius: '50%', background: 'rgba(34,197,94,0.08)' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(34,197,94,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <CheckCircle size={22} color="#22c55e" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Relevant Emails</div>
+                    <div style={{ fontSize: 10, color: '#4b5563' }}>Marked relevant by employees</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 48, fontWeight: 800, color: '#22c55e', lineHeight: 1 }}>{stats.relevantCount ?? 0}</div>
+                <div style={{ marginTop: 12, height: 3, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${Math.min(100, ((stats.relevantCount ?? 0) / Math.max(1, stats.totalTickets ?? 1)) * 100)}%`, background: 'linear-gradient(90deg, #22c55e, #4ade80)', borderRadius: 2 }} />
+                </div>
+                <div style={{ fontSize: 11, color: '#4b5563', marginTop: 6 }}>{stats.totalTickets ? Math.round(((stats.relevantCount ?? 0) / stats.totalTickets) * 100) : 0}% of total emails</div>
+              </div>
+
+              {/* Irrelevant */}
+              <div className="glass-card" style={{ padding: '28px 24px', border: '1px solid rgba(245,158,11,0.25)', background: 'rgba(245,158,11,0.04)', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', top: -16, right: -16, width: 80, height: 80, borderRadius: '50%', background: 'rgba(245,158,11,0.08)' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <AlertCircle size={22} color="#f59e0b" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Irrelevant Emails</div>
+                    <div style={{ fontSize: 10, color: '#4b5563' }}>Filtered out as not applicable</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 48, fontWeight: 800, color: '#f59e0b', lineHeight: 1 }}>{stats.irrelevantCount ?? 0}</div>
+                <div style={{ marginTop: 12, height: 3, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${Math.min(100, ((stats.irrelevantCount ?? 0) / Math.max(1, stats.totalTickets ?? 1)) * 100)}%`, background: 'linear-gradient(90deg, #f59e0b, #fbbf24)', borderRadius: 2 }} />
+                </div>
+                <div style={{ fontSize: 11, color: '#4b5563', marginTop: 6 }}>{stats.totalTickets ? Math.round(((stats.irrelevantCount ?? 0) / stats.totalTickets) * 100) : 0}% of total emails</div>
+              </div>
+
+              {/* Cancelled */}
+              <div className="glass-card" style={{ padding: '28px 24px', border: '1px solid rgba(239,68,68,0.25)', background: 'rgba(239,68,68,0.04)', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', top: -16, right: -16, width: 80, height: 80, borderRadius: '50%', background: 'rgba(239,68,68,0.08)' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(239,68,68,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <XCircle size={22} color="#ef4444" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cancelled Emails</div>
+                    <div style={{ fontSize: 10, color: '#4b5563' }}>Cancelled by employees</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 48, fontWeight: 800, color: '#ef4444', lineHeight: 1 }}>{stats.cancelledCount ?? 0}</div>
+                <div style={{ marginTop: 12, height: 3, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${Math.min(100, ((stats.cancelledCount ?? 0) / Math.max(1, stats.totalTickets ?? 1)) * 100)}%`, background: 'linear-gradient(90deg, #ef4444, #f87171)', borderRadius: 2 }} />
+                </div>
+                <div style={{ fontSize: 11, color: '#4b5563', marginTop: 6 }}>{stats.totalTickets ? Math.round(((stats.cancelledCount ?? 0) / stats.totalTickets) * 100) : 0}% of total emails</div>
+              </div>
+            </section>
+          )}
 
           {/* EMPLOYEE BUSINESS CARD MATRIX */}
           <section className="glass-card">

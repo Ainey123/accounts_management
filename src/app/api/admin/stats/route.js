@@ -16,7 +16,7 @@ export async function GET() {
       irrelevantCount,
       cancelledCount,
     ] = await Promise.all([
-      prisma.ticket.count({ where: { jobMetadata: null } }),
+      prisma.ticket.count({ where: { jobMetadata: null, NOT: { status: { in: ['IRRELEVANT', 'CANCELLED'] } } } }),
       prisma.ticket.count({ where: { jobMetadata: { isNot: null } } }),
       prisma.quotationInvoice.count({ where: { documentType: 'QUOTATION' } }),
       prisma.quotationInvoice.count({ where: { documentType: 'QUOTATION', status: 'APPROVED' } }),

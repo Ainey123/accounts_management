@@ -52,7 +52,9 @@ export default function IntakeGridPage() {
         const employees = (userRes.users || []).filter((u) => u.role === 'EMPLOYEE');
         setTickets(tickets);
         setEmployees(employees);
-        if (tickets.length) setSelectedTicketId(String(tickets[0].id));
+        const firstPending = tickets.find((t) => !t.jobMetadata && t.status !== 'IRRELEVANT' && t.status !== 'CANCELLED');
+        if (firstPending) setSelectedTicketId(String(firstPending.id));
+        else setSelectedTicketId('');
       } catch (err) {
         if (!cancelled) console.error(err);
       } finally {
@@ -207,6 +209,7 @@ export default function IntakeGridPage() {
           <select className="nexus-select" value={selectedTicketId} onChange={(e) => handleTicketChange(e.target.value)} disabled={loadingData} style={{ flex: 1 }}>
             <option value="">Select ticket...</option>
             {tickets
+              .filter((t) => !t.jobMetadata && t.status !== 'IRRELEVANT' && t.status !== 'CANCELLED')
               .filter((t) => {
                 if (!ticketSearch) return true;
                 const q = ticketSearch.toLowerCase();

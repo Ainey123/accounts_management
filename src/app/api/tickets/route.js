@@ -23,7 +23,7 @@ export async function GET(request) {
     const pending = searchParams.get('pending') === 'true';
 
     const tickets = await withRetry(() => prisma.ticket.findMany({
-      where: pending ? { jobMetadata: null } : undefined,
+      where: pending ? { jobMetadata: null, NOT: { status: { in: ['IRRELEVANT', 'CANCELLED'] } } } : undefined,
       orderBy: { exactDate: 'desc' },
       include: {
         gmailAccount: { select: { id: true, gmailEmail: true } },

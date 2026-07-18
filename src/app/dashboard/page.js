@@ -89,12 +89,20 @@ export default function EmployeeRealTimeDashboard() {
   const webcamRef = useRef(null);
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dloxdnqfm';
 
+  // Stable per-employee intake numbers: sort full jobs list by id (creation order)
+  // and assign 1, 2, 3... regardless of search/filter
+  const sortedJobsById = [...(jobs || [])].sort((a, b) => a.id - b.id);
+  const jobIntakeNumberMap = new Map(
+    sortedJobsById.map((j, idx) => [j.id, idx + 1])
+  );
+
   const filteredJobs = (() => {
-    if (!jobSearch.trim()) return jobs;
+    if (!jobSearch.trim()) return sortedJobsById;
     const q = jobSearch.toLowerCase();
-    return (jobs || []).filter((j) =>
+    return sortedJobsById.filter((j) =>
       (j.ticket?.subject || '').toLowerCase().includes(q) ||
       (j.ticket?.serialNo || '').toLowerCase().includes(q) ||
+      String(jobIntakeNumberMap.get(j.id) || '').includes(q) ||
       (j.clientName || '').toLowerCase().includes(q) ||
       (j.branchName || '').toLowerCase().includes(q)
     );
@@ -994,8 +1002,13 @@ export default function EmployeeRealTimeDashboard() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', flexWrap: 'wrap', gap: 16 }}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                        <span style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 700, fontSize: 13, padding: '4px 8px', background: 'rgba(0,242,254,0.08)', borderRadius: 4 }}>
-                          {job.ticket?.serialNo}
+                        {/* Per-employee intake number: 1, 2, 3... */}
+                        <span style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 800, fontSize: 15, padding: '4px 10px', background: 'rgba(0,242,254,0.12)', borderRadius: 6, border: '1px solid rgba(0,242,254,0.2)', minWidth: 36, textAlign: 'center' }}>
+                          {jobIntakeNumberMap.get(job.id) ?? '—'}
+                        </span>
+                        {/* Global ticket serial (reference) */}
+                        <span style={{ fontFamily: 'monospace', color: '#475569', fontWeight: 500, fontSize: 11, padding: '2px 6px', background: 'rgba(255,255,255,0.04)', borderRadius: 4, border: '1px solid rgba(255,255,255,0.06)' }} title="Global Ticket Serial">
+                          #{job.ticket?.serialNo}
                         </span>
                         <span className="status-pill active" style={{ fontSize: 11, background: 'rgba(20, 184, 166, 0.1)', color: '#14b8a6', border: '1px solid rgba(20,184,166,0.2)' }}>
                           {job.workNature}

@@ -9,14 +9,17 @@ export async function PATCH(request, context) {
       return NextResponse.json({ error: 'Invalid ticket ID' }, { status: 400 });
     }
 
-    const { status } = await request.json();
+    const { status, changedBy } = await request.json();
     if (!status || !['PENDING', 'RELEVANT', 'IRRELEVANT', 'CANCELLED'].includes(status)) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
 
     const ticket = await prisma.ticket.update({
       where: { id },
-      data: { status },
+      data: { 
+        status,
+        statusLastChangedBy: changedBy || null
+      },
     });
 
     return NextResponse.json({ ticket }, { status: 200 });

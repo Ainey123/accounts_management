@@ -32,12 +32,22 @@ export async function GET(request) {
     const totalTickets = await prisma.ticket.count();
     const totalIntake = jobs.length;
 
+    // Total tickets count by status
+    const [relevantCount, irrelevantCount, cancelledCount] = await Promise.all([
+      prisma.ticket.count({ where: { status: 'RELEVANT' } }),
+      prisma.ticket.count({ where: { status: 'IRRELEVANT' } }),
+      prisma.ticket.count({ where: { status: 'CANCELLED' } }),
+    ]);
+
     // Determine job-level status
     const summary = {
       total: totalTickets,
       inProcess: 0,
       cancelled: 0,
       completed: 0,
+      relevant: relevantCount,
+      irrelevant: irrelevantCount,
+      cancelledTickets: cancelledCount,
       byNature: {
         WAPDA: { inProcess: 0, cancelled: 0, completed: 0 },
         ELECTRICAL: { inProcess: 0, cancelled: 0, completed: 0 },

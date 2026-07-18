@@ -12,37 +12,45 @@ function getAuthUser(request) {
 }
 
 /**
- * Normalize a subject line for deduplication:
- * - Strip RE:, Fwd:, Fw:, [External], [EXT] prefixes (case-insensitive, repeated)
- * - Collapse whitespace
+ * Robustly extract a deduplication key from a subject line.
+ * Handles ticket numbers, strips prefixes repeatedly, collapses spaces,
+ * and strips common working set/revised/boq suffixes.
  */
-function normalizeSubject(subject) {
+function getDedupKey(subject) {
   if (!subject) return '';
-  let s = subject.trim();
-  // Repeatedly strip known prefixes
+  let s = subject.trim().toLowerCase();
+
+  // 1. Check for ticket number (e.g., "Ticket No :154678", "Ticket#154678", "#154678")
+  const ticketMatch = s.match(/ticket\s*(?:no\.?|#|:)?\s*:?\s*(\d{4,})/i) || s.match(/#\s*(\d{4,})/);
+  if (ticketMatch) {
+    return `ticket-${ticketMatch[1]}`;
+  }
+
+  // 2. Normalize by stripping prefixes repeatedly
   let prev = null;
   while (prev !== s) {
     prev = s;
     s = s
       .replace(/^\s*re\s*:/i, '')
       .replace(/^\s*fwd?\s*:/i, '')
+      .replace(/^\s*fw\s*:/i, '')
       .replace(/^\s*\[external\]\s*/i, '')
       .replace(/^\s*\[ext\]\s*/i, '')
       .replace(/^\s*\[spam\]\s*/i, '')
+      .replace(/^\s*atm\s*id\s*#?\s*\d+/i, '')
+      .replace(/^\s*sr#?\s*\d+/i, '')
       .trim();
   }
-  // Also collapse extra spaces
-  return s.replace(/\s+/g, ' ').toLowerCase();
-}
 
-/**
- * Extract a ticket/job reference number from a subject.
- * Looks for patterns like "Ticket No :163755", "Ticket#163755", "Ticket No. 163755"
- */
-function extractTicketRef(subject) {
-  if (!subject) return null;
-  const match = subject.match(/ticket\s*(?:no\.?|#|:)?\s*:?\s*(\d{4,})/i);
-  return match ? match[1] : null;
+  // 3. Strip trailing revised sets or other common boq suffixes
+  s = s
+    .replace(/\s*-\s*working\s*set.*$/i, '')
+    .replace(/\s*-\s*revised\s*working\s*set.*$/i, '')
+    .replace(/\s*-\s*boq.*$/i, '')
+    .trim();
+
+  // Collapse multiple spaces
+  return s.replace(/\s+/g, ' ');
 }
 
 // Single atomic renumber: assigns 1, 2, 3... to all tickets ordered by creation.
@@ -67,39 +75,53 @@ export async function POST(request) {
   try {
     const allTickets = await prisma.ticket.findMany({
       orderBy: { createdAt: 'asc' },
-      select: { id: true, subject: true, sender: true, serialNo: true, createdAt: true },
+      include: { jobMetadata: true },
     });
 
-    // Build dedup map using BOTH normalized subject AND extracted ticket ref number
-    const seenNormalized = new Map(); // normalizedSubject -> id
-    const seenTicketRef = new Map();  // ticketRefNumber -> id
-    const toDelete = [];
+    // Group tickets by getDedupKey
+    const groups = new Map(); // key -> ticket[]
 
     for (const ticket of allTickets) {
-      const normalized = normalizeSubject(ticket.subject);
-      const ticketRef = extractTicketRef(ticket.subject);
-
-      // Check if a ticket with the same ticket reference number already exists
-      if (ticketRef && seenTicketRef.has(ticketRef)) {
-        toDelete.push(ticket.id);
-        continue;
+      const key = getDedupKey(ticket.subject);
+      if (!key) continue;
+      if (!groups.has(key)) {
+        groups.set(key, []);
       }
-
-      // Check if a ticket with the same normalized subject already exists
-      if (seenNormalized.has(normalized)) {
-        toDelete.push(ticket.id);
-        continue;
-      }
-
-      // Mark as seen
-      seenNormalized.set(normalized, ticket.id);
-      if (ticketRef) seenTicketRef.set(ticketRef, ticket.id);
+      groups.get(key).push(ticket);
     }
 
-    // Delete duplicates that don't have a jobMetadata (to avoid data loss)
+    const toDelete = [];
+
+    for (const [key, group] of groups.entries()) {
+      if (group.length <= 1) continue;
+
+      // Duplicate group found! Select ONE ticket to keep:
+      // Priority 1: Keep the one with jobMetadata
+      // Priority 2: Keep the one not PENDING (e.g. marked RELEVANT/IRRELEVANT/CANCELLED)
+      // Priority 3: Keep the oldest ticket (first in the group array since query is ordered asc)
+      let master = group[0];
+
+      const withJob = group.find((t) => t.jobMetadata !== null);
+      if (withJob) {
+        master = withJob;
+      } else {
+        const notPending = group.find((t) => t.status !== 'PENDING');
+        if (notPending) {
+          master = notPending;
+        }
+      }
+
+      // Add all other tickets in this group to deletion list
+      for (const ticket of group) {
+        if (ticket.id !== master.id) {
+          toDelete.push(ticket.id);
+        }
+      }
+    }
+
+    // Delete duplicates that don't have jobMetadata (to avoid data loss)
     let actuallyDeleted = 0;
     if (toDelete.length > 0) {
-      // Only delete tickets that have no job attached (safe to remove)
       const safeToDelete = await prisma.ticket.findMany({
         where: { id: { in: toDelete }, jobMetadata: null },
         select: { id: true },
@@ -112,7 +134,7 @@ export async function POST(request) {
       }
     }
 
-    // Renumber all serials sequentially (1, 2, 3...) in a single atomic statement
+    // Renumber all serials sequentially (1, 2, 3...)
     await renumberAllTickets();
 
     return NextResponse.json({
@@ -133,10 +155,7 @@ export async function DELETE(request) {
   }
 
   try {
-    // Safely renumber ALL tickets sequentially as plain numbers (1, 2, 3...)
-    // without deleting any data.
     await renumberAllTickets();
-
     return NextResponse.json({ success: true, renumbered: await prisma.ticket.count() });
   } catch (error) {
     console.error('Clean invalid tickets error:', error);

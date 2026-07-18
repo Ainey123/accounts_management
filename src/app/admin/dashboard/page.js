@@ -674,9 +674,34 @@ export default function AdminCommandCenter() {
                     <td>{t.sender}</td>
                     <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject}</td>
                     <td>
-                      <span className={`status-pill ${t.jobMetadata ? 'active' : ''}`} style={!t.jobMetadata ? { background: 'rgba(248,113,113,0.2)', color: '#f87171' } : {}}>
-                        {t.jobMetadata ? 'Intake Done' : 'Pending'}
-                      </span>
+                      {(() => {
+                        let text = 'Pending';
+                        let pillStyle = { background: 'rgba(255,255,255,0.05)', color: '#64748b' };
+                        
+                        if (t.jobMetadata) {
+                          text = 'Intake Done';
+                          pillStyle = { background: 'rgba(34,197,94,0.15)', color: '#22c55e' };
+                        } else if (t.status === 'RELEVANT') {
+                          text = 'Relevant';
+                          pillStyle = { background: 'rgba(59,130,246,0.15)', color: '#3b82f6' };
+                        } else if (t.status === 'IRRELEVANT') {
+                          text = 'Irrelevant';
+                          pillStyle = { background: 'rgba(245,158,11,0.15)', color: '#f59e0b' };
+                        } else if (t.status === 'CANCELLED') {
+                          text = 'Cancelled';
+                          pillStyle = { background: 'rgba(239,68,68,0.15)', color: '#ef4444' };
+                        }
+
+                        if (t.statusLastChangedBy) {
+                          text += ` (by ${t.statusLastChangedBy})`;
+                        }
+
+                        return (
+                          <span className="status-pill" style={{ ...pillStyle, fontSize: 11, padding: '4px 8px', borderRadius: 6, display: 'inline-block', whiteSpace: 'nowrap' }}>
+                            {text}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td>{t.jobMetadata?.assignedEmployee?.employeeName || '—'}</td>
                     <td style={{ color: '#94a3b8', fontSize: 12 }}>

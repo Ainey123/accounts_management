@@ -13,35 +13,45 @@ function getBaseUrl() {
 }
 
 /**
- * Normalize a subject line to help deduplicate reply-thread emails.
- * Strips RE:, Fwd:, [External], [EXT] etc. from the front (repeated).
+ * Robustly extract a deduplication key from a subject line.
+ * Handles ticket numbers, strips prefixes repeatedly, collapses spaces,
+ * and strips common working set/revised/boq suffixes.
  */
-function normalizeSubject(subject) {
+function getDedupKey(subject) {
   if (!subject) return '';
-  let s = subject.trim();
+  let s = subject.trim().toLowerCase();
+
+  // 1. Check for ticket number (e.g., "Ticket No :154678", "Ticket#154678", "#154678")
+  const ticketMatch = s.match(/ticket\s*(?:no\.?|#|:)?\s*:?\s*(\d{4,})/i) || s.match(/#\s*(\d{4,})/);
+  if (ticketMatch) {
+    return `ticket-${ticketMatch[1]}`;
+  }
+
+  // 2. Normalize by stripping prefixes repeatedly
   let prev = null;
   while (prev !== s) {
     prev = s;
     s = s
       .replace(/^\s*re\s*:/i, '')
       .replace(/^\s*fwd?\s*:/i, '')
+      .replace(/^\s*fw\s*:/i, '')
       .replace(/^\s*\[external\]\s*/i, '')
       .replace(/^\s*\[ext\]\s*/i, '')
       .replace(/^\s*\[spam\]\s*/i, '')
+      .replace(/^\s*atm\s*id\s*#?\s*\d+/i, '')
+      .replace(/^\s*sr#?\s*\d+/i, '')
       .trim();
   }
-  return s.replace(/\s+/g, ' ').toLowerCase();
-}
 
-/**
- * Extract a numeric ticket reference from a subject line.
- * Matches: "Ticket No :163755", "Ticket#163755", "Ticket No. 163755", "#163755"
- */
-function extractTicketRef(subject) {
-  if (!subject) return null;
-  const match = subject.match(/ticket\s*(?:no\.?|#|:)?\s*:?\s*(\d{4,})/i)
-    || subject.match(/#\s*(\d{4,})/);
-  return match ? match[1] : null;
+  // 3. Strip trailing revised sets or other common boq suffixes
+  s = s
+    .replace(/\s*-\s*working\s*set.*$/i, '')
+    .replace(/\s*-\s*revised\s*working\s*set.*$/i, '')
+    .replace(/\s*-\s*boq.*$/i, '')
+    .trim();
+
+  // Collapse multiple spaces
+  return s.replace(/\s+/g, ' ');
 }
 
 /**
@@ -153,30 +163,29 @@ async function processMonth(gmail, account, monthDef, syncedSet, savedTickets) {
           hour: '2-digit', minute: '2-digit', hour12: true,
         });
 
-        // ── Dedup by normalized subject AND ticket reference number ──────────
-        const normalized = normalizeSubject(subject);
-        const ticketRef  = extractTicketRef(subject);
-
-        // Check by ticket ref number first (most reliable)
+        // ── Dedup by getDedupKey (ticket number or normalized subject prefix) ──
+        const incomingKey = getDedupKey(subject);
         let existingTicket = null;
-        if (ticketRef) {
-          existingTicket = await prisma.ticket.findFirst({
-            where: { subject: { contains: ticketRef } },
-            select: { id: true, serialNo: true },
-          });
+
+        if (incomingKey) {
+          if (incomingKey.startsWith('ticket-')) {
+            const ticketRef = incomingKey.split('-')[1];
+            existingTicket = await prisma.ticket.findFirst({
+              where: { subject: { contains: ticketRef } },
+              select: { id: true, serialNo: true },
+            });
+          } else {
+            const recentTickets = await prisma.ticket.findMany({
+              orderBy: { createdAt: 'desc' },
+              take: 50,
+              select: { id: true, serialNo: true, subject: true },
+            });
+            existingTicket = recentTickets.find(
+              (t) => getDedupKey(t.subject) === incomingKey
+            ) || null;
+          }
         }
 
-        // Fallback: check by normalized subject
-        if (!existingTicket && normalized) {
-          // We check all tickets whose normalized subjects match
-          const candidates = await prisma.ticket.findMany({
-            select: { id: true, serialNo: true, subject: true },
-            take: 5,
-          });
-          existingTicket = candidates.find(
-            (c) => normalizeSubject(c.subject) === normalized
-          ) || null;
-        }
 
         if (!existingTicket) {
           const serialNo = await nextTicketSerialNo();
@@ -258,24 +267,26 @@ async function recentSweep(gmail, account, syncedSet, savedTickets) {
           hour: '2-digit', minute: '2-digit', hour12: true,
         });
 
-        const normalized = normalizeSubject(subject);
-        const ticketRef  = extractTicketRef(subject);
-
+        const incomingKey = getDedupKey(subject);
         let existingTicket = null;
-        if (ticketRef) {
-          existingTicket = await prisma.ticket.findFirst({
-            where: { subject: { contains: ticketRef } },
-            select: { id: true },
-          });
-        }
-        if (!existingTicket && normalized) {
-          const candidates = await prisma.ticket.findMany({
-            select: { id: true, subject: true },
-            take: 20,
-          });
-          existingTicket = candidates.find(
-            (c) => normalizeSubject(c.subject) === normalized
-          ) || null;
+
+        if (incomingKey) {
+          if (incomingKey.startsWith('ticket-')) {
+            const ticketRef = incomingKey.split('-')[1];
+            existingTicket = await prisma.ticket.findFirst({
+              where: { subject: { contains: ticketRef } },
+              select: { id: true },
+            });
+          } else {
+            const recentTickets = await prisma.ticket.findMany({
+              orderBy: { createdAt: 'desc' },
+              take: 100,
+              select: { id: true, subject: true },
+            });
+            existingTicket = recentTickets.find(
+              (t) => getDedupKey(t.subject) === incomingKey
+            ) || null;
+          }
         }
 
         if (!existingTicket) {

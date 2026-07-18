@@ -120,7 +120,10 @@ export default function IntakeGridPage() {
     try {
       const { ticket: updatedTicket } = await apiFetch(`/api/tickets/${ticketId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ 
+          status: newStatus,
+          changedBy: user?.employeeName || user?.email || 'System'
+        }),
       });
       setTickets((prev) =>
         prev.map((t) => (String(t.id) === String(ticketId) ? updatedTicket : t))

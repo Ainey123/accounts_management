@@ -15,7 +15,7 @@
     "seed": "npx prisma db seed",
     "postinstall": "node scripts/prisma-fix.js && npx prisma generate",
     "prepare": "node scripts/prisma-fix.js && npx prisma generate",
-    "vercel-build": "npx prisma generate && next build"
+    "vercel-build": "npx prisma db push && npx prisma generate && next build"
   },
   "dependencies": {
     "@cloudinary/react": "^1.14.4",

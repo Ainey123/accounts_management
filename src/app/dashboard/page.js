@@ -872,12 +872,26 @@ export default function EmployeeRealTimeDashboard() {
           </div>
 
           {/* Main Summary Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>
             {[
               { label: 'Total Tickets', value: ticketSummary.total, color: '#3b82f6', bg: 'rgba(59,130,246,0.08)' },
               { label: 'In Process', value: ticketSummary.inProcess, color: '#f59e0b', bg: 'rgba(245,158,11,0.08)' },
               { label: 'Cancelled', value: ticketSummary.cancelled, color: '#ef4444', bg: 'rgba(239,68,68,0.08)' },
               { label: 'Completed', value: ticketSummary.completed, color: '#22c55e', bg: 'rgba(34,197,94,0.08)' },
+            ].map((card) => (
+              <div key={card.label} style={{ padding: '20px 16px', background: card.bg, borderRadius: 12, border: `1px solid ${card.color}30`, textAlign: 'center' }}>
+                <div style={{ fontSize: 32, fontWeight: 800, color: card.color, marginBottom: 4 }}>{card.value}</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{card.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Gmail Relevance Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
+            {[
+              { label: 'Relevant Emails', value: ticketSummary.relevant ?? 0, color: '#22c55e', bg: 'rgba(34,197,94,0.08)' },
+              { label: 'Irrelevant Emails', value: ticketSummary.irrelevant ?? 0, color: '#f59e0b', bg: 'rgba(245,158,11,0.08)' },
+              { label: 'Cancelled Emails', value: ticketSummary.cancelledTickets ?? 0, color: '#ef4444', bg: 'rgba(239,68,68,0.08)' },
             ].map((card) => (
               <div key={card.label} style={{ padding: '20px 16px', background: card.bg, borderRadius: 12, border: `1px solid ${card.color}30`, textAlign: 'center' }}>
                 <div style={{ fontSize: 32, fontWeight: 800, color: card.color, marginBottom: 4 }}>{card.value}</div>

@@ -144,7 +144,10 @@ export async function POST(request) {
     // Auto-mark ticket as RELEVANT when intake/job is created
     await prisma.ticket.update({
       where: { id: Number(ticketId) },
-      data: { status: 'RELEVANT' },
+      data: { 
+        status: 'RELEVANT',
+        statusLastChangedBy: user?.employeeName || user?.email || 'System'
+      },
     }).catch(() => {}); // Non-fatal — don't fail the job creation
 
     return NextResponse.json({ job }, { status: 201 });

@@ -29,6 +29,7 @@ export default function EmployeeAllTickets() {
   }, []);
 
   const getTicketEntryPerson = (ticket) =>
+    ticket.statusLastChangedBy ||
     ticket.jobMetadata?.createdBy?.employeeName ||
     ticket.jobMetadata?.createdBy?.email ||
     ticket.jobMetadata?.manualEnteredBy ||

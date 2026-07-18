@@ -109,6 +109,7 @@ export default function EmployeeRealTimeDashboard() {
   })();
 
   const getTicketEntryPerson = (ticket) =>
+    ticket.statusLastChangedBy ||
     ticket.createdBy?.employeeName ||
     ticket.createdBy?.email ||
     ticket.jobMetadata?.createdBy?.employeeName ||

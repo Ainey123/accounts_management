@@ -187,6 +187,7 @@ export default function AdminCommandCenter() {
   };
 
   const getTicketEntryPerson = (ticket) =>
+    ticket.statusLastChangedBy ||
     ticket.jobMetadata?.createdBy?.employeeName ||
     ticket.jobMetadata?.createdBy?.email ||
     ticket.jobMetadata?.manualEnteredBy ||

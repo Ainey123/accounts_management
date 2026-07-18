@@ -7,31 +7,94 @@ const TAX_RATE = 0.15;
 
 export async function GET() {
   try {
-    const [expenses, quotations, invoices, payments, workCompletions, jobsWithProgress] = await Promise.all([
-      prisma.expense.findMany({
+    let expenses = [];
+    try {
+      expenses = await prisma.expense.findMany({
         include: { jobMetadata: { include: { ticket: true } } },
-      }),
-      prisma.quotationInvoice.findMany({
+      });
+    } catch (err) {
+      console.error("Financials API - failed to fetch expenses with full include:", err.message);
+      try {
+        expenses = await prisma.expense.findMany({ include: { jobMetadata: true } });
+      } catch (err2) {
+        console.error("Financials API - failed to fetch expenses fallback:", err2.message);
+        try {
+          expenses = await prisma.expense.findMany();
+        } catch (err3) {
+          console.error("Financials API - failed to fetch expenses minimal:", err3.message);
+        }
+      }
+    }
+
+    let quotations = [];
+    try {
+      quotations = await prisma.quotationInvoice.findMany({
         where: { documentType: 'QUOTATION', status: 'APPROVED' },
-      }),
-      prisma.quotationInvoice.findMany({
+      });
+    } catch (err) {
+      console.error("Financials API - failed to fetch quotations:", err.message);
+    }
+
+    let invoices = [];
+    try {
+      invoices = await prisma.quotationInvoice.findMany({
         where: { documentType: 'INVOICE' },
-      }),
-      prisma.paymentReceived.findMany({
+      });
+    } catch (err) {
+      console.error("Financials API - failed to fetch invoices:", err.message);
+    }
+
+    let payments = [];
+    try {
+      payments = await prisma.paymentReceived.findMany({
         include: {
           createdBy: { select: { id: true, employeeName: true, email: true } },
           jobMetadata: { include: { ticket: true } },
         },
         orderBy: { createdAt: 'desc' },
-      }),
-      prisma.workCompletion.findMany({
+      });
+    } catch (err) {
+      console.error("Financials API - failed to fetch payments with full include:", err.message);
+      try {
+        payments = await prisma.paymentReceived.findMany({
+          include: { jobMetadata: true },
+          orderBy: { createdAt: 'desc' },
+        });
+      } catch (err2) {
+        console.error("Financials API - failed to fetch payments fallback:", err2.message);
+        try {
+          payments = await prisma.paymentReceived.findMany({ orderBy: { createdAt: 'desc' } });
+        } catch (err3) {
+          console.error("Financials API - failed to fetch payments minimal:", err3.message);
+        }
+      }
+    }
+
+    let workCompletions = [];
+    try {
+      workCompletions = await prisma.workCompletion.findMany({
         where: { status: 'COMPLETED' },
-      }),
-      prisma.jobMetadata.findMany({
+      });
+    } catch (err) {
+      console.error("Financials API - failed to fetch workCompletions:", err.message);
+    }
+
+    let jobsWithProgress = [];
+    try {
+      jobsWithProgress = await prisma.jobMetadata.findMany({
         include: { ticket: true },
         orderBy: { createdAt: 'desc' },
-      }),
-    ]);
+      });
+    } catch (err) {
+      console.error("Financials API - failed to fetch jobsWithProgress with include:", err.message);
+      try {
+        jobsWithProgress = await prisma.jobMetadata.findMany({
+          orderBy: { createdAt: 'desc' },
+        });
+      } catch (err2) {
+        console.error("Financials API - failed to fetch jobsWithProgress minimal:", err2.message);
+      }
+    }
 
     const parseLineItems = (lineItemsField) => {
       if (!lineItemsField) return [];

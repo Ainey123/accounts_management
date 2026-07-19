@@ -9,6 +9,7 @@ export default function middleware(request) {
     pathname.startsWith('/api/auth/') ||
     pathname.startsWith('/api/seed') ||
     pathname.startsWith('/api/gmail/callback') ||
+    pathname.startsWith('/api/gmail-oauth') ||
     pathname === '/api/gmail-sync' ||
     pathname === '/api/fix-db' ||
     pathname === '/api/employees';

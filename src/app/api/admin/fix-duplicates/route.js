@@ -13,24 +13,42 @@ function getAuthUser(request) {
 
 /**
  * Robustly extract a deduplication key from a subject line.
- * Handles ticket numbers, strips prefixes repeatedly, collapses spaces,
- * and strips common working set/revised/boq suffixes.
+ * Handles ticket numbers (including ADM/Admin patterns), strips prefixes
+ * repeatedly, collapses spaces, and strips common suffixes.
  */
 function getDedupKey(subject) {
   if (!subject) return '';
-  let s = subject.trim().toLowerCase();
+  let s = subject.trim();
 
-  // 1. Check for ticket number (e.g., "Ticket No :154678", "Ticket#154678", "#154678")
-  const ticketMatch = s.match(/ticket\s*(?:no\.?|#|:)?\s*:?\s*(\d{4,})/i) || s.match(/#\s*(\d{4,})/);
+  // Remove surrounding quotes
+  s = s.replace(/^"|"$/g, '').trim();
+
+  let lower = s.toLowerCase();
+
+  // 1. Check for "Ticket No ADM 1196207" or "Ticket No :ADM 1196207" patterns
+  const admMatch = lower.match(/ticket\s*(?:no\.?|#)?\s*:?\s*(?:adm|admin)\s*:?\s*(\d{3,})/i);
+  if (admMatch) {
+    return `ticket-adm-${admMatch[1]}`;
+  }
+
+  // 2. Check for "Ticket # Admin 40280" patterns
+  const adminHashMatch = lower.match(/ticket\s*#\s*admin\s*(\d{3,})/i);
+  if (adminHashMatch) {
+    return `ticket-admin-${adminHashMatch[1]}`;
+  }
+
+  // 3. Check for numeric ticket number (e.g., "Ticket No :154678", "Ticket#154678")
+  const ticketMatch = lower.match(/ticket\s*(?:no\.?|#|:)?\s*:?\s*(\d{4,})/i) || lower.match(/#\s*(\d{4,})/);
   if (ticketMatch) {
     return `ticket-${ticketMatch[1]}`;
   }
 
-  // 2. Normalize by stripping prefixes repeatedly
+  // 4. Normalize by stripping prefixes repeatedly
   let prev = null;
-  while (prev !== s) {
-    prev = s;
-    s = s
+  lower = s.toLowerCase();
+  while (prev !== lower) {
+    prev = lower;
+    lower = lower
       .replace(/^\s*re\s*:/i, '')
       .replace(/^\s*fwd?\s*:/i, '')
       .replace(/^\s*fw\s*:/i, '')
@@ -42,15 +60,15 @@ function getDedupKey(subject) {
       .trim();
   }
 
-  // 3. Strip trailing revised sets or other common boq suffixes
-  s = s
+  // 5. Strip trailing revised sets or other common boq suffixes
+  lower = lower
     .replace(/\s*-\s*working\s*set.*$/i, '')
     .replace(/\s*-\s*revised\s*working\s*set.*$/i, '')
     .replace(/\s*-\s*boq.*$/i, '')
     .trim();
 
   // Collapse multiple spaces
-  return s.replace(/\s+/g, ' ');
+  return lower.replace(/\s+/g, ' ');
 }
 
 // Single atomic renumber: assigns 1, 2, 3... to all tickets ordered by creation.

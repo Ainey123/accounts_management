@@ -14,24 +14,42 @@ function getBaseUrl() {
 
 /**
  * Robustly extract a deduplication key from a subject line.
- * Handles ticket numbers, strips prefixes repeatedly, collapses spaces,
- * and strips common working set/revised/boq suffixes.
+ * Handles ticket numbers (including ADM/Admin patterns), strips prefixes
+ * repeatedly, collapses spaces, and strips common suffixes.
  */
 function getDedupKey(subject) {
   if (!subject) return '';
-  let s = subject.trim().toLowerCase();
+  let s = subject.trim();
 
-  // 1. Check for ticket number (e.g., "Ticket No :154678", "Ticket#154678", "#154678")
-  const ticketMatch = s.match(/ticket\s*(?:no\.?|#|:)?\s*:?\s*(\d{4,})/i) || s.match(/#\s*(\d{4,})/);
+  // Remove surrounding quotes
+  s = s.replace(/^"|"$/g, '').trim();
+
+  let lower = s.toLowerCase();
+
+  // 1. Check for "Ticket No ADM 1196207" or "Ticket No :ADM 1196207" patterns
+  const admMatch = lower.match(/ticket\s*(?:no\.?|#)?\s*:?\s*(?:adm|admin)\s*:?\s*(\d{3,})/i);
+  if (admMatch) {
+    return `ticket-adm-${admMatch[1]}`;
+  }
+
+  // 2. Check for "Ticket # Admin 40280" patterns
+  const adminHashMatch = lower.match(/ticket\s*#\s*admin\s*(\d{3,})/i);
+  if (adminHashMatch) {
+    return `ticket-admin-${adminHashMatch[1]}`;
+  }
+
+  // 3. Check for numeric ticket number (e.g., "Ticket No :154678", "Ticket#154678")
+  const ticketMatch = lower.match(/ticket\s*(?:no\.?|#|:)?\s*:?\s*(\d{4,})/i) || lower.match(/#\s*(\d{4,})/);
   if (ticketMatch) {
     return `ticket-${ticketMatch[1]}`;
   }
 
-  // 2. Normalize by stripping prefixes repeatedly
+  // 4. Normalize by stripping prefixes repeatedly
   let prev = null;
-  while (prev !== s) {
-    prev = s;
-    s = s
+  lower = s.toLowerCase();
+  while (prev !== lower) {
+    prev = lower;
+    lower = lower
       .replace(/^\s*re\s*:/i, '')
       .replace(/^\s*fwd?\s*:/i, '')
       .replace(/^\s*fw\s*:/i, '')
@@ -43,15 +61,19 @@ function getDedupKey(subject) {
       .trim();
   }
 
-  // 3. Strip trailing revised sets or other common boq suffixes
-  s = s
+  // 5. Strip trailing revised sets or other common boq suffixes
+  lower = lower
     .replace(/\s*-\s*working\s*set.*$/i, '')
     .replace(/\s*-\s*revised\s*working\s*set.*$/i, '')
     .replace(/\s*-\s*boq.*$/i, '')
     .trim();
 
+  // 6. Strip trailing person names (words after the last meaningful token)
+  //    e.g. "Ticket No ADM 1196207 shahzaib" -> already handled above
+  //    For non-ticket subjects, just collapse spaces
+
   // Collapse multiple spaces
-  return s.replace(/\s+/g, ' ');
+  return lower.replace(/\s+/g, ' ');
 }
 
 /**
@@ -168,22 +190,14 @@ async function processMonth(gmail, account, monthDef, syncedSet, savedTickets) {
         let existingTicket = null;
 
         if (incomingKey) {
-          if (incomingKey.startsWith('ticket-')) {
-            const ticketRef = incomingKey.split('-')[1];
-            existingTicket = await prisma.ticket.findFirst({
-              where: { subject: { contains: ticketRef } },
-              select: { id: true, serialNo: true },
-            });
-          } else {
-            const recentTickets = await prisma.ticket.findMany({
-              orderBy: { createdAt: 'desc' },
-              take: 50,
-              select: { id: true, serialNo: true, subject: true },
-            });
-            existingTicket = recentTickets.find(
-              (t) => getDedupKey(t.subject) === incomingKey
-            ) || null;
-          }
+          // Search ALL tickets in the database, not just recent ones
+          const allTickets = await prisma.ticket.findMany({
+            orderBy: { createdAt: 'asc' },
+            select: { id: true, serialNo: true, subject: true },
+          });
+          existingTicket = allTickets.find(
+            (t) => getDedupKey(t.subject) === incomingKey
+          ) || null;
         }
 
 
@@ -271,22 +285,14 @@ async function recentSweep(gmail, account, syncedSet, savedTickets) {
         let existingTicket = null;
 
         if (incomingKey) {
-          if (incomingKey.startsWith('ticket-')) {
-            const ticketRef = incomingKey.split('-')[1];
-            existingTicket = await prisma.ticket.findFirst({
-              where: { subject: { contains: ticketRef } },
-              select: { id: true },
-            });
-          } else {
-            const recentTickets = await prisma.ticket.findMany({
-              orderBy: { createdAt: 'desc' },
-              take: 100,
-              select: { id: true, subject: true },
-            });
-            existingTicket = recentTickets.find(
-              (t) => getDedupKey(t.subject) === incomingKey
-            ) || null;
-          }
+          // Search ALL tickets in the database, not just recent ones
+          const allTickets = await prisma.ticket.findMany({
+            orderBy: { createdAt: 'asc' },
+            select: { id: true, subject: true },
+          });
+          existingTicket = allTickets.find(
+            (t) => getDedupKey(t.subject) === incomingKey
+          ) || null;
         }
 
         if (!existingTicket) {
@@ -422,41 +428,55 @@ async function syncAccount(account) {
   };
 }
 
+async function runSync(request) {
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && process.env.CRON_SECRET) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    return NextResponse.json({ error: 'Google OAuth not configured.' }, { status: 500 });
+  }
+
+  const accounts = await prisma.gmailAccount.findMany({
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (!accounts.length) {
+    return NextResponse.json({ error: 'No Gmail accounts connected' }, { status: 400 });
+  }
+
+  const results = [];
+  for (const account of accounts) {
+    try {
+      const result = await syncAccount(account);
+      results.push(result);
+    } catch (error) {
+      console.error(`Sync failed for ${account.gmailEmail}:`, error);
+      results.push({ email: account.gmailEmail, error: error.message });
+    }
+  }
+
+  const totalSynced = results.reduce((sum, r) => sum + (r.synced || 0), 0);
+
+  return NextResponse.json({ success: true, synced: totalSynced, results });
+}
+
 export async function POST(request) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && process.env.CRON_SECRET) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-      return NextResponse.json({ error: 'Google OAuth not configured.' }, { status: 500 });
-    }
-
-    const accounts = await prisma.gmailAccount.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (!accounts.length) {
-      return NextResponse.json({ error: 'No Gmail accounts connected' }, { status: 400 });
-    }
-
-    const results = [];
-    for (const account of accounts) {
-      try {
-        const result = await syncAccount(account);
-        results.push(result);
-      } catch (error) {
-        console.error(`Sync failed for ${account.gmailEmail}:`, error);
-        results.push({ email: account.gmailEmail, error: error.message });
-      }
-    }
-
-    const totalSynced = results.reduce((sum, r) => sum + (r.synced || 0), 0);
-
-    return NextResponse.json({ success: true, synced: totalSynced, results });
+    return await runSync(request);
   } catch (error) {
     console.error('Email sync error:', error);
+    return NextResponse.json({ error: 'Sync failed: ' + error.message }, { status: 500 });
+  }
+}
+
+// GET handler — Vercel crons use GET requests
+export async function GET(request) {
+  try {
+    return await runSync(request);
+  } catch (error) {
+    console.error('Email sync error (GET/cron):', error);
     return NextResponse.json({ error: 'Sync failed: ' + error.message }, { status: 500 });
   }
 }

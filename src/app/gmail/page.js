@@ -53,65 +53,31 @@ export default function GmailConnectionPage() {
     }
   };
 
+  useEffect(() => {
+    // Check URL for callback results
+    const params = new URLSearchParams(window.location.search);
+    const success = params.get('success');
+    const error = params.get('error');
+    const email = params.get('email');
+
+    if (success) {
+      setMessage(`Gmail ${email || ''} connected successfully!`);
+      // Clean up URL
+      window.history.replaceState({}, '', '/gmail');
+      handleSync();
+    } else if (error) {
+      setMessage(`Connection failed: ${error}`);
+      window.history.replaceState({}, '', '/gmail');
+    }
+  }, []);
+
   const handleConnect = useCallback(async () => {
-    setMessage('');
+    setMessage('Redirecting to Google for authentication...');
     try {
       const { authUrl } = await apiFetch('/api/gmail-oauth');
-      const popup = window.open(authUrl, 'gmail-oauth', 'width=600,height=700');
-      if (!popup) {
-        setMessage('Popup blocked. Please allow popups and try again.');
-        return;
-      }
-
-      const handler = async (event) => {
-        if (event.data?.type === 'gmail-oauth-success') {
-          window.removeEventListener('message', handler);
-          oauthHandlerRef.current = null;
-          clearTimeout(timeoutId);
-          popup.close();
-          const { email: connectedEmail, tokens } = event.data;
-          try {
-            await apiFetch('/api/gmail-account', {
-              method: 'POST',
-              body: JSON.stringify({
-                email: connectedEmail,
-                accessToken: tokens.access_token,
-                refreshToken: tokens.refresh_token,
-                expiryDate: tokens.expiry_date,
-                userId: user?.id,
-              }),
-            });
-            setMessage(`Gmail ${connectedEmail} connected successfully!`);
-            await loadAccounts();
-            await handleSync();
-          } catch (err) {
-            setMessage('Gmail connected but failed to save account: ' + err.message);
-          }
-        } else if (event.data?.type === 'gmail-oauth-error') {
-          window.removeEventListener('message', handler);
-          oauthHandlerRef.current = null;
-          clearTimeout(timeoutId);
-          popup.close();
-          const errorMsg = event.data.error || 'Unknown error';
-          if (errorMsg.includes('403') || errorMsg.includes('access_denied') || errorMsg.includes('not completed') || errorMsg.includes('400')) {
-            setMessage('Google OAuth setup incomplete. Go to cloud.google.com → APIs & Services → OAuth consent screen → Fill ALL required fields (App name, Support email, Developer contact) → Add your Gmail as a "Test user" under Audience → Add redirect URI: https://accounts-management-ainey123s-projects.vercel.app/api/gmail/callback → Publish app. Then try again.');
-          } else {
-            setMessage('Connection failed: ' + errorMsg);
-          }
-        }
-      };
-
-      oauthHandlerRef.current = handler;
-      window.addEventListener('message', handler);
-
-      const timeoutId = setTimeout(() => {
-        window.removeEventListener('message', handler);
-        oauthHandlerRef.current = null;
-        popup.close();
-        setMessage('Connection timed out. If you see "has not completed verification", add your Gmail as a Test user in Google Cloud Console → OAuth consent screen.');
-      }, 120000);
+      // Redirect in the same window (no popups)
+      window.location.href = authUrl;
     } catch (err) {
-      popup.close();
       setMessage('Failed to start OAuth: ' + err.message);
     }
   }, [user]);

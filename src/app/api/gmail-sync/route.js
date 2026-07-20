@@ -1,6 +1,12 @@
 export const maxDuration = 60; // Allow more time on Vercel
 export const dynamic = 'force-dynamic';
 
+// Safety budget: stop processing and return success (resume next run) well
+// before Vercel's 60s limit so the function is never killed with a 504.
+const SYNC_TIME_BUDGET_MS = 45 * 1000;
+// Per-cycle cap so a single sync never blows the time budget.
+const MAX_MONTHS_PER_RUN = 1;
+
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { prisma } from '@/lib/prisma';
@@ -81,34 +87,68 @@ function getDedupKey(subject) {
 
 /**
  * Parse the syncedEmailIds field.
- * Supports both old format (json array) and new format (monthIndex|json array).
- * If invalid, returns { monthIdx: 0, ids: [] }
+ * Supports both old format (json array) and new format (monthIndex|jsonArray)
+ * and the live format (completedUpTo|currentMonthIdx|json array).
+ *
+ * - `currentMonthIdx`: the month we are actively scanning (resumable).
+ * - `completedUpTo`: highest month index already fully processed and that must
+ *   NEVER be revisited (this is what prevents endless re-scans / 504s).
+ * - `ids`: gmail message ids seen so far for the current month window.
+ *
+ * If invalid, returns { completedUpTo: -1, monthIdx: 0, ids: [] }
  */
 function parseSyncState(raw) {
   if (!raw || raw === '[]' || raw === '') {
-    return { monthIdx: 0, ids: [] };
+    return { completedUpTo: -1, monthIdx: 0, ids: [] };
   }
 
-  // Check if it's the new format: monthIndex|jsonArray
+  // Live format: completedUpTo|currentMonthIdx|jsonArray
   if (raw.includes('|')) {
     const parts = raw.split('|');
+    // New 3-part format
+    if (parts.length >= 3) {
+      let completedUpTo = parseInt(parts[0], 10);
+      let monthIdx = parseInt(parts[1], 10);
+      if (isNaN(completedUpTo) || completedUpTo < -1) completedUpTo = -1;
+      if (isNaN(monthIdx) || monthIdx < 0) monthIdx = 0;
+      try {
+        const ids = JSON.parse(parts.slice(2).join('|') || '[]');
+        return { completedUpTo, monthIdx, ids: Array.isArray(ids) ? ids : [] };
+      } catch {
+        return { completedUpTo: -1, monthIdx: 0, ids: [] };
+      }
+    }
+    // Legacy 2-part format: monthIdx|jsonArray.
+    // The old format re-scanned history every run and never recorded completion,
+    // so we conservatively treat NOTHING as completed. The new per-run month cap
+    // + time budget will safely drain any backlog one month per run without 504s.
     let monthIdx = parseInt(parts[0], 10);
     if (isNaN(monthIdx) || monthIdx < 0) monthIdx = 0;
     try {
       const ids = JSON.parse(parts[1] || '[]');
-      return { monthIdx, ids: Array.isArray(ids) ? ids : [] };
+      return { completedUpTo: -1, monthIdx, ids: Array.isArray(ids) ? ids : [] };
     } catch {
-      return { monthIdx: 0, ids: [] };
+      return { completedUpTo: -1, monthIdx: 0, ids: [] };
     }
   }
 
   // Old format: just a json array - start from January
   try {
     const ids = JSON.parse(raw);
-    return { monthIdx: 0, ids: Array.isArray(ids) ? ids : [] };
+    return { completedUpTo: -1, monthIdx: 0, ids: Array.isArray(ids) ? ids : [] };
   } catch {
-    return { monthIdx: 0, ids: [] };
+    return { completedUpTo: -1, monthIdx: 0, ids: [] };
   }
+}
+
+/**
+ * Serialize sync state in the live 3-part format:
+ *   completedUpTo|currentMonthIdx|jsonArray
+ */
+function serializeSyncState(completedUpTo, monthIdx, ids) {
+  const safeCompleted = isNaN(completedUpTo) || completedUpTo < -1 ? -1 : completedUpTo;
+  const safeIdx = isNaN(monthIdx) || monthIdx < 0 ? 0 : monthIdx;
+  return `${safeCompleted}|${safeIdx}|${JSON.stringify(ids)}`;
 }
 
 // ── Month definitions: Jan 2026 → Dec 2027 (future-proof) ──────────────────
@@ -150,12 +190,20 @@ function getCurrentMonthIdx() {
 
 /**
  * Process a single month for a given Gmail account.
- * Returns the number of new tickets saved.
+ * Respects a soft time budget (deadline). Returns whether the month was fully
+ * completed (no more pages). If the budget is exceeded, returns completed:false
+ * so the caller can resume on the next run without re-scanning old months.
  */
-async function processMonth(gmail, account, monthDef, syncedSet, savedTickets, existingTicketKeys, serialState) {
+async function processMonth(gmail, account, monthDef, syncedSet, savedTickets, existingTicketKeys, serialState, deadline) {
   let pageToken = undefined;
 
   do {
+    // Time budget check — stop gracefully before the server kills us (504).
+    if (Date.now() > deadline) {
+      console.log(`[${account.gmailEmail}] ⏱️ Time budget reached during ${monthDef.label}. Resuming next run.`);
+      return { completed: false };
+    }
+
     const response = await gmail.users.messages.list({
       userId: 'me',
       maxResults: 100,
@@ -168,6 +216,10 @@ async function processMonth(gmail, account, monthDef, syncedSet, savedTickets, e
 
     const batchSize = 20;
     for (let i = 0; i < pageMessages.length; i += batchSize) {
+      if (Date.now() > deadline) {
+        console.log(`[${account.gmailEmail}] ⏱️ Time budget reached mid-page in ${monthDef.label}. Resuming next run.`);
+        return { completed: false };
+      }
       const batch = pageMessages.slice(i, i + batchSize);
       
       await Promise.all(batch.map(async (message) => {
@@ -234,13 +286,15 @@ async function processMonth(gmail, account, monthDef, syncedSet, savedTickets, e
       }));
     }
   } while (pageToken);
+
+  return { completed: true };
 }
 
 /**
  * Sweep the last 7 days regardless of monthIdx, to catch any recently
  * missed emails due to monthIdx drift or cron gaps.
  */
-async function recentSweep(gmail, account, syncedSet, savedTickets, existingTicketKeys, serialState) {
+async function recentSweep(gmail, account, syncedSet, savedTickets, existingTicketKeys, serialState, deadline) {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const yyyy = sevenDaysAgo.getFullYear();
   const mm   = String(sevenDaysAgo.getMonth() + 1).padStart(2, '0');
@@ -251,6 +305,11 @@ async function recentSweep(gmail, account, syncedSet, savedTickets, existingTick
   console.log(`[${account.gmailEmail}] Recent sweep: after ${afterDate}`);
 
   do {
+    if (Date.now() > deadline) {
+      console.log(`[${account.gmailEmail}] ⏱️ Time budget reached during recent sweep. Resuming next run.`);
+      return;
+    }
+
     const response = await gmail.users.messages.list({
       userId: 'me',
       maxResults: 100,
@@ -263,6 +322,10 @@ async function recentSweep(gmail, account, syncedSet, savedTickets, existingTick
 
     const batchSize = 20;
     for (let i = 0; i < pageMessages.length; i += batchSize) {
+      if (Date.now() > deadline) {
+        console.log(`[${account.gmailEmail}] ⏱️ Time budget reached mid-page in recent sweep. Resuming next run.`);
+        return;
+      }
       const batch = pageMessages.slice(i, i + batchSize);
       
       await Promise.all(batch.map(async (message) => {
@@ -362,10 +425,15 @@ async function syncAccount(account) {
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
   const state = parseSyncState(account.syncedEmailIds);
-  let currentMonthIdx = state.monthIdx;
+  let completedUpTo = isNaN(state.completedUpTo) ? -1 : state.completedUpTo;
+  let currentMonthIdx = isNaN(state.monthIdx) ? 0 : state.monthIdx;
   const syncedSet = new Set(state.ids);
   const savedTickets = [];
-  const MAX_SYNCED_IDS = 3000;
+  const MAX_SYNCED_IDS = 6000;
+
+  // Deadline guard: stop gracefully well before Vercel's 60s hard limit so the
+  // function always returns 200 and is never killed with a 504.
+  const deadline = Date.now() + SYNC_TIME_BUDGET_MS;
 
   // Cache all ticket subjects to drastically improve dedup performance
   const allTickets = await prisma.ticket.findMany({
@@ -387,56 +455,88 @@ async function syncAccount(account) {
   }
   const serialState = { current: maxNum + 1 };
 
-  // ── Clamp monthIdx to valid range ─────────────────────────────────────────
+  // ── Clamp indices to valid range ────────────────────────────────────────
   const maxMonthIdx = getCurrentMonthIdx(); // never go past today's month
 
   if (currentMonthIdx < 0 || isNaN(currentMonthIdx)) currentMonthIdx = 0;
-  if (currentMonthIdx >= MONTHS.length) currentMonthIdx = maxMonthIdx;
+  if (currentMonthIdx > maxMonthIdx) currentMonthIdx = maxMonthIdx;
+  if (completedUpTo < -1) completedUpTo = -1;
+  if (completedUpTo > maxMonthIdx) completedUpTo = maxMonthIdx;
 
-  // ── Catch-up loop: process all months from currentMonthIdx up to today ───
+  const saveProgress = async (completed, activeIdx) => {
+    try {
+      const idsArray = Array.from(syncedSet).slice(-MAX_SYNCED_IDS);
+      const safeCompleted = Math.max(-1, Math.min(completed, MONTHS.length - 1));
+      const safeIdx = Math.max(0, Math.min(activeIdx, MONTHS.length - 1));
+      await prisma.gmailAccount.update({
+        where: { id: account.id },
+        data: { syncedEmailIds: serializeSyncState(safeCompleted, safeIdx, idsArray) },
+      });
+    } catch (e) {
+      console.error(`[${account.gmailEmail}] Failed to save progress:`, e.message);
+    }
+  };
+
+  // ── Catch-up loop: drain NOT-YET-COMPLETED months, at most a few per run ──
+  // Once a month is fully processed it is marked completed and NEVER re-scanned
+  // (this is what eliminated the endless full-history re-scan that caused 504s).
   try {
-    const startIdx = currentMonthIdx;
-    for (let idx = startIdx; idx <= maxMonthIdx; idx++) {
+    let monthsThisRun = 0;
+    for (let idx = currentMonthIdx; idx <= maxMonthIdx; idx++) {
+      if (idx <= completedUpTo) {
+        currentMonthIdx = idx + 1; // already done, just advance pointer
+        continue;
+      }
+      if (monthsThisRun >= MAX_MONTHS_PER_RUN) {
+        console.log(`[${account.gmailEmail}] Reached per-run month cap (${MAX_MONTHS_PER_RUN}). Resuming remaining months next sync.`);
+        break;
+      }
+      if (Date.now() > deadline) {
+        console.log(`[${account.gmailEmail}] ⏱️ Time budget reached before ${MONTHS[idx].label}. Resuming next sync.`);
+        break;
+      }
+
       const monthDef = MONTHS[idx];
       console.log(`[${account.gmailEmail}] Processing ${monthDef.label} (${idx + 1}/${MONTHS.length})`);
 
-      await processMonth(gmail, account, monthDef, syncedSet, savedTickets, existingTicketKeys, serialState);
+      const { completed } = await processMonth(
+        gmail, account, monthDef, syncedSet, savedTickets, existingTicketKeys, serialState, deadline
+      );
 
-      // Save progress after each month
-      const idsArray = Array.from(syncedSet).slice(-MAX_SYNCED_IDS);
-      const nextIdx = idx === maxMonthIdx ? idx : idx + 1; // stay at current if it's today
-      const safeNextIdx = Math.min(nextIdx, MONTHS.length - 1);
-      await prisma.gmailAccount.update({
-        where: { id: account.id },
-        data: { syncedEmailIds: `${safeNextIdx}|${JSON.stringify(idsArray)}` },
-      });
+      if (completed) {
+        completedUpTo = Math.max(completedUpTo, idx);
+        currentMonthIdx = idx + 1;
+        console.log(`[${account.gmailEmail}] ✅ ${monthDef.label} done. ${savedTickets.length} total new tickets so far.`);
+      } else {
+        // Out of time mid-month: keep currentMonthIdx here so we resume next run.
+        currentMonthIdx = idx;
+        console.log(`[${account.gmailEmail}] ⏸️ ${monthDef.label} paused (partial). Will resume next sync.`);
+      }
 
-      console.log(`[${account.gmailEmail}] ✅ ${monthDef.label} done. ${savedTickets.length} total new tickets so far.`);
+      await saveProgress(completedUpTo, currentMonthIdx);
+
+      monthsThisRun++;
+      if (!completed) break; // don't start another month if this one isn't finished
     }
+    // Ensure the active pointer does not exceed today's month.
+    if (currentMonthIdx > maxMonthIdx) currentMonthIdx = maxMonthIdx;
   } catch (error) {
     console.error(`[${account.gmailEmail}] Month-loop error:`, error.message);
-    // Save progress before re-throwing
-    try {
-      const idsArray = Array.from(syncedSet).slice(-MAX_SYNCED_IDS);
-      const safeIdx = isNaN(currentMonthIdx) ? 0 : currentMonthIdx;
-      await prisma.gmailAccount.update({
-        where: { id: account.id },
-        data: { syncedEmailIds: `${safeIdx}|${JSON.stringify(idsArray)}` },
-      }).catch(() => {});
-    } catch {}
+    await saveProgress(completedUpTo, currentMonthIdx);
     // Don't re-throw — still do the recent sweep below
   }
 
-  // ── Always do a 7-day recent sweep to catch any gaps ─────────────────────
+  // ── Always do a 7-day recent sweep to catch the LATEST emails + any gaps ──
   try {
-    await recentSweep(gmail, account, syncedSet, savedTickets, existingTicketKeys, serialState);
-    // Save final state after recent sweep
-    const idsArray = Array.from(syncedSet).slice(-MAX_SYNCED_IDS);
-    const finalIdx = Math.min(maxMonthIdx, MONTHS.length - 1);
+    await recentSweep(gmail, account, syncedSet, savedTickets, existingTicketKeys, serialState, deadline);
     await prisma.gmailAccount.update({
       where: { id: account.id },
       data: {
-        syncedEmailIds: `${finalIdx}|${JSON.stringify(idsArray)}`,
+        syncedEmailIds: serializeSyncState(
+          Math.max(-1, Math.min(completedUpTo, MONTHS.length - 1)),
+          Math.max(0, Math.min(currentMonthIdx, MONTHS.length - 1)),
+          Array.from(syncedSet).slice(-MAX_SYNCED_IDS)
+        ),
         syncedAt: new Date(),
       },
     });
@@ -447,7 +547,8 @@ async function syncAccount(account) {
   return {
     email: account.gmailEmail,
     synced: savedTickets.length,
-    monthsProcessed: Math.max(0, getCurrentMonthIdx() - currentMonthIdx + 1),
+    completedUpTo: Math.max(0, completedUpTo + 1),
+    caughtUpToToday: completedUpTo >= maxMonthIdx,
   };
 }
 

@@ -214,14 +214,14 @@ async function processMonth(gmail, account, monthDef, syncedSet, savedTickets, e
     const pageMessages = response.data.messages || [];
     pageToken = response.data.nextPageToken || undefined;
 
-    const batchSize = 20;
+    const batchSize = 5;
     for (let i = 0; i < pageMessages.length; i += batchSize) {
       if (Date.now() > deadline) {
         console.log(`[${account.gmailEmail}] ⏱️ Time budget reached mid-page in ${monthDef.label}. Resuming next run.`);
         return { completed: false };
       }
       const batch = pageMessages.slice(i, i + batchSize);
-      
+
       await Promise.all(batch.map(async (message) => {
         if (syncedSet.has(message.id)) return;
 
@@ -320,14 +320,14 @@ async function recentSweep(gmail, account, syncedSet, savedTickets, existingTick
     const pageMessages = response.data.messages || [];
     pageToken = response.data.nextPageToken || undefined;
 
-    const batchSize = 20;
+    const batchSize = 5;
     for (let i = 0; i < pageMessages.length; i += batchSize) {
       if (Date.now() > deadline) {
         console.log(`[${account.gmailEmail}] ⏱️ Time budget reached mid-page in recent sweep. Resuming next run.`);
         return;
       }
       const batch = pageMessages.slice(i, i + batchSize);
-      
+
       await Promise.all(batch.map(async (message) => {
         if (syncedSet.has(message.id)) return;
 

@@ -98,19 +98,24 @@ export default function GmailConnectionPage() {
     try {
       const result = await apiFetch('/api/gmail-sync', { method: 'POST' });
       const syncedCount = result.results?.reduce((sum, r) => sum + (r.synced || 0), 0) || result.synced || 0;
+      const totalScanned = result.results?.reduce((sum, r) => sum + (r.totalScanned || 0), 0) || result.totalScanned || 0;
       const errors = (result.results || []).filter((r) => r.error).map((r) => `${r.email}: ${r.error}`).join(' | ');
       if (errors) {
-        setMessage(`Errors: ${errors}`);
+        setMessage(`⚠️ Errors: ${errors}. Run diagnostics below for details.`);
       } else {
-        setMessage(`Synced ${syncedCount} email(s) across ${result.results?.length || accounts.length} account(s)!`);
+        setMessage(`✅ Synced ${syncedCount} new email(s) from ${totalScanned} scanned across ${result.results?.length || accounts.length} account(s)!`);
       }
       await loadAccounts();
       await loadTickets();
     } catch (err) {
-      setMessage('Sync failed: ' + err.message);
+      setMessage('❌ Sync failed: ' + err.message + ' — Try clicking "Run Diagnostics" to find out why.');
     } finally {
       setSyncing(false);
     }
+  };
+
+  const handleDiagnostics = () => {
+    window.open('/api/gmail-debug', '_blank');
   };
 
   const handleForceResync = async () => {
@@ -230,6 +235,22 @@ export default function GmailConnectionPage() {
             >
               <AlertTriangle size={18} style={{ marginRight: 8 }} />
               {forceResetting ? 'Resetting Sync History...' : '⚠️ Force Full Re-Sync (Import ALL Emails)'}
+            </button>
+
+            <button
+              type="button"
+              className="nexus-btn"
+              style={{
+                width: '100%',
+                padding: 16,
+                marginTop: 8,
+                background: 'rgba(99, 102, 241, 0.1)',
+                border: '1px solid rgba(99, 102, 241, 0.3)',
+                color: '#818cf8',
+              }}
+              onClick={handleDiagnostics}
+            >
+              🔍 Run Diagnostics (See Why Sync Fails)
             </button>
           </>
         )}

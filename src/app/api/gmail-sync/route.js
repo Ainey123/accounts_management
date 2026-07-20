@@ -152,7 +152,7 @@ function getCurrentMonthIdx() {
  * Process a single month for a given Gmail account.
  * Returns the number of new tickets saved.
  */
-async function processMonth(gmail, account, monthDef, syncedSet, savedTickets, existingTicketKeys) {
+async function processMonth(gmail, account, monthDef, syncedSet, savedTickets, existingTicketKeys, serialState) {
   let pageToken = undefined;
 
   do {
@@ -166,70 +166,72 @@ async function processMonth(gmail, account, monthDef, syncedSet, savedTickets, e
     const pageMessages = response.data.messages || [];
     pageToken = response.data.nextPageToken || undefined;
 
-    for (const message of pageMessages) {
-      if (syncedSet.has(message.id)) continue;
+    const batchSize = 20;
+    for (let i = 0; i < pageMessages.length; i += batchSize) {
+      const batch = pageMessages.slice(i, i + batchSize);
+      
+      await Promise.all(batch.map(async (message) => {
+        if (syncedSet.has(message.id)) return;
 
-      try {
-        const msg = await gmail.users.messages.get({
-          userId: 'me',
-          id: message.id,
-          format: 'metadata',
-          metadataHeaders: ['From', 'Subject', 'Date'],
-        });
+        try {
+          const msg = await gmail.users.messages.get({
+            userId: 'me',
+            id: message.id,
+            format: 'metadata',
+            metadataHeaders: ['From', 'Subject', 'Date'],
+          });
 
-        const headers = msg.data.payload?.headers || [];
-        const from    = headers.find((h) => h.name === 'From')?.value    || 'Unknown';
-        const subject = headers.find((h) => h.name === 'Subject')?.value || 'No Subject';
-        const dateStr = headers.find((h) => h.name === 'Date')?.value    || '';
+          const headers = msg.data.payload?.headers || [];
+          const from    = headers.find((h) => h.name === 'From')?.value    || 'Unknown';
+          const subject = headers.find((h) => h.name === 'Subject')?.value || 'No Subject';
+          const dateStr = headers.find((h) => h.name === 'Date')?.value    || '';
 
-        const dateObj  = new Date(dateStr);
-        const exactDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
-        const time = exactDate.toLocaleTimeString('en-US', {
-          hour: '2-digit', minute: '2-digit', hour12: true,
-        });
+          const dateObj  = new Date(dateStr);
+          const exactDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
+          const time = exactDate.toLocaleTimeString('en-US', {
+            hour: '2-digit', minute: '2-digit', hour12: true,
+          });
 
-        // ── Dedup by getDedupKey (ticket number or normalized subject prefix) ──
-        const incomingKey = getDedupKey(subject);
-        let existingTicket = null;
+          const incomingKey = getDedupKey(subject);
+          let existingTicket = null;
 
-        if (incomingKey && existingTicketKeys.has(incomingKey)) {
-          existingTicket = true;
-        }
+          if (incomingKey && existingTicketKeys.has(incomingKey)) {
+            existingTicket = true;
+          }
 
-
-
-        if (!existingTicket) {
-          const serialNo = await nextTicketSerialNo();
-          try {
-            const ticket = await prisma.ticket.upsert({
-              where: { gmailMessageId: message.id },
-              update: {},
-              create: {
-                gmailAccountId: account.id,
-                gmailMessageId: message.id,
-                serialNo,
-                exactDate,
-                time,
-                subject,
-                sender: from,
-              },
-            });
-            if (ticket.serialNo === serialNo) {
-              savedTickets.push(ticket);
-              if (incomingKey) existingTicketKeys.add(incomingKey);
-            }
-          } catch (e) {
-            if (!e.message?.includes('Unique constraint')) {
-              console.error(`Failed to save ticket for ${message.id}:`, e.message);
+          if (!existingTicket) {
+            const serialNo = String(serialState.current++);
+            try {
+              const ticket = await prisma.ticket.upsert({
+                where: { gmailMessageId: message.id },
+                update: {},
+                create: {
+                  gmailAccountId: account.id,
+                  gmailMessageId: message.id,
+                  serialNo,
+                  exactDate,
+                  time,
+                  subject,
+                  sender: from,
+                },
+              });
+              if (ticket.serialNo === serialNo) {
+                savedTickets.push(ticket);
+                if (incomingKey) existingTicketKeys.add(incomingKey);
+              }
+            } catch (e) {
+              if (!e.message?.includes('Unique constraint')) {
+                console.error(`Failed to save ticket for ${message.id}:`, e.message);
+              }
             }
           }
-        }
 
-        syncedSet.add(message.id);
-      } catch (e) {
-        console.error(`Failed to get message ${message.id}:`, e.message);
-        syncedSet.add(message.id); // Mark as seen so we don't retry broken messages
-      }
+          syncedSet.add(message.id);
+        } catch (e) {
+          console.error(`Failed to get message ${message.id}:`, e.message);
+          syncedSet.add(message.id); // Mark as seen so we don't retry broken messages
+        }
+      }));
     }
   } while (pageToken);
 }
@@ -238,7 +240,7 @@ async function processMonth(gmail, account, monthDef, syncedSet, savedTickets, e
  * Sweep the last 7 days regardless of monthIdx, to catch any recently
  * missed emails due to monthIdx drift or cron gaps.
  */
-async function recentSweep(gmail, account, syncedSet, savedTickets, existingTicketKeys) {
+async function recentSweep(gmail, account, syncedSet, savedTickets, existingTicketKeys, serialState) {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const yyyy = sevenDaysAgo.getFullYear();
   const mm   = String(sevenDaysAgo.getMonth() + 1).padStart(2, '0');
@@ -259,67 +261,72 @@ async function recentSweep(gmail, account, syncedSet, savedTickets, existingTick
     const pageMessages = response.data.messages || [];
     pageToken = response.data.nextPageToken || undefined;
 
-    for (const message of pageMessages) {
-      if (syncedSet.has(message.id)) continue;
+    const batchSize = 20;
+    for (let i = 0; i < pageMessages.length; i += batchSize) {
+      const batch = pageMessages.slice(i, i + batchSize);
+      
+      await Promise.all(batch.map(async (message) => {
+        if (syncedSet.has(message.id)) return;
 
-      try {
-        const msg = await gmail.users.messages.get({
-          userId: 'me',
-          id: message.id,
-          format: 'metadata',
-          metadataHeaders: ['From', 'Subject', 'Date'],
-        });
+        try {
+          const msg = await gmail.users.messages.get({
+            userId: 'me',
+            id: message.id,
+            format: 'metadata',
+            metadataHeaders: ['From', 'Subject', 'Date'],
+          });
 
-        const headers = msg.data.payload?.headers || [];
-        const from    = headers.find((h) => h.name === 'From')?.value    || 'Unknown';
-        const subject = headers.find((h) => h.name === 'Subject')?.value || 'No Subject';
-        const dateStr = headers.find((h) => h.name === 'Date')?.value    || '';
+          const headers = msg.data.payload?.headers || [];
+          const from    = headers.find((h) => h.name === 'From')?.value    || 'Unknown';
+          const subject = headers.find((h) => h.name === 'Subject')?.value || 'No Subject';
+          const dateStr = headers.find((h) => h.name === 'Date')?.value    || '';
 
-        const dateObj  = new Date(dateStr);
-        const exactDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
-        const time = exactDate.toLocaleTimeString('en-US', {
-          hour: '2-digit', minute: '2-digit', hour12: true,
-        });
+          const dateObj  = new Date(dateStr);
+          const exactDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
+          const time = exactDate.toLocaleTimeString('en-US', {
+            hour: '2-digit', minute: '2-digit', hour12: true,
+          });
 
-        const incomingKey = getDedupKey(subject);
-        let existingTicket = null;
+          const incomingKey = getDedupKey(subject);
+          let existingTicket = null;
 
-        if (incomingKey && existingTicketKeys.has(incomingKey)) {
-          existingTicket = true;
-        }
+          if (incomingKey && existingTicketKeys.has(incomingKey)) {
+            existingTicket = true;
+          }
 
-        if (!existingTicket) {
-          const serialNo = await nextTicketSerialNo();
-          try {
-            const ticket = await prisma.ticket.upsert({
-              where: { gmailMessageId: message.id },
-              update: {},
-              create: {
-                gmailAccountId: account.id,
-                gmailMessageId: message.id,
-                serialNo,
-                exactDate,
-                time,
-                subject,
-                sender: from,
-              },
-            });
-            if (ticket.serialNo === serialNo) {
-              savedTickets.push(ticket);
-              if (incomingKey) existingTicketKeys.add(incomingKey);
-            }
-          } catch (e) {
-            if (!e.message?.includes('Unique constraint')) {
-              console.error(`Recent sweep - failed to save ticket for ${message.id}:`, e.message);
+          if (!existingTicket) {
+            const serialNo = String(serialState.current++);
+            try {
+              const ticket = await prisma.ticket.upsert({
+                where: { gmailMessageId: message.id },
+                update: {},
+                create: {
+                  gmailAccountId: account.id,
+                  gmailMessageId: message.id,
+                  serialNo,
+                  exactDate,
+                  time,
+                  subject,
+                  sender: from,
+                },
+              });
+              if (ticket.serialNo === serialNo) {
+                savedTickets.push(ticket);
+                if (incomingKey) existingTicketKeys.add(incomingKey);
+              }
+            } catch (e) {
+              if (!e.message?.includes('Unique constraint')) {
+                console.error(`Recent sweep - failed to save ticket for ${message.id}:`, e.message);
+              }
             }
           }
-        }
 
-        syncedSet.add(message.id);
-      } catch (e) {
-        console.error(`Recent sweep - failed to get message ${message.id}:`, e.message);
-        syncedSet.add(message.id);
-      }
+          syncedSet.add(message.id);
+        } catch (e) {
+          console.error(`Recent sweep - failed to get message ${message.id}:`, e.message);
+          syncedSet.add(message.id);
+        }
+      }));
     }
   } while (pageToken);
 }
@@ -368,6 +375,18 @@ async function syncAccount(account) {
     allTickets.map(t => getDedupKey(t.subject)).filter(Boolean)
   );
 
+  // Initialize serialState
+  const maxTicket = await prisma.ticket.findFirst({
+    orderBy: { serialNo: 'desc' },
+    select: { serialNo: true },
+  });
+  let maxNum = 0;
+  if (maxTicket && maxTicket.serialNo) {
+     const match = maxTicket.serialNo.match(/^(\d+)/);
+     if (match) maxNum = parseInt(match[1], 10);
+  }
+  const serialState = { current: maxNum + 1 };
+
   // ── Clamp monthIdx to valid range ─────────────────────────────────────────
   const maxMonthIdx = getCurrentMonthIdx(); // never go past today's month
 
@@ -381,11 +400,11 @@ async function syncAccount(account) {
       const monthDef = MONTHS[idx];
       console.log(`[${account.gmailEmail}] Processing ${monthDef.label} (${idx + 1}/${MONTHS.length})`);
 
-      await processMonth(gmail, account, monthDef, syncedSet, savedTickets, existingTicketKeys);
+      await processMonth(gmail, account, monthDef, syncedSet, savedTickets, existingTicketKeys, serialState);
 
       // Save progress after each month
       const idsArray = Array.from(syncedSet).slice(-MAX_SYNCED_IDS);
-      const nextIdx = idx + 1; // advance to next month (or stay at current if it's today)
+      const nextIdx = idx === maxMonthIdx ? idx : idx + 1; // stay at current if it's today
       const safeNextIdx = Math.min(nextIdx, MONTHS.length - 1);
       await prisma.gmailAccount.update({
         where: { id: account.id },
@@ -410,7 +429,7 @@ async function syncAccount(account) {
 
   // ── Always do a 7-day recent sweep to catch any gaps ─────────────────────
   try {
-    await recentSweep(gmail, account, syncedSet, savedTickets, existingTicketKeys);
+    await recentSweep(gmail, account, syncedSet, savedTickets, existingTicketKeys, serialState);
     // Save final state after recent sweep
     const idsArray = Array.from(syncedSet).slice(-MAX_SYNCED_IDS);
     const finalIdx = Math.min(maxMonthIdx, MONTHS.length - 1);

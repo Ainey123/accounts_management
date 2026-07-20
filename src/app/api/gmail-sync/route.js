@@ -1,3 +1,6 @@
+export const maxDuration = 60; // Allow more time on Vercel
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { prisma } from '@/lib/prisma';
@@ -149,7 +152,7 @@ function getCurrentMonthIdx() {
  * Process a single month for a given Gmail account.
  * Returns the number of new tickets saved.
  */
-async function processMonth(gmail, account, monthDef, syncedSet, savedTickets) {
+async function processMonth(gmail, account, monthDef, syncedSet, savedTickets, existingTicketKeys) {
   let pageToken = undefined;
 
   do {
@@ -189,16 +192,10 @@ async function processMonth(gmail, account, monthDef, syncedSet, savedTickets) {
         const incomingKey = getDedupKey(subject);
         let existingTicket = null;
 
-        if (incomingKey) {
-          // Search ALL tickets in the database, not just recent ones
-          const allTickets = await prisma.ticket.findMany({
-            orderBy: { createdAt: 'asc' },
-            select: { id: true, serialNo: true, subject: true },
-          });
-          existingTicket = allTickets.find(
-            (t) => getDedupKey(t.subject) === incomingKey
-          ) || null;
+        if (incomingKey && existingTicketKeys.has(incomingKey)) {
+          existingTicket = true;
         }
+
 
 
         if (!existingTicket) {
@@ -217,7 +214,10 @@ async function processMonth(gmail, account, monthDef, syncedSet, savedTickets) {
                 sender: from,
               },
             });
-            if (ticket.serialNo === serialNo) savedTickets.push(ticket);
+            if (ticket.serialNo === serialNo) {
+              savedTickets.push(ticket);
+              if (incomingKey) existingTicketKeys.add(incomingKey);
+            }
           } catch (e) {
             if (!e.message?.includes('Unique constraint')) {
               console.error(`Failed to save ticket for ${message.id}:`, e.message);
@@ -238,7 +238,7 @@ async function processMonth(gmail, account, monthDef, syncedSet, savedTickets) {
  * Sweep the last 7 days regardless of monthIdx, to catch any recently
  * missed emails due to monthIdx drift or cron gaps.
  */
-async function recentSweep(gmail, account, syncedSet, savedTickets) {
+async function recentSweep(gmail, account, syncedSet, savedTickets, existingTicketKeys) {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const yyyy = sevenDaysAgo.getFullYear();
   const mm   = String(sevenDaysAgo.getMonth() + 1).padStart(2, '0');
@@ -284,15 +284,8 @@ async function recentSweep(gmail, account, syncedSet, savedTickets) {
         const incomingKey = getDedupKey(subject);
         let existingTicket = null;
 
-        if (incomingKey) {
-          // Search ALL tickets in the database, not just recent ones
-          const allTickets = await prisma.ticket.findMany({
-            orderBy: { createdAt: 'asc' },
-            select: { id: true, subject: true },
-          });
-          existingTicket = allTickets.find(
-            (t) => getDedupKey(t.subject) === incomingKey
-          ) || null;
+        if (incomingKey && existingTicketKeys.has(incomingKey)) {
+          existingTicket = true;
         }
 
         if (!existingTicket) {
@@ -311,7 +304,10 @@ async function recentSweep(gmail, account, syncedSet, savedTickets) {
                 sender: from,
               },
             });
-            if (ticket.serialNo === serialNo) savedTickets.push(ticket);
+            if (ticket.serialNo === serialNo) {
+              savedTickets.push(ticket);
+              if (incomingKey) existingTicketKeys.add(incomingKey);
+            }
           } catch (e) {
             if (!e.message?.includes('Unique constraint')) {
               console.error(`Recent sweep - failed to save ticket for ${message.id}:`, e.message);
@@ -364,6 +360,14 @@ async function syncAccount(account) {
   const savedTickets = [];
   const MAX_SYNCED_IDS = 3000;
 
+  // Cache all ticket subjects to drastically improve dedup performance
+  const allTickets = await prisma.ticket.findMany({
+    select: { subject: true }
+  });
+  const existingTicketKeys = new Set(
+    allTickets.map(t => getDedupKey(t.subject)).filter(Boolean)
+  );
+
   // ── Clamp monthIdx to valid range ─────────────────────────────────────────
   const maxMonthIdx = getCurrentMonthIdx(); // never go past today's month
 
@@ -377,7 +381,7 @@ async function syncAccount(account) {
       const monthDef = MONTHS[idx];
       console.log(`[${account.gmailEmail}] Processing ${monthDef.label} (${idx + 1}/${MONTHS.length})`);
 
-      await processMonth(gmail, account, monthDef, syncedSet, savedTickets);
+      await processMonth(gmail, account, monthDef, syncedSet, savedTickets, existingTicketKeys);
 
       // Save progress after each month
       const idsArray = Array.from(syncedSet).slice(-MAX_SYNCED_IDS);
@@ -406,7 +410,7 @@ async function syncAccount(account) {
 
   // ── Always do a 7-day recent sweep to catch any gaps ─────────────────────
   try {
-    await recentSweep(gmail, account, syncedSet, savedTickets);
+    await recentSweep(gmail, account, syncedSet, savedTickets, existingTicketKeys);
     // Save final state after recent sweep
     const idsArray = Array.from(syncedSet).slice(-MAX_SYNCED_IDS);
     const finalIdx = Math.min(maxMonthIdx, MONTHS.length - 1);

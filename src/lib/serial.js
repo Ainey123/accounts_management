@@ -1,20 +1,22 @@
 import { prisma } from '@/lib/prisma';
 
 export async function nextTicketSerialNo() {
-  // Find the highest existing serial number (numeric part) and increment it.
-  // Serial numbers are stored as strings; they may contain non‑numeric prefixes.
-  const maxTicket = await prisma.ticket.findFirst({
-    orderBy: { serialNo: 'desc' },
+  // Find the highest existing serial number (numeric part) mathematically,
+  // since database string sorting ('desc') sorts alphabetically (e.g. '9' > '10').
+  const tickets = await prisma.ticket.findMany({
     select: { serialNo: true },
   });
 
-  const extractSerialNum = (serial) => {
-    if (!serial) return 0;
-    // Extract leading digits (e.g., "123", "00123", "123‑ABC")
-    const match = serial.match(/^(\d+)/);
-    return match ? parseInt(match[1], 10) : 0;
-  };
+  let maxNum = 0;
+  for (const t of tickets) {
+    if (t.serialNo) {
+      const match = t.serialNo.match(/^(\d+)/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+  }
 
-  const num = extractSerialNum(maxTicket?.serialNo);
-  return String(num + 1);
+  return String(maxNum + 1);
 }

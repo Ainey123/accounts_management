@@ -64,6 +64,25 @@ async function syncAccount(account) {
   const existingRows = await prisma.ticket.findMany({ select: { gmailMessageId: true } });
   const existingMsgIds = new Set(existingRows.map(r => r.gmailMessageId));
 
+  // ── 1b. Also load previously synced IDs from account to skip re-scans ─────
+  let previouslySyncedIds = new Set();
+  try {
+    const raw = account.syncedEmailIds || '';
+    if (raw.includes('|')) {
+      const parsed = JSON.parse(raw.split('|')[1] || '[]');
+      if (Array.isArray(parsed)) previouslySyncedIds = new Set(parsed);
+    } else {
+      const parsed = JSON.parse(raw || '[]');
+      if (Array.isArray(parsed)) previouslySyncedIds = new Set(parsed);
+    }
+  } catch (e) {
+    // Ignore parse errors, start fresh
+  }
+  // Merge previously synced IDs into the existing set so they're skipped
+  for (const id of previouslySyncedIds) {
+    existingMsgIds.add(id);
+  }
+
   // ── 2. Pre-load subject keys for ticket-number dedup ──────────────────────
   const allSubjects = await prisma.ticket.findMany({ select: { subject: true } });
   const existingKeys = new Set(allSubjects.map(r => getDedupKey(r.subject)).filter(Boolean));
@@ -79,15 +98,16 @@ async function syncAccount(account) {
     if (m) serialCounter = parseInt(m[1], 10) + 1;
   }
 
-  // ── 4. Scan from July 7, 2026 to catch all pending emails ─────────────────
-  // We scan from a fixed date to ensure ALL missing emails are captured
-  const afterDate = '2026/07/07';
+  // ── 4. Scan all emails from 2026 to ensure nothing is missed ──────────────
+  // Using a broad range to capture ALL emails - latest emails come first in Gmail API
+  const afterDate = '2026/01/01';
+  const beforeDate = '2027/07/01';
   
-  console.log(`[${account.gmailEmail}] Scanning from ${afterDate} onwards`);
+  console.log(`[${account.gmailEmail}] Scanning from ${afterDate} to ${beforeDate}`);
 
   const savedTickets = [];
-  // Hard deadline: 45s to stay safe within Vercel's limits
-  const deadline = Date.now() + 45_000;
+  // Extended deadline: 55s to maximize coverage within Vercel's 60s limit
+  const deadline = Date.now() + 55_000;
 
   let pageToken = undefined;
   let totalFound = 0;
@@ -101,7 +121,7 @@ async function syncAccount(account) {
     const listRes = await gmail.users.messages.list({
       userId: 'me',
       maxResults: 100,
-      q: `after:${afterDate}`,
+      q: `after:${afterDate} before:${beforeDate}`,
       pageToken,
     });
 

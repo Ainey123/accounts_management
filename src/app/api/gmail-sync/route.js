@@ -61,67 +61,50 @@ async function syncAccount(account) {
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
   // ── 1. Pre-load existing gmailMessageIds (primary dedup) ──────────────────
+  // ONLY use ticket table as source of truth — NOT the syncedEmailIds cache
   const existingRows = await prisma.ticket.findMany({ select: { gmailMessageId: true } });
   const existingMsgIds = new Set(existingRows.map(r => r.gmailMessageId));
-
-  // ── 1b. Also load previously synced IDs from account to skip re-scans ─────
-  let previouslySyncedIds = new Set();
-  try {
-    const raw = account.syncedEmailIds || '';
-    if (raw.includes('|')) {
-      const parsed = JSON.parse(raw.split('|')[1] || '[]');
-      if (Array.isArray(parsed)) previouslySyncedIds = new Set(parsed);
-    } else {
-      const parsed = JSON.parse(raw || '[]');
-      if (Array.isArray(parsed)) previouslySyncedIds = new Set(parsed);
-    }
-  } catch (e) {
-    // Ignore parse errors, start fresh
-  }
-  // Merge previously synced IDs into the existing set so they're skipped
-  for (const id of previouslySyncedIds) {
-    existingMsgIds.add(id);
-  }
+  console.log(`[${account.gmailEmail}] Pre-loaded ${existingMsgIds.size} existing message IDs from DB`);
 
   // ── 2. Pre-load subject keys for ticket-number dedup ──────────────────────
   const allSubjects = await prisma.ticket.findMany({ select: { subject: true } });
   const existingKeys = new Set(allSubjects.map(r => getDedupKey(r.subject)).filter(Boolean));
 
-  // ── 3. Get next serial number ─────────────────────────────────────────────
-  const maxTicket = await prisma.ticket.findFirst({
-    orderBy: { serialNo: 'desc' },
-    select: { serialNo: true },
-  });
-  let serialCounter = 1;
-  if (maxTicket?.serialNo) {
-    const m = maxTicket.serialNo.match(/^(\d+)/);
-    if (m) serialCounter = parseInt(m[1], 10) + 1;
+  // ── 3. Get next serial number — MATHEMATICAL max, not alphabetical ────────
+  const allSerials = await prisma.ticket.findMany({ select: { serialNo: true } });
+  let serialCounter = 0;
+  for (const t of allSerials) {
+    if (t.serialNo) {
+      const m = t.serialNo.match(/^(\d+)/);
+      if (m) {
+        const num = parseInt(m[1], 10);
+        if (num > serialCounter) serialCounter = num;
+      }
+    }
   }
+  serialCounter += 1; // Start at max + 1
+  console.log(`[${account.gmailEmail}] Next serial number will be: ${serialCounter}`);
 
-  // ── 4. Scan all emails from 2026 to ensure nothing is missed ──────────────
-  // Using a broad range to capture ALL emails - latest emails come first in Gmail API
-  const afterDate = '2026/01/01';
-  const beforeDate = '2027/07/01';
-  
-  console.log(`[${account.gmailEmail}] Scanning from ${afterDate} to ${beforeDate}`);
+  // ── 4. Scan from July 7, 2026 onwards ─────────────────────────────────────
+  const afterDate = '2026/07/07';
+  console.log(`[${account.gmailEmail}] Scanning from ${afterDate} onwards`);
 
   const savedTickets = [];
-  // Extended deadline: 55s to maximize coverage within Vercel's 60s limit
-  const deadline = Date.now() + 55_000;
+  const deadline = Date.now() + 50_000; // 50s safety margin
 
   let pageToken = undefined;
   let totalFound = 0;
 
   do {
     if (Date.now() > deadline) {
-      console.log(`[${account.gmailEmail}] Time budget reached. Processed ${savedTickets.length} so far.`);
+      console.log(`[${account.gmailEmail}] Time budget reached. Saved ${savedTickets.length} so far.`);
       break;
     }
 
     const listRes = await gmail.users.messages.list({
       userId: 'me',
       maxResults: 100,
-      q: `after:${afterDate} before:${beforeDate}`,
+      q: `after:${afterDate}`,
       pageToken,
     });
 
@@ -137,67 +120,67 @@ async function syncAccount(account) {
 
     if (newMsgs.length === 0) continue;
 
-    // Fetch metadata in concurrent batches of 20
-    const batchSize = 20;
-    for (let i = 0; i < newMsgs.length; i += batchSize) {
+    // ── Process messages SEQUENTIALLY to avoid serial number collisions ──
+    for (const message of newMsgs) {
       if (Date.now() > deadline) break;
-      const batch = newMsgs.slice(i, i + batchSize);
 
-      await Promise.allSettled(batch.map(async (message) => {
-        try {
-          const msg = await gmail.users.messages.get({
-            userId: 'me',
-            id: message.id,
-            format: 'metadata',
-            metadataHeaders: ['From', 'Subject', 'Date'],
-          });
+      try {
+        const msg = await gmail.users.messages.get({
+          userId: 'me',
+          id: message.id,
+          format: 'metadata',
+          metadataHeaders: ['From', 'Subject', 'Date'],
+        });
 
-          const headers  = msg.data.payload?.headers || [];
-          const from     = headers.find(h => h.name === 'From')?.value    || 'Unknown';
-          const subject  = headers.find(h => h.name === 'Subject')?.value || 'No Subject';
-          const dateStr  = headers.find(h => h.name === 'Date')?.value    || '';
+        const headers  = msg.data.payload?.headers || [];
+        const from     = headers.find(h => h.name === 'From')?.value    || 'Unknown';
+        const subject  = headers.find(h => h.name === 'Subject')?.value || 'No Subject';
+        const dateStr  = headers.find(h => h.name === 'Date')?.value    || '';
 
-          const dateObj   = new Date(dateStr);
-          const exactDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
-          const time = exactDate.toLocaleTimeString('en-US', {
-            hour: '2-digit', minute: '2-digit', hour12: true,
-          });
+        const dateObj   = new Date(dateStr);
+        const exactDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
+        const time = exactDate.toLocaleTimeString('en-US', {
+          hour: '2-digit', minute: '2-digit', hour12: true,
+        });
 
-          // Subject dedup for ticket-numbered emails only
-          const key = getDedupKey(subject);
-          if (key && existingKeys.has(key)) {
-            existingMsgIds.add(message.id);
-            return;
-          }
-
-          const serialNo = String(serialCounter++);
-          try {
-            await prisma.ticket.create({
-              data: {
-                gmailAccountId: account.id,
-                gmailMessageId: message.id,
-                serialNo,
-                exactDate,
-                time,
-                subject,
-                sender: from,
-              },
-            });
-            savedTickets.push({ subject, serialNo });
-            existingMsgIds.add(message.id);
-            if (key) existingKeys.add(key);
-            console.log(`[${account.gmailEmail}] ✅ Saved: "${subject.slice(0, 60)}" (${serialNo})`);
-          } catch (e) {
-            if (e.code === 'P2002' || e.message?.includes('Unique constraint')) {
-              existingMsgIds.add(message.id); // Already exists, mark seen
-            } else {
-              console.error(`[${account.gmailEmail}] DB error for ${message.id}:`, e.message);
-            }
-          }
-        } catch (e) {
-          console.error(`[${account.gmailEmail}] Gmail API error for ${message.id}:`, e.message);
+        // Subject dedup for ticket-numbered emails only
+        const key = getDedupKey(subject);
+        if (key && existingKeys.has(key)) {
+          existingMsgIds.add(message.id);
+          continue;
         }
-      }));
+
+        const serialNo = String(serialCounter);
+        try {
+          await prisma.ticket.create({
+            data: {
+              gmailAccountId: account.id,
+              gmailMessageId: message.id,
+              serialNo,
+              exactDate,
+              time,
+              subject,
+              sender: from,
+            },
+          });
+          // Only increment serial AFTER successful save
+          serialCounter++;
+          savedTickets.push({ subject, serialNo });
+          existingMsgIds.add(message.id);
+          if (key) existingKeys.add(key);
+          console.log(`[${account.gmailEmail}] ✅ Saved: "${subject.slice(0, 60)}" (${serialNo})`);
+        } catch (e) {
+          if (e.code === 'P2002' || e.message?.includes('Unique constraint')) {
+            // gmailMessageId already exists — mark seen and skip
+            existingMsgIds.add(message.id);
+            console.log(`[${account.gmailEmail}] ⏭ Duplicate (constraint): ${message.id}`);
+          } else {
+            console.error(`[${account.gmailEmail}] DB error for ${message.id}:`, e.message);
+          }
+        }
+      } catch (e) {
+        console.error(`[${account.gmailEmail}] Gmail API error for ${message.id}:`, e.message);
+      }
     }
   } while (pageToken);
 

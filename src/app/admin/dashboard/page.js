@@ -563,17 +563,15 @@ export default function AdminCommandCenter() {
                         <button type="button" className="nexus-btn nexus-btn-ghost" style={{ padding: 6 }} title="View">
                           <Eye size={14} />
                         </button>
-                        {u.role !== 'ADMIN' && (
-                          <button
-                            type="button"
-                            className="nexus-btn nexus-btn-ghost"
-                            onClick={() => { setPasswordUserId(u.id); setPasswordForm({ password: '', confirmPassword: '' }); setPasswordModalOpen(true); }}
-                            style={{ padding: 6, color: '#f59e0b' }}
-                            title="Reset Password"
-                          >
-                            <Key size={14} />
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          className="nexus-btn nexus-btn-ghost"
+                          onClick={() => { setPasswordUserId(u.id); setPasswordForm({ password: '', confirmPassword: '' }); setPasswordModalOpen(true); }}
+                          style={{ padding: 6, color: '#f59e0b' }}
+                          title={u.role === 'ADMIN' ? 'Change Admin Password' : 'Reset Password'}
+                        >
+                          <Key size={14} />
+                        </button>
                         <button
                           type="button"
                           className="nexus-btn nexus-btn-ghost"
@@ -836,17 +834,20 @@ export default function AdminCommandCenter() {
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignSelf: 'flex-start' }}>
               <button
                 type="button"
-                className="nexus-btn nexus-btn-ghost"
+                className="nexus-btn nexus-btn-primary"
+                style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', border: 'none', fontWeight: 700, padding: '10px 20px' }}
                 onClick={() => {
-                  const admin = users.find(u => u.email === currentEmail);
+                  const admin = users.find(u => u.email === currentEmail) || users.find(u => u.role === 'ADMIN');
                   if (admin) {
                     setPasswordUserId(admin.id);
                     setPasswordForm({ password: '', confirmPassword: '' });
                     setPasswordModalOpen(true);
+                  } else {
+                    setMessage('Could not find admin account. Please try from the Employees tab.');
                   }
                 }}
               >
-                <Key size={16} /> Change My Password
+                <Key size={16} /> 🔐 Change My Password
               </button>
             </div>
 

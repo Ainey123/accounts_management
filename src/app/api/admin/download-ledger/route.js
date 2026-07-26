@@ -34,10 +34,17 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const workNature = searchParams.get('workNature');
     const format = searchParams.get('format') || 'csv';
+    const fromDate = searchParams.get('fromDate') || null;
+    const toDate = searchParams.get('toDate') || null;
 
     const where = {};
     if (workNature && WORK_NATURES.includes(workNature.toUpperCase())) {
       where.workNature = workNature.toUpperCase();
+    }
+    if (fromDate || toDate) {
+      where.createdAt = {};
+      if (fromDate) where.createdAt.gte = new Date(fromDate);
+      if (toDate) where.createdAt.lte = new Date(toDate + 'T23:59:59.999Z');
     }
 
     const jobs = await prisma.jobMetadata.findMany({

@@ -24,9 +24,14 @@ function parsePendingFilter(filter) {
   return map[filter.toLowerCase()] || null;
 }
 
-async function getLedger(workNature, pendingFilter) {
+async function getLedger(workNature, pendingFilter, fromDate, toDate) {
   const where = {};
   if (workNature) where.workNature = workNature;
+  if (fromDate || toDate) {
+    where.createdAt = {};
+    if (fromDate) where.createdAt.gte = new Date(fromDate);
+    if (toDate) where.createdAt.lte = new Date(toDate);
+  }
 
   const jobs = await prisma.jobMetadata.findMany({
     where,
@@ -74,23 +79,26 @@ function classifyPending(job) {
   return p;
 }
 
-async function getSummary(workNature) {
-  const where = {};
-  if (workNature) where.workNature = workNature;
-
+async function getSummary(workNature, fromDate, toDate) {
   const jobWhere = {};
   if (workNature) jobWhere.workNature = workNature;
+  if (fromDate || toDate) {
+    jobWhere.createdAt = {};
+    if (fromDate) jobWhere.createdAt.gte = new Date(fromDate);
+    if (toDate) jobWhere.createdAt.lte = new Date(toDate + 'T23:59:59.999Z');
+  }
+  const jobMetadataFilter = Object.keys(jobWhere).length > 0 ? jobWhere : undefined;
 
   const [totalJobs, jobsByNature, totalQuotations, approvedQuotations, totalInvoices, totalPayments, totalExpenses, completions, bankApprovals] = await Promise.all([
     prisma.jobMetadata.count({ where: jobWhere }),
     prisma.jobMetadata.groupBy({ by: ['workNature'], where: jobWhere, _count: { id: true } }),
-    prisma.quotationInvoice.count({ where: { documentType: 'QUOTATION', jobMetadata: { workNature: workNature || undefined } } }),
-    prisma.quotationInvoice.count({ where: { documentType: 'QUOTATION', status: 'APPROVED', jobMetadata: { workNature: workNature || undefined } } }),
-    prisma.quotationInvoice.count({ where: { documentType: 'INVOICE', jobMetadata: { workNature: workNature || undefined } } }),
-    prisma.paymentReceived.aggregate({ where: { jobMetadata: { workNature: workNature || undefined } }, _sum: { amount: true }, _sum: { taxDeducted: true } }),
-    prisma.expense.aggregate({ where: { jobMetadata: { workNature: workNature || undefined } }, _sum: { amount: true } }),
-    prisma.workCompletion.count({ where: { status: 'COMPLETED', jobMetadata: { workNature: workNature || undefined } } }),
-    prisma.bankApproval.count({ where: { status: 'APPROVED', jobMetadata: { workNature: workNature || undefined } } }),
+    prisma.quotationInvoice.count({ where: { documentType: 'QUOTATION', jobMetadata: jobMetadataFilter } }),
+    prisma.quotationInvoice.count({ where: { documentType: 'QUOTATION', status: 'APPROVED', jobMetadata: jobMetadataFilter } }),
+    prisma.quotationInvoice.count({ where: { documentType: 'INVOICE', jobMetadata: jobMetadataFilter } }),
+    prisma.paymentReceived.aggregate({ where: { jobMetadata: jobMetadataFilter }, _sum: { amount: true }, _sum: { taxDeducted: true } }),
+    prisma.expense.aggregate({ where: { jobMetadata: jobMetadataFilter }, _sum: { amount: true } }),
+    prisma.workCompletion.count({ where: { status: 'COMPLETED', jobMetadata: jobMetadataFilter } }),
+    prisma.bankApproval.count({ where: { status: 'APPROVED', jobMetadata: jobMetadataFilter } }),
   ]);
 
   const natureMap = {};
@@ -123,9 +131,11 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const workNature = parseWorkNature(searchParams.get('workNature'));
     const pendingFilter = parsePendingFilter(searchParams.get('pending'));
+    const fromDate = searchParams.get('fromDate') || null;
+    const toDate = searchParams.get('toDate') || null;
 
     const [ledger, summary] = await Promise.all([
-      getLedger(workNature, pendingFilter),
+      getLedger(workNature, pendingFilter, fromDate, toDate),
       getSummary(workNature),
     ]);
 
@@ -147,7 +157,7 @@ export async function GET(request) {
       success: true,
       ledger: filteredLedger,
       summary,
-      filters: { workNature, pendingFilter },
+      filters: { workNature, pendingFilter, fromDate, toDate },
     });
   } catch (error) {
     console.error('All documents error:', error);

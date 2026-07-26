@@ -32,6 +32,8 @@ export default function AdminDocumentsPage() {
   const [message, setMessage] = useState('');
   const [workNatureFilter, setWorkNatureFilter] = useState('');
   const [pendingFilter, setPendingFilter] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedId, setExpandedId] = useState(null);
   const [sortField, setSortField] = useState('createdAt');
@@ -44,6 +46,8 @@ export default function AdminDocumentsPage() {
       const params = new URLSearchParams();
       if (workNatureFilter) params.set('workNature', workNatureFilter);
       if (pendingFilter) params.set('pending', pendingFilter);
+      if (fromDate) params.set('fromDate', fromDate);
+      if (toDate) params.set('toDate', toDate);
       const data = await apiFetch(`/api/admin/all-documents?${params.toString()}`);
       setLedger(data.ledger || []);
       setSummary(data.summary);
@@ -52,7 +56,7 @@ export default function AdminDocumentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [workNatureFilter, pendingFilter]);
+  }, [workNatureFilter, pendingFilter, fromDate, toDate]);
 
   useEffect(() => {
     loadData();
@@ -62,6 +66,8 @@ export default function AdminDocumentsPage() {
     try {
       const params = new URLSearchParams();
       if (workNatureFilter) params.set('workNature', workNatureFilter);
+      if (fromDate) params.set('fromDate', fromDate);
+      if (toDate) params.set('toDate', toDate);
       params.set('format', 'csv');
       const res = await fetch(`/api/admin/download-ledger?${params.toString()}`);
       if (!res.ok) throw new Error('Download failed');
@@ -69,7 +75,7 @@ export default function AdminDocumentsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `ledger-${workNatureFilter || 'all'}-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `ledger-${workNatureFilter || 'all'}-${fromDate || ''}-${toDate || ''}-${new Date().toISOString().slice(0, 10)}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -78,7 +84,7 @@ export default function AdminDocumentsPage() {
     } catch (err) {
       setMessage('Download failed: ' + err.message);
     }
-  }, [workNatureFilter]);
+  }, [workNatureFilter, fromDate, toDate]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -232,6 +238,8 @@ export default function AdminDocumentsPage() {
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
+          <input className="nexus-input" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} title="From date" style={{ width: 150 }} />
+          <input className="nexus-input" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} title="To date" style={{ width: 150 }} />
         </div>
       </section>
 

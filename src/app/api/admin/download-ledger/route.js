@@ -47,7 +47,7 @@ export async function GET(request) {
         ticket: { select: { serialNo: true, subject: true, status: true, exactDate: true } },
         assignedEmployee: { select: { employeeName: true } },
         createdBy: { select: { employeeName: true } },
-        quotationInvoices: { select: { documentType: true, status: true, poNumber: true, lineItems: true, amount: true } },
+        quotationInvoices: { select: { documentType: true, status: true, poNumber: true, lineItems: true } },
         expenses: { select: { amount: true, summaryNotes: true } },
         payments: { select: { amount: true, taxDeducted: true, summaryNotes: true } },
         workCompletion: { select: { status: true, amount: true } },

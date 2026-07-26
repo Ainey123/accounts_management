@@ -36,7 +36,7 @@ export default function Sidebar() {
     { name: 'All Tickets Inbox', href: '/admin/dashboard', icon: Mail },
     { name: 'Employee Monitor', href: '/admin/dashboard', icon: Users },
     { name: 'Financial Overview', href: '/ledger', icon: DollarSign },
-    { name: 'All Documents', href: '/quotation', icon: FileText },
+    { name: 'All Documents', href: '/admin/documents', icon: FileText },
     { name: 'Gmail Connection', href: '/gmail', icon: Mail },
   ] : NAV_ITEMS.filter(item => !item.adminOnly);
 

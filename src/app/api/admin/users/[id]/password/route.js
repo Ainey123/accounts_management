@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/password';
 
-export async function PATCH(request, { params }) {
+async function changePassword(request, { params }) {
   try {
     const { id: rawId } = await params;
     const targetId = Number(rawId);
@@ -33,18 +33,26 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    if (targetUser.role === 'ADMIN' && requester.id !== targetId) {
-      return NextResponse.json({ error: 'Cannot change another admin\'s password' }, { status: 403 });
-    }
+    // Allow admins to change any password, including other admins
 
     await prisma.user.update({
       where: { id: targetId },
       data: { password: hashPassword(password) },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
     console.error('Password change error:', error);
-    return NextResponse.json({ error: 'Failed to change password' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to change password: ' + error.message }, { status: 500 });
   }
 }
+
+// Support both PATCH and POST to avoid 405 errors
+export async function PATCH(request, context) {
+  return changePassword(request, context);
+}
+
+export async function POST(request, context) {
+  return changePassword(request, context);
+}
+

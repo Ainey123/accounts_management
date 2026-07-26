@@ -138,7 +138,7 @@ export default function AdminCommandCenter() {
         throw new Error('Password must be at least 6 characters');
       }
       await apiFetch(`/api/admin/users/${passwordUserId}/password`, {
-        method: 'PATCH',
+        method: 'POST',
         body: JSON.stringify({ password: passwordForm.password }),
       });
       setPasswordForm({ password: '', confirmPassword: '' });

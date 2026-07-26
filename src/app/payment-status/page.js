@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Save, Check, Search } from 'lucide-react';
+import { DollarSign, Search, Mail, MessageSquare, Save } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
 
@@ -12,6 +12,9 @@ export default function PaymentStatusPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [gmailAccounts, setGmailAccounts] = useState([]);
+  const [purposeDrafts, setPurposeDrafts] = useState({});
+  const [savingPurposeId, setSavingPurposeId] = useState(null);
 
   const loadJobs = async () => {
     try {
@@ -24,9 +27,44 @@ export default function PaymentStatusPage() {
     }
   };
 
+  const loadGmailAccounts = async () => {
+    try {
+      const data = await apiFetch('/api/gmail-account');
+      const accounts = data.accounts || [];
+      setGmailAccounts(accounts);
+      const drafts = {};
+      accounts.forEach((a) => {
+        drafts[a.id] = a.purposeNotes || '';
+      });
+      setPurposeDrafts(drafts);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     loadJobs();
+    loadGmailAccounts();
   }, []);
+
+  const handleSavePurpose = async (accountId) => {
+    setSavingPurposeId(accountId);
+    try {
+      const { account } = await apiFetch(`/api/gmail-account/${accountId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ purposeNotes: purposeDrafts[accountId] || '' }),
+      });
+      setGmailAccounts((prev) =>
+        prev.map((a) => (a.id === accountId ? { ...a, purposeNotes: account.purposeNotes } : a))
+      );
+      setMessage('Gmail purpose note saved.');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err) {
+      setMessage('Failed to save Gmail purpose note.');
+    } finally {
+      setSavingPurposeId(null);
+    }
+  };
 
   const handleProgressChange = async (jobId, newProgress) => {
     if (newProgress < 0 || newProgress > 100) return;
@@ -186,6 +224,76 @@ export default function PaymentStatusPage() {
           </table>
         )}
       </div>
+
+      <section className="glass-card" style={{ marginTop: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          <MessageSquare size={22} color="#00f2fe" />
+          <h2 style={{ fontSize: 18, margin: 0 }}>Gmail Account Purpose Notes</h2>
+        </div>
+        <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 24 }}>
+          Document what each connected Gmail inbox is used for so the team knows which account to reference for payments and tickets.
+        </p>
+
+        {gmailAccounts.length === 0 ? (
+          <p style={{ color: '#64748b', textAlign: 'center', padding: 24 }}>
+            No Gmail accounts connected yet. Ask an admin to connect inboxes from Gmail Connection.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {gmailAccounts.map((account) => (
+              <div
+                key={account.id}
+                style={{
+                  background: 'rgba(0,0,0,0.35)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: 12,
+                  padding: 20,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <Mail size={18} color="#00f2fe" />
+                  <span style={{ fontWeight: 600, color: '#f8fafc' }}>{account.gmailEmail}</span>
+                  {account.purposeNotes && (
+                    <span
+                      style={{
+                        marginLeft: 'auto',
+                        fontSize: 11,
+                        color: '#10b981',
+                        background: 'rgba(16,185,129,0.12)',
+                        padding: '4px 10px',
+                        borderRadius: 999,
+                        border: '1px solid rgba(16,185,129,0.25)',
+                      }}
+                    >
+                      Documented
+                    </span>
+                  )}
+                </div>
+                <label className="field-label">Purpose / Use Case</label>
+                <textarea
+                  className="nexus-textarea"
+                  style={{ minHeight: 90, marginBottom: 12 }}
+                  placeholder="e.g. Bank Alfalah payment confirmations, WAPDA complaint inbox, maintenance requests for Lahore branch..."
+                  value={purposeDrafts[account.id] ?? ''}
+                  onChange={(e) =>
+                    setPurposeDrafts((prev) => ({ ...prev, [account.id]: e.target.value }))
+                  }
+                />
+                <button
+                  type="button"
+                  className="nexus-btn nexus-btn-primary"
+                  onClick={() => handleSavePurpose(account.id)}
+                  disabled={savingPurposeId === account.id}
+                  style={{ padding: '10px 18px' }}
+                >
+                  <Save size={16} />
+                  {savingPurposeId === account.id ? 'Saving...' : 'Save Purpose Note'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

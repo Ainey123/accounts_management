@@ -12,6 +12,7 @@ export async function GET() {
       accounts: accounts.map((a) => ({
         id: a.id,
         gmailEmail: a.gmailEmail,
+        purposeNotes: a.purposeNotes,
         syncedAt: a.syncedAt,
         createdAt: a.createdAt,
       })),

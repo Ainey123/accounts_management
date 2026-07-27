@@ -186,6 +186,17 @@ export default function AdminCommandCenter() {
     }
   };
 
+  const handleDeleteTicket = async (ticketId, serialNo) => {
+    if (!confirm(`Delete ticket ${serialNo} and all its linked job data? This cannot be undone.`)) return;
+    try {
+      await apiFetch(`/api/admin/tickets?id=${ticketId}`, { method: 'DELETE' });
+      setMessage(`Ticket ${serialNo} deleted.`);
+      await loadAll();
+    } catch (err) {
+      setMessage('Delete failed: ' + err.message);
+    }
+  };
+
   const getTicketEntryPerson = (ticket) =>
     ticket.statusLastChangedBy ||
     ticket.jobMetadata?.createdBy?.employeeName ||
@@ -638,15 +649,16 @@ export default function AdminCommandCenter() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Serial</th>
-                <th>Copy</th>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Sender</th>
-                <th>Subject</th>
-                <th>Status</th>
-                <th>Assigned To</th>
-                <th>Entered By</th>
+                      <th>Serial</th>
+                      <th>Copy</th>
+                      <th>Date</th>
+                      <th>Time</th>
+                      <th>Sender</th>
+                      <th>Subject</th>
+                      <th>Status</th>
+                      <th>Assigned To</th>
+                      <th>Entered By</th>
+                      <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -703,10 +715,21 @@ export default function AdminCommandCenter() {
                       })()}
                     </td>
                     <td>{t.jobMetadata?.assignedEmployee?.employeeName || '—'}</td>
-                    <td style={{ color: '#94a3b8', fontSize: 12 }}>
-                      {getTicketEntryPerson(t)}
-                    </td>
-                  </tr>
+                      <td style={{ color: '#94a3b8', fontSize: 12 }}>
+                        {getTicketEntryPerson(t)}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="nexus-btn nexus-btn-ghost"
+                          onClick={() => handleDeleteTicket(t.id, t.serialNo)}
+                          style={{ color: '#ef4444', padding: 4 }}
+                          title="Delete ticket"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
                 );
               })}
               {filteredTickets.length === 0 && (

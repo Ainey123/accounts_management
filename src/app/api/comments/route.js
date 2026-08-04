@@ -63,17 +63,18 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!requester || requester.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Only admins can leave comments' }, { status: 403 });
-    }
-
     const body = await request.json();
     const { userId, content, adminName: customAdminName } = body;
 
-    const targetUserId = parseInt(userId, 10);
+    let targetUserId = parseInt(userId, 10);
+    if (requester.role === 'EMPLOYEE') {
+      // Employees post to their own account thread
+      targetUserId = parseInt(requester.id, 10);
+    }
+
     if (isNaN(targetUserId) || !content || !content.trim()) {
       return NextResponse.json(
-        { error: 'User ID and comment content are required' },
+        { error: 'Target User ID and comment content are required' },
         { status: 400 }
       );
     }
@@ -86,18 +87,25 @@ export async function POST(request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Determine the admin's name (e.g. Anie, Fatma, or System Administrator)
-    const postingAdminName =
-      (customAdminName && customAdminName.trim()) ||
-      requester.employeeName ||
-      requester.email ||
-      'Admin';
+    let senderRole = 'ADMIN';
+    let senderName = 'Fatma';
+
+    if (requester.role === 'ADMIN') {
+      senderRole = 'ADMIN';
+      // Default to "Fatma" unless manually specified otherwise (e.g. Anie)
+      senderName = (customAdminName && customAdminName.trim()) ? customAdminName.trim() : 'Fatma';
+    } else {
+      senderRole = 'EMPLOYEE';
+      senderName = requester.employeeName || 'Employee';
+    }
 
     const comment = await prisma.comment.create({
       data: {
         userId: targetUserId,
-        adminId: requester.id ? parseInt(requester.id, 10) : null,
-        adminName: postingAdminName,
+        adminId: requester.role === 'ADMIN' && requester.id ? parseInt(requester.id, 10) : null,
+        senderRole,
+        senderName,
+        adminName: senderName,
         content: content.trim(),
       },
       include: {

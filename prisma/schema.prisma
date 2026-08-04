@@ -177,13 +177,15 @@ model BankApproval {
 }
 
 model Comment {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  user      User     @relation("UserComments", fields: [userId], references: [id], onDelete: Cascade)
-  adminId   Int?
-  admin     User?    @relation("AdminComments", fields: [adminId], references: [id], onDelete: SetNull)
-  adminName String
-  content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation("UserComments", fields: [userId], references: [id], onDelete: Cascade)
+  adminId    Int?
+  admin      User?    @relation("AdminComments", fields: [adminId], references: [id], onDelete: SetNull)
+  senderRole String   @default("ADMIN")
+  senderName String   @default("Fatma")
+  adminName  String
+  content    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

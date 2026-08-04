@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Webcam from 'react-webcam';
 import {
   Mail, RefreshCw, Activity, CheckCircle, DollarSign,
-  User, AlertCircle, FileText, Camera, Upload, ChevronRight, Save, ClipboardList, Check, Search, Edit3, Plus, Trash2, Image, Banknote, Hammer, Receipt, CreditCard, MessageSquare, Clock
+  User, AlertCircle, FileText, Camera, Upload, ChevronRight, Save, ClipboardList, Check, Search, Edit3, Plus, Trash2, Image, Banknote, Hammer, Receipt, CreditCard, MessageSquare, Clock, Send
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
@@ -29,6 +29,8 @@ export default function EmployeeRealTimeDashboard() {
   // User comments state
   const [adminComments, setAdminComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(false);
+  const [userReplyText, setUserReplyText] = useState('');
+  const [submittingReply, setSubmittingReply] = useState(false);
 
   const loadUserComments = useCallback(async () => {
     if (!user?.id) return;
@@ -48,6 +50,27 @@ export default function EmployeeRealTimeDashboard() {
       loadUserComments();
     }
   }, [user?.id, loadUserComments]);
+
+  const handlePostUserReply = async (e) => {
+    e.preventDefault();
+    if (!user?.id || !userReplyText.trim()) return;
+    setSubmittingReply(true);
+    try {
+      await apiFetch('/api/comments', {
+        method: 'POST',
+        body: JSON.stringify({
+          userId: user.id,
+          content: userReplyText.trim(),
+        }),
+      });
+      setUserReplyText('');
+      await loadUserComments();
+    } catch (err) {
+      alert(err.message || 'Failed to send reply');
+    } finally {
+      setSubmittingReply(false);
+    }
+  };
   
   // Inline actions states
   const [expandedJobId, setExpandedJobId] = useState(null);
@@ -912,41 +935,71 @@ export default function EmployeeRealTimeDashboard() {
         {loadingComments ? (
           <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8' }}>Loading messages...</div>
         ) : adminComments.length === 0 ? (
-          <div style={{ padding: 24, textAlign: 'center', background: 'rgba(255, 255, 255, 0.02)', borderRadius: 12, border: '1px dashed rgba(255, 255, 255, 0.1)', color: '#94a3b8', fontSize: 13 }}>
-            No admin messages posted for your account yet.
+          <div style={{ padding: 24, textAlign: 'center', background: 'rgba(255, 255, 255, 0.02)', borderRadius: 12, border: '1px dashed rgba(255, 255, 255, 0.1)', color: '#94a3b8', fontSize: 13, marginBottom: 20 }}>
+            No admin messages posted for your account yet. You can send a message below.
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '450px', overflowY: 'auto', paddingRight: 6 }}>
-            {adminComments.map((c) => (
-              <div
-                key={c.id}
-                style={{
-                  background: 'rgba(30, 41, 59, 0.6)',
-                  borderRadius: 12,
-                  padding: '16px 20px',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  borderLeft: '4px solid #a78bfa',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Clock size={13} />
-                    {new Date(c.createdAt).toLocaleString('en-US', {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    })}
-                  </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '420px', overflowY: 'auto', paddingRight: 6, marginBottom: 20 }}>
+            {adminComments.map((c) => {
+              const isMyReply = c.senderRole === 'EMPLOYEE';
+              return (
+                <div
+                  key={c.id}
+                  style={{
+                    background: isMyReply ? 'rgba(16, 185, 129, 0.08)' : 'rgba(30, 41, 59, 0.6)',
+                    borderRadius: 12,
+                    padding: '16px 20px',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderLeft: isMyReply ? '4px solid #10b981' : '4px solid #a78bfa',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Clock size={13} />
+                      {new Date(c.createdAt).toLocaleString('en-US', {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })}
+                      {isMyReply && (
+                        <span className="status-pill active" style={{ fontSize: 10, background: 'rgba(16,185,129,0.2)', color: '#34d399', padding: '2px 8px' }}>
+                          Your Reply
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 14, color: '#f1f5f9', whiteSpace: 'pre-wrap', lineHeight: 1.6, marginBottom: 8 }}>
+                    {c.content}
+                  </div>
+                  <div style={{ textAlign: 'right', fontSize: 13, fontWeight: 700, color: isMyReply ? '#34d399' : '#c084fc' }}>
+                    By {c.senderName || c.adminName || (isMyReply ? (user?.employeeName || 'You') : 'Fatma')}
+                  </div>
                 </div>
-                <div style={{ fontSize: 14, color: '#f1f5f9', whiteSpace: 'pre-wrap', lineHeight: 1.6, marginBottom: 8 }}>
-                  {c.content}
-                </div>
-                <div style={{ textAlign: 'right', fontSize: 13, fontWeight: 700, color: '#c084fc' }}>
-                  By {c.adminName}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
+
+        {/* Employee Reply Form */}
+        <form onSubmit={handlePostUserReply} style={{ display: 'flex', gap: 12, alignItems: 'center', background: 'rgba(15, 23, 42, 0.6)', padding: 12, borderRadius: 12, border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+          <input
+            type="text"
+            className="nexus-input"
+            placeholder="Type your reply to admin..."
+            value={userReplyText}
+            onChange={(e) => setUserReplyText(e.target.value)}
+            required
+            style={{ flex: 1, background: 'rgba(255, 255, 255, 0.05)', color: '#fff', padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(255, 255, 255, 0.1)', fontSize: 13 }}
+          />
+          <button
+            type="submit"
+            className="nexus-btn nexus-btn-primary"
+            disabled={submittingReply || !userReplyText.trim()}
+            style={{ padding: '10px 18px', fontSize: 13, gap: 6 }}
+          >
+            <Send size={15} />
+            {submittingReply ? 'Sending...' : 'Send Reply'}
+          </button>
+        </form>
       </section>
 
       {/* TICKET SUMMARY CARDS */}

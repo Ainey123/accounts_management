@@ -39,7 +39,7 @@ export default function AdminCommandCenter() {
   const [selectedUserForComments, setSelectedUserForComments] = useState(null);
   const [userComments, setUserComments] = useState([]);
   const [newCommentText, setNewCommentText] = useState('');
-  const [adminPostingName, setAdminPostingName] = useState('');
+  const [adminPostingName, setAdminPostingName] = useState('Fatma');
   const [loadingComments, setLoadingComments] = useState(false);
   const [submittingComment, setSubmittingComment] = useState(false);
 
@@ -81,7 +81,7 @@ export default function AdminCommandCenter() {
         body: JSON.stringify({
           userId: selectedUserForComments,
           content: newCommentText.trim(),
-          adminName: adminPostingName.trim() || undefined,
+          adminName: adminPostingName.trim() || 'Fatma',
         }),
       });
       setNewCommentText('');
@@ -730,33 +730,50 @@ export default function AdminCommandCenter() {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '520px', overflowY: 'auto', paddingRight: 6 }}>
-                    {userComments.map((c) => (
-                      <div key={c.id} style={{ background: 'rgba(30, 41, 59, 0.6)', borderRadius: 12, padding: '16px 20px', border: '1px solid rgba(255, 255, 255, 0.08)', borderLeft: '4px solid #a78bfa' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                          <span style={{ fontSize: 12, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <Clock size={13} />
-                            {new Date(c.createdAt).toLocaleString('en-US', {
-                              dateStyle: 'medium',
-                              timeStyle: 'short',
-                            })}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteComment(c.id)}
-                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}
-                            title="Delete comment"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                    {userComments.map((c) => {
+                      const isEmployee = c.senderRole === 'EMPLOYEE';
+                      return (
+                        <div
+                          key={c.id}
+                          style={{
+                            background: isEmployee ? 'rgba(16, 185, 129, 0.08)' : 'rgba(30, 41, 59, 0.6)',
+                            borderRadius: 12,
+                            padding: '16px 20px',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            borderLeft: isEmployee ? '4px solid #10b981' : '4px solid #a78bfa',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <span style={{ fontSize: 12, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <Clock size={13} />
+                              {new Date(c.createdAt).toLocaleString('en-US', {
+                                dateStyle: 'medium',
+                                timeStyle: 'short',
+                              })}
+                              {isEmployee && (
+                                <span className="status-pill active" style={{ fontSize: 10, background: 'rgba(16,185,129,0.2)', color: '#34d399', padding: '2px 8px' }}>
+                                  User Reply
+                                </span>
+                              )}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteComment(c.id)}
+                              style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}
+                              title="Delete comment"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                          <p style={{ fontSize: 14, color: '#f1f5f9', whiteSpace: 'pre-wrap', margin: 0, lineHeight: 1.6 }}>
+                            {c.content}
+                          </p>
+                          <div style={{ textAlign: 'right', marginTop: 10, fontSize: 13, fontWeight: 700, color: isEmployee ? '#34d399' : '#c084fc' }}>
+                            By {c.senderName || c.adminName || (isEmployee ? 'Employee' : 'Fatma')}
+                          </div>
                         </div>
-                        <p style={{ fontSize: 14, color: '#f1f5f9', whiteSpace: 'pre-wrap', margin: 0, lineHeight: 1.6 }}>
-                          {c.content}
-                        </p>
-                        <div style={{ textAlign: 'right', marginTop: 10, fontSize: 13, fontWeight: 700, color: '#c084fc' }}>
-                          By {c.adminName}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -769,18 +786,18 @@ export default function AdminCommandCenter() {
                 <form onSubmit={handlePostComment} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div>
                     <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 6, fontWeight: 600 }}>
-                      Admin Name (e.g. Anie, Fatma):
+                      Admin Name (Defaults to Fatma):
                     </label>
                     <input
                       type="text"
                       className="nexus-input"
-                      placeholder="e.g. Anie or Fatma"
+                      placeholder="Fatma (or type custom name like Anie)"
                       value={adminPostingName}
                       onChange={(e) => setAdminPostingName(e.target.value)}
                       style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: '#fff', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', fontSize: 13 }}
                     />
                     <small style={{ fontSize: 11, color: '#64748b', marginTop: 4, display: 'block' }}>
-                      If left blank, defaults to logged-in admin name.
+                      Pre-filled with Fatma. Edit if another admin (e.g. Anie) is posting.
                     </small>
                   </div>
 

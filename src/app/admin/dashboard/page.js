@@ -6,7 +6,7 @@ import {
   Settings, Mail, FileText, RefreshCw, Filter, Search,
   DollarSign, Globe, Phone, MapPin, Save, Eye, Key,
   TrendingUp, TrendingDown, Check, ClipboardCopy,
-  CheckCircle, AlertCircle, XCircle
+  CheckCircle, AlertCircle, XCircle, MessageSquare, Clock, Send
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
@@ -34,6 +34,76 @@ export default function AdminCommandCenter() {
   const [passwordForm, setPasswordForm] = useState({ password: '', confirmPassword: '' });
   const [changingPassword, setChangingPassword] = useState(false);
   const [currentEmail, setCurrentEmail] = useState('');
+
+  // User Comments State
+  const [selectedUserForComments, setSelectedUserForComments] = useState(null);
+  const [userComments, setUserComments] = useState([]);
+  const [newCommentText, setNewCommentText] = useState('');
+  const [adminPostingName, setAdminPostingName] = useState('');
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [submittingComment, setSubmittingComment] = useState(false);
+
+  const loadUserComments = async (userId) => {
+    if (!userId) {
+      setUserComments([]);
+      return;
+    }
+    setLoadingComments(true);
+    try {
+      const res = await apiFetch(`/api/comments?userId=${userId}`);
+      setUserComments(res.comments || []);
+    } catch (err) {
+      console.error('Error loading comments:', err);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'comments' && selectedUserForComments) {
+      loadUserComments(selectedUserForComments);
+    }
+  }, [activeTab, selectedUserForComments]);
+
+  useEffect(() => {
+    if (activeTab === 'comments' && !selectedUserForComments && users.length > 0) {
+      setSelectedUserForComments(users[0].id);
+    }
+  }, [activeTab, users, selectedUserForComments]);
+
+  const handlePostComment = async (e) => {
+    e.preventDefault();
+    if (!selectedUserForComments || !newCommentText.trim()) return;
+    setSubmittingComment(true);
+    try {
+      await apiFetch('/api/comments', {
+        method: 'POST',
+        body: JSON.stringify({
+          userId: selectedUserForComments,
+          content: newCommentText.trim(),
+          adminName: adminPostingName.trim() || undefined,
+        }),
+      });
+      setNewCommentText('');
+      await loadUserComments(selectedUserForComments);
+      setMessage('Comment posted successfully!');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err) {
+      alert(err.message || 'Failed to post comment');
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!confirm('Are you sure you want to delete this comment?')) return;
+    try {
+      await apiFetch(`/api/comments/${commentId}`, { method: 'DELETE' });
+      await loadUserComments(selectedUserForComments);
+    } catch (err) {
+      alert(err.message || 'Failed to delete comment');
+    }
+  };
 
   const loadAll = async () => {
     const [userRes, statsRes, finRes, ticketsRes, gmailRes, settingsRes] = await Promise.all([
@@ -248,6 +318,7 @@ export default function AdminCommandCenter() {
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Activity },
     { id: 'employees', label: 'Employees', icon: Users },
+    { id: 'comments', label: 'Comments', icon: MessageSquare },
     { id: 'tickets', label: 'All Tickets', icon: FileText },
     { id: 'gmail', label: 'Gmail Accounts', icon: Mail },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -577,6 +648,15 @@ export default function AdminCommandCenter() {
                         <button
                           type="button"
                           className="nexus-btn nexus-btn-ghost"
+                          onClick={() => { setSelectedUserForComments(u.id); setActiveTab('comments'); }}
+                          style={{ padding: 6, color: '#a78bfa' }}
+                          title="Manage Comments for User"
+                        >
+                          <MessageSquare size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="nexus-btn nexus-btn-ghost"
                           onClick={() => { setPasswordUserId(u.id); setPasswordForm({ password: '', confirmPassword: '' }); setPasswordModalOpen(true); }}
                           style={{ padding: 6, color: '#f59e0b' }}
                           title={u.role === 'ADMIN' ? 'Change Admin Password' : 'Reset Password'}
@@ -600,6 +680,142 @@ export default function AdminCommandCenter() {
               })}
             </tbody>
           </table>
+        </section>
+      )}
+
+      {/* COMMENTS TAB */}
+      {activeTab === 'comments' && (
+        <section className="glass-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <MessageSquare size={20} color="#a78bfa" />
+              <h2 style={{ fontSize: 18, margin: 0 }}>Dedicated User Comments & Messages</h2>
+            </div>
+
+            {/* User Selector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <label style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>Select Target User:</label>
+              <select
+                value={selectedUserForComments || ''}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setSelectedUserForComments(val);
+                }}
+                className="nexus-select"
+                style={{ background: 'rgba(15, 23, 42, 0.8)', color: '#fff', border: '1px solid rgba(255, 255, 255, 0.15)', padding: '8px 14px', borderRadius: 8, fontSize: 13, minWidth: 220 }}
+              >
+                {users.map((u) => (
+                  <option key={u.id} value={u.id} style={{ background: '#0f172a' }}>
+                    {u.employeeName} ({u.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {selectedUserForComments ? (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24 }}>
+              {/* Left Column: Chronological Comment History */}
+              <div>
+                <h3 style={{ fontSize: 15, color: '#00f2fe', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <MessageSquare size={16} />
+                  Comment Thread for {users.find((u) => u.id === selectedUserForComments)?.employeeName || 'User'}
+                </h3>
+
+                {loadingComments ? (
+                  <div style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>Loading comments...</div>
+                ) : userComments.length === 0 ? (
+                  <div style={{ padding: 32, textAlign: 'center', background: 'rgba(255, 255, 255, 0.02)', borderRadius: 12, border: '1px dashed rgba(255, 255, 255, 0.1)', color: '#94a3b8' }}>
+                    No comments left for this user yet. Use the form on the right to post a comment or message!
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '520px', overflowY: 'auto', paddingRight: 6 }}>
+                    {userComments.map((c) => (
+                      <div key={c.id} style={{ background: 'rgba(30, 41, 59, 0.6)', borderRadius: 12, padding: '16px 20px', border: '1px solid rgba(255, 255, 255, 0.08)', borderLeft: '4px solid #a78bfa' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <span style={{ fontSize: 12, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Clock size={13} />
+                            {new Date(c.createdAt).toLocaleString('en-US', {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteComment(c.id)}
+                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}
+                            title="Delete comment"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                        <p style={{ fontSize: 14, color: '#f1f5f9', whiteSpace: 'pre-wrap', margin: 0, lineHeight: 1.6 }}>
+                          {c.content}
+                        </p>
+                        <div style={{ textAlign: 'right', marginTop: 10, fontSize: 13, fontWeight: 700, color: '#c084fc' }}>
+                          By {c.adminName}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Post Admin Comment Form */}
+              <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: 20, borderRadius: 12, border: '1px solid rgba(255, 255, 255, 0.08)', height: 'fit-content' }}>
+                <h3 style={{ fontSize: 15, color: '#fff', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Send size={16} color="#00f2fe" /> Leave Comment / Message
+                </h3>
+                <form onSubmit={handlePostComment} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 6, fontWeight: 600 }}>
+                      Admin Name (e.g. Anie, Fatma):
+                    </label>
+                    <input
+                      type="text"
+                      className="nexus-input"
+                      placeholder="e.g. Anie or Fatma"
+                      value={adminPostingName}
+                      onChange={(e) => setAdminPostingName(e.target.value)}
+                      style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: '#fff', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', fontSize: 13 }}
+                    />
+                    <small style={{ fontSize: 11, color: '#64748b', marginTop: 4, display: 'block' }}>
+                      If left blank, defaults to logged-in admin name.
+                    </small>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 6, fontWeight: 600 }}>
+                      Comment Message:
+                    </label>
+                    <textarea
+                      rows={5}
+                      className="nexus-input"
+                      placeholder="Type comment or message for this specific user..."
+                      value={newCommentText}
+                      onChange={(e) => setNewCommentText(e.target.value)}
+                      required
+                      style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: '#fff', padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', fontSize: 13, resize: 'vertical' }}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="nexus-btn nexus-btn-primary"
+                    disabled={submittingComment || !newCommentText.trim()}
+                    style={{ width: '100%', justifyContent: 'center', gap: 8, padding: '10px 16px' }}
+                  >
+                    <Send size={16} />
+                    {submittingComment ? 'Posting...' : 'Post Comment'}
+                  </button>
+                </form>
+              </div>
+            </div>
+          ) : (
+            <div style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>
+              Please select a user to view or post comments.
+            </div>
+          )}
         </section>
       )}
 

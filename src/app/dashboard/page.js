@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Webcam from 'react-webcam';
 import {
   Mail, RefreshCw, Activity, CheckCircle, DollarSign,
-  User, AlertCircle, FileText, Camera, Upload, ChevronRight, Save, ClipboardList, Check, Search, Edit3, Plus, Trash2, Image, Banknote, Hammer, Receipt, CreditCard
+  User, AlertCircle, FileText, Camera, Upload, ChevronRight, Save, ClipboardList, Check, Search, Edit3, Plus, Trash2, Image, Banknote, Hammer, Receipt, CreditCard, MessageSquare, Clock
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
@@ -25,6 +25,29 @@ export default function EmployeeRealTimeDashboard() {
   const [feedMonth, setFeedMonth] = useState('');
   const [feedDate, setFeedDate] = useState('');
   const [feedPerson, setFeedPerson] = useState('');
+  
+  // User comments state
+  const [adminComments, setAdminComments] = useState([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+
+  const loadUserComments = useCallback(async () => {
+    if (!user?.id) return;
+    setLoadingComments(true);
+    try {
+      const res = await apiFetch(`/api/comments?userId=${user.id}`);
+      setAdminComments(res.comments || []);
+    } catch (err) {
+      console.error('Failed to load user comments:', err);
+    } finally {
+      setLoadingComments(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      loadUserComments();
+    }
+  }, [user?.id, loadUserComments]);
   
   // Inline actions states
   const [expandedJobId, setExpandedJobId] = useState(null);
@@ -862,6 +885,68 @@ export default function EmployeeRealTimeDashboard() {
             );
           })}
         </div>
+      </section>
+
+      {/* ADMIN MESSAGES & COMMENTS SECTION */}
+      <section className="glass-card" style={{ padding: '24px 32px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ background: 'rgba(139, 92, 246, 0.2)', padding: 8, borderRadius: 10 }}>
+              <MessageSquare size={20} color="#a78bfa" />
+            </div>
+            <div>
+              <h2 style={{ fontSize: 18, margin: 0, color: '#fff' }}>Admin Messages & Comments</h2>
+              <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>Direct messages and notes from management</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="nexus-btn nexus-btn-ghost"
+            onClick={loadUserComments}
+            style={{ fontSize: 12, gap: 6 }}
+          >
+            <RefreshCw size={14} /> Refresh Messages
+          </button>
+        </div>
+
+        {loadingComments ? (
+          <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8' }}>Loading messages...</div>
+        ) : adminComments.length === 0 ? (
+          <div style={{ padding: 24, textAlign: 'center', background: 'rgba(255, 255, 255, 0.02)', borderRadius: 12, border: '1px dashed rgba(255, 255, 255, 0.1)', color: '#94a3b8', fontSize: 13 }}>
+            No admin messages posted for your account yet.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '450px', overflowY: 'auto', paddingRight: 6 }}>
+            {adminComments.map((c) => (
+              <div
+                key={c.id}
+                style={{
+                  background: 'rgba(30, 41, 59, 0.6)',
+                  borderRadius: 12,
+                  padding: '16px 20px',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderLeft: '4px solid #a78bfa',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Clock size={13} />
+                    {new Date(c.createdAt).toLocaleString('en-US', {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    })}
+                  </span>
+                </div>
+                <div style={{ fontSize: 14, color: '#f1f5f9', whiteSpace: 'pre-wrap', lineHeight: 1.6, marginBottom: 8 }}>
+                  {c.content}
+                </div>
+                <div style={{ textAlign: 'right', fontSize: 13, fontWeight: 700, color: '#c084fc' }}>
+                  By {c.adminName}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* TICKET SUMMARY CARDS */}

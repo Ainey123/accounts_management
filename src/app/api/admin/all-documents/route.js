@@ -30,7 +30,7 @@ async function getLedger(workNature, pendingFilter, fromDate, toDate) {
   if (fromDate || toDate) {
     where.createdAt = {};
     if (fromDate) where.createdAt.gte = new Date(fromDate);
-    if (toDate) where.createdAt.lte = new Date(toDate);
+    if (toDate) where.createdAt.lte = new Date(toDate + 'T23:59:59.999Z');
   }
 
   const jobs = await prisma.jobMetadata.findMany({
@@ -87,18 +87,19 @@ async function getSummary(workNature, fromDate, toDate) {
     if (fromDate) jobWhere.createdAt.gte = new Date(fromDate);
     if (toDate) jobWhere.createdAt.lte = new Date(toDate + 'T23:59:59.999Z');
   }
-  const jobMetadataFilter = Object.keys(jobWhere).length > 0 ? jobWhere : undefined;
+
+  const relationFilter = Object.keys(jobWhere).length > 0 ? { jobMetadata: jobWhere } : {};
 
   const [totalJobs, jobsByNature, totalQuotations, approvedQuotations, totalInvoices, totalPayments, totalExpenses, completions, bankApprovals] = await Promise.all([
     prisma.jobMetadata.count({ where: jobWhere }),
     prisma.jobMetadata.groupBy({ by: ['workNature'], where: jobWhere, _count: { id: true } }),
-    prisma.quotationInvoice.count({ where: { documentType: 'QUOTATION', jobMetadata: jobMetadataFilter } }),
-    prisma.quotationInvoice.count({ where: { documentType: 'QUOTATION', status: 'APPROVED', jobMetadata: jobMetadataFilter } }),
-    prisma.quotationInvoice.count({ where: { documentType: 'INVOICE', jobMetadata: jobMetadataFilter } }),
-    prisma.paymentReceived.aggregate({ where: { jobMetadata: jobMetadataFilter }, _sum: { amount: true }, _sum: { taxDeducted: true } }),
-    prisma.expense.aggregate({ where: { jobMetadata: jobMetadataFilter }, _sum: { amount: true } }),
-    prisma.workCompletion.count({ where: { status: 'COMPLETED', jobMetadata: jobMetadataFilter } }),
-    prisma.bankApproval.count({ where: { status: 'APPROVED', jobMetadata: jobMetadataFilter } }),
+    prisma.quotationInvoice.count({ where: { ...relationFilter, documentType: 'QUOTATION' } }),
+    prisma.quotationInvoice.count({ where: { ...relationFilter, documentType: 'QUOTATION', status: 'APPROVED' } }),
+    prisma.quotationInvoice.count({ where: { ...relationFilter, documentType: 'INVOICE' } }),
+    prisma.paymentReceived.aggregate({ where: { ...relationFilter }, _sum: { amount: true }, _sum: { taxDeducted: true } }),
+    prisma.expense.aggregate({ where: { ...relationFilter }, _sum: { amount: true } }),
+    prisma.workCompletion.count({ where: { status: 'COMPLETED', ...relationFilter } }),
+    prisma.bankApproval.count({ where: { status: 'APPROVED', ...relationFilter } }),
   ]);
 
   const natureMap = {};
@@ -136,7 +137,7 @@ export async function GET(request) {
 
     const [ledger, summary] = await Promise.all([
       getLedger(workNature, pendingFilter, fromDate, toDate),
-      getSummary(workNature),
+      getSummary(workNature, fromDate, toDate),
     ]);
 
     let filteredLedger = ledger;

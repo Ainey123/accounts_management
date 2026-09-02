@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mail, RefreshCw, Link, X, Filter, Shield, Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { Mail, RefreshCw, Link, X, Filter, Shield, Plus, Trash2, AlertTriangle, Copy, Check, ExternalLink, Key } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
@@ -15,6 +15,8 @@ export default function GmailConnectionPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [tickets, setTickets] = useState([]);
+  const [oauthDetails, setOauthDetails] = useState(null);
+  const [copied, setCopied] = useState(false);
   const oauthHandlerRef = useRef(null);
 
   useEffect(() => {
@@ -23,9 +25,20 @@ export default function GmailConnectionPage() {
     }
   }, [user, router]);
 
+  const loadOAuthInfo = async () => {
+    try {
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const data = await apiFetch(`/api/gmail-oauth?origin=${encodeURIComponent(origin)}`);
+      setOauthDetails(data);
+    } catch (e) {
+      console.error('Failed to load OAuth info:', e);
+    }
+  };
+
   useEffect(() => {
     loadAccounts();
     loadTickets();
+    loadOAuthInfo();
     return () => {
       if (oauthHandlerRef.current) {
         window.removeEventListener('message', oauthHandlerRef.current);
@@ -266,6 +279,63 @@ export default function GmailConnectionPage() {
             </button>
           </>
         )}
+
+        {/* Google OAuth Configuration & Redirect URI helper */}
+        <div style={{ marginTop: 24, padding: 18, background: 'rgba(15, 23, 42, 0.7)', borderRadius: 12, border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#00f2fe', fontWeight: 600, fontSize: 14 }}>
+              <Key size={16} /> Google OAuth Configuration Info
+            </div>
+            <a
+              href="https://console.cloud.google.com/auth/clients?project=nexus-operations-500206"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="nexus-btn nexus-btn-ghost"
+              style={{ fontSize: 12, padding: '4px 10px', color: '#a78bfa' }}
+            >
+              <ExternalLink size={13} /> Open Google Cloud Clients
+            </a>
+          </div>
+
+          <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12, lineHeight: 1.5 }}>
+            If Google returns <strong>Error 400 (Malformed request)</strong>, make sure the exact Redirect URI below is copied into your Google Cloud Console under <em>Authorized redirect URIs</em>:
+          </p>
+
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 4, textTransform: 'uppercase' }}>
+              Required Authorized Redirect URI:
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)' }}>
+              <code style={{ fontSize: 12, color: '#00f2fe', flex: 1, wordBreak: 'break-all', fontFamily: 'monospace' }}>
+                {oauthDetails?.redirectUri || (typeof window !== 'undefined' ? `${window.location.origin}/api/gmail/callback` : 'https://.../api/gmail/callback')}
+              </code>
+              <button
+                type="button"
+                className="nexus-btn nexus-btn-ghost"
+                onClick={() => {
+                  const uri = oauthDetails?.redirectUri || `${window.location.origin}/api/gmail/callback`;
+                  navigator.clipboard.writeText(uri);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                style={{ padding: '4px 8px', fontSize: 12, color: copied ? '#22c55e' : '#fff' }}
+                title="Copy Redirect URI"
+              >
+                {copied ? <Check size={14} color="#22c55e" /> : <Copy size={14} />}
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 4, textTransform: 'uppercase' }}>
+              Configured Google Client ID:
+            </label>
+            <code style={{ fontSize: 11, color: '#94a3b8', wordBreak: 'break-all', fontFamily: 'monospace' }}>
+              {oauthDetails?.clientId || 'Loading...'}
+            </code>
+          </div>
+        </div>
       </div>
 
       <section className="glass-card">

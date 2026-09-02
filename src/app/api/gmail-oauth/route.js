@@ -51,7 +51,11 @@ export async function GET(request) {
     prompt: 'consent',
   });
 
-  return NextResponse.json({ authUrl: url, redirectUri: `${getBaseUrl(request)}/api/gmail/callback` });
+  return NextResponse.json({
+    authUrl: url,
+    clientId: process.env.GOOGLE_CLIENT_ID || '',
+    redirectUri: `${getBaseUrl(request)}/api/gmail/callback`,
+  });
 }
 
 // OAuth callback - save tokens

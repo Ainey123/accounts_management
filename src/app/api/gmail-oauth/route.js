@@ -9,14 +9,19 @@ function googleConfigured() {
 function getBaseUrl(request) {
   if (request) {
     try {
+      const url = new URL(request.url);
+      const originParam = url.searchParams.get('origin');
+      if (originParam && (originParam.startsWith('http://') || originParam.startsWith('https://'))) {
+        return originParam.replace(/\/+$/, '');
+      }
       const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
       const proto = request.headers.get('x-forwarded-proto') || 'https';
-      if (host) return `${proto}://${host}`;
+      if (host) return `${proto}://${host}`.replace(/\/+$/, '');
     } catch {}
   }
-  if (process.env.APP_URL) return process.env.APP_URL;
-  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/+$/, '');
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, '');
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`.replace(/\/+$/, '');
   return 'http://localhost:3000';
 }
 

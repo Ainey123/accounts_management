@@ -74,7 +74,8 @@ export default function GmailConnectionPage() {
   const handleConnect = useCallback(async () => {
     setMessage('Redirecting to Google for authentication...');
     try {
-      const { authUrl } = await apiFetch('/api/gmail-oauth');
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const { authUrl } = await apiFetch(`/api/gmail-oauth?origin=${encodeURIComponent(origin)}`);
       // Redirect in the same window (no popups)
       window.location.href = authUrl;
     } catch (err) {

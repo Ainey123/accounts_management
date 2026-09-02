@@ -6,30 +6,35 @@ function googleConfigured() {
   return process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET;
 }
 
-function getBaseUrl() {
-  if (process.env.NODE_ENV === 'production') {
-    if (process.env.APP_URL) return process.env.APP_URL;
-    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-    if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+function getBaseUrl(request) {
+  if (request) {
+    try {
+      const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+      const proto = request.headers.get('x-forwarded-proto') || 'https';
+      if (host) return `${proto}://${host}`;
+    } catch {}
   }
+  if (process.env.APP_URL) return process.env.APP_URL;
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   return 'http://localhost:3000';
 }
 
-function createOAuth2Client() {
+function createOAuth2Client(request) {
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) return null;
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    `${getBaseUrl()}/api/gmail/callback`
+    `${getBaseUrl(request)}/api/gmail/callback`
   );
 }
 
 // Start OAuth connection
-export async function GET() {
+export async function GET(request) {
   if (!googleConfigured()) {
     return NextResponse.json({ error: 'Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.' }, { status: 500 });
   }
-  const oauth2Client = createOAuth2Client();
+  const oauth2Client = createOAuth2Client(request);
   const scopes = [
     'https://www.googleapis.com/auth/gmail.readonly',
     'https://www.googleapis.com/auth/userinfo.email',
@@ -41,7 +46,7 @@ export async function GET() {
     prompt: 'consent',
   });
 
-  return NextResponse.json({ authUrl: url });
+  return NextResponse.json({ authUrl: url, redirectUri: `${getBaseUrl(request)}/api/gmail/callback` });
 }
 
 // OAuth callback - save tokens

@@ -5,12 +5,17 @@ import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { prisma } from '@/lib/prisma';
 
-function getBaseUrl() {
-  if (process.env.NODE_ENV === 'production') {
-    if (process.env.APP_URL) return process.env.APP_URL;
-    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-    if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+function getBaseUrl(request) {
+  if (request) {
+    try {
+      const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+      const proto = request.headers.get('x-forwarded-proto') || 'https';
+      if (host) return `${proto}://${host}`;
+    } catch {}
   }
+  if (process.env.APP_URL) return process.env.APP_URL;
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   return 'http://localhost:3000';
 }
 
@@ -30,11 +35,11 @@ function getDedupKey(subject) {
   return '';
 }
 
-async function syncAccount(account) {
+async function syncAccount(account, request) {
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    `${getBaseUrl()}/api/gmail/callback`
+    `${getBaseUrl(request)}/api/gmail/callback`
   );
 
   oauth2Client.setCredentials({
@@ -216,7 +221,7 @@ async function runSync(request) {
   const results = [];
   for (const account of accounts) {
     try {
-      const result = await syncAccount(account);
+      const result = await syncAccount(account, request);
       results.push(result);
     } catch (error) {
       console.error(`Sync failed for ${account.gmailEmail}:`, error.message);

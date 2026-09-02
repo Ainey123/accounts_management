@@ -183,14 +183,25 @@ export default function GmailConnectionPage() {
                     </div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="nexus-btn nexus-btn-ghost"
-                  onClick={() => handleDisconnect(account.id)}
-                  style={{ color: '#ef4444' }}
-                >
-                  <Trash2 size={14} /> Disconnect
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    className="nexus-btn nexus-btn-primary"
+                    onClick={handleConnect}
+                    style={{ padding: '6px 12px', fontSize: 13 }}
+                    title="Re-authenticate if password changed or token expired"
+                  >
+                    <RefreshCw size={13} /> Reconnect
+                  </button>
+                  <button
+                    type="button"
+                    className="nexus-btn nexus-btn-ghost"
+                    onClick={() => handleDisconnect(account.id)}
+                    style={{ color: '#ef4444', padding: '6px 12px' }}
+                  >
+                    <Trash2 size={14} /> Disconnect
+                  </button>
+                </div>
               </div>
             ))}
           </div>

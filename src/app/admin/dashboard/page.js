@@ -185,6 +185,16 @@ export default function AdminCommandCenter() {
     }
   };
 
+  const handleConnectGmail = async () => {
+    setMessage('Redirecting to Google for authentication...');
+    try {
+      const { authUrl } = await apiFetch('/api/gmail-oauth');
+      window.location.href = authUrl;
+    } catch (err) {
+      setMessage('Failed to start OAuth: ' + err.message);
+    }
+  };
+
   const handleDisconnectGmail = async (accountId) => {
     if (!confirm('Disconnect this Gmail account?')) return;
     try {
@@ -982,6 +992,9 @@ export default function AdminCommandCenter() {
               <h2 style={{ fontSize: 18, margin: 0 }}>Connected Gmail Accounts ({gmailAccounts.length})</h2>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button type="button" className="nexus-btn nexus-btn-ghost" onClick={handleConnectGmail} style={{ color: '#00f2fe' }}>
+                <Mail size={16} /> + Connect / Reconnect Gmail
+              </button>
               <button type="button" className="nexus-btn nexus-btn-ghost" onClick={handleFixDuplicates} style={{ color: '#f59e0b' }}>
                 <Filter size={16} /> Fix Duplicates
               </button>
@@ -996,7 +1009,7 @@ export default function AdminCommandCenter() {
 
           {gmailAccounts.length === 0 ? (
             <div style={{ padding: 32, textAlign: 'center', color: '#64748b' }}>
-              No Gmail accounts connected. Go to Gmail Connection page to add one.
+              No Gmail accounts connected. Click &quot;+ Connect / Reconnect Gmail&quot; to connect one.
             </div>
           ) : (
             <table className="data-table">
@@ -1015,14 +1028,25 @@ export default function AdminCommandCenter() {
                     <td>{new Date(acc.createdAt).toLocaleDateString()}</td>
                     <td>{acc.syncedAt ? new Date(acc.syncedAt).toLocaleString() : 'Never'}</td>
                     <td>
-                      <button
-                        type="button"
-                        className="nexus-btn nexus-btn-ghost"
-                        onClick={() => handleDisconnectGmail(acc.id)}
-                        style={{ color: '#ef4444' }}
-                      >
-                        <Trash2 size={14} /> Disconnect
-                      </button>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          type="button"
+                          className="nexus-btn nexus-btn-ghost"
+                          onClick={handleConnectGmail}
+                          style={{ color: '#00f2fe', padding: '4px 8px', fontSize: 12 }}
+                          title="Re-authenticate if password changed"
+                        >
+                          <RefreshCw size={13} /> Reconnect
+                        </button>
+                        <button
+                          type="button"
+                          className="nexus-btn nexus-btn-ghost"
+                          onClick={() => handleDisconnectGmail(acc.id)}
+                          style={{ color: '#ef4444', padding: '4px 8px', fontSize: 12 }}
+                        >
+                          <Trash2 size={13} /> Disconnect
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

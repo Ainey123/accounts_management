@@ -220,7 +220,22 @@ async function runSync(request) {
       results.push(result);
     } catch (error) {
       console.error(`Sync failed for ${account.gmailEmail}:`, error.message);
-      results.push({ email: account.gmailEmail, error: error.message, synced: 0 });
+      const isAuthError =
+        error.message?.includes('invalid_grant') ||
+        error.message?.includes('401') ||
+        error.message?.includes('Token has been expired') ||
+        error.message?.includes('revoked');
+      
+      const friendlyError = isAuthError
+        ? 'Google password was changed or access expired. Please click "Reconnect" to sign in again.'
+        : error.message;
+
+      results.push({
+        email: account.gmailEmail,
+        error: friendlyError,
+        needsReAuth: isAuthError,
+        synced: 0,
+      });
     }
   }
 

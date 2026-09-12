@@ -31,18 +31,18 @@ function formatDate(dateVal) {
 
 function getStatusBadge(ticket) {
   if (ticket.jobMetadata) {
-    return '<span class="badge badge-green">Intake Done</span>';
+    return '<span class="badge badge-green">✓ Intake Done</span>';
   }
   if (ticket.status === 'RELEVANT') {
-    return '<span class="badge badge-blue">Relevant</span>';
+    return '<span class="badge badge-blue">● Relevant</span>';
   }
   if (ticket.status === 'IRRELEVANT') {
-    return '<span class="badge badge-yellow">Irrelevant</span>';
+    return '<span class="badge badge-yellow">⚠️ Irrelevant</span>';
   }
   if (ticket.status === 'CANCELLED') {
-    return '<span class="badge badge-red">Cancelled</span>';
+    return '<span class="badge badge-red">✕ Cancelled</span>';
   }
-  return '<span class="badge badge-gray">Pending</span>';
+  return '<span class="badge badge-gray">⏳ Pending</span>';
 }
 
 export async function GET(request) {
@@ -51,7 +51,11 @@ export async function GET(request) {
     const fromParam = searchParams.get('from');
     const toParam = searchParams.get('to');
     const monthParam = searchParams.get('month');
+    const batchParam = searchParams.get('batch'); // single batch or 'all'
+    const excludeIrrelevantParam = searchParams.get('excludeIrrelevant'); // 'true' or 'false'
     const aliasesParam = searchParams.get('aliases'); // JSON encoded aliases map
+
+    const excludeIrrelevant = excludeIrrelevantParam !== 'false';
 
     let aliasMap = {
       'Rizwan Hussain': 'Ali Shehzad (Batch 1)',
@@ -97,7 +101,7 @@ export async function GET(request) {
       tenureLabel = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     }
 
-    const tickets = await prisma.ticket.findMany({
+    let tickets = await prisma.ticket.findMany({
       where: {
         exactDate: {
           gte: startDate,
@@ -117,6 +121,11 @@ export async function GET(request) {
         exactDate: 'asc',
       },
     });
+
+    // Apply Irrelevant Filter if requested
+    if (excludeIrrelevant) {
+      tickets = tickets.filter((t) => t.status !== 'IRRELEVANT');
+    }
 
     const getMappedBatch = (rawName) => {
       if (!rawName) return 'Unassigned / Auto-Ingested';
@@ -143,7 +152,7 @@ export async function GET(request) {
       batches[batchName].push(t);
     });
 
-    const sortedBatchNames = Object.keys(batches).sort((a, b) => {
+    let sortedBatchNames = Object.keys(batches).sort((a, b) => {
       if (a.includes('Batch 1')) return -1;
       if (b.includes('Batch 1')) return 1;
       if (a.includes('Batch 2')) return -1;
@@ -157,11 +166,23 @@ export async function GET(request) {
       return a.localeCompare(b);
     });
 
+    // If a specific batch is targeted, filter to only that batch
+    const isSingleBatch = batchParam && batchParam !== 'all';
+    if (isSingleBatch) {
+      sortedBatchNames = sortedBatchNames.filter((b) => b === batchParam || b.toLowerCase().includes(batchParam.toLowerCase()));
+      if (sortedBatchNames.length === 0) {
+        sortedBatchNames = [batchParam];
+        batches[batchParam] = [];
+      }
+    }
+
+    const totalValidCount = sortedBatchNames.reduce((acc, b) => acc + (batches[b]?.length || 0), 0);
+
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Employee Complaints Audit Report - ${escapeHtml(tenureLabel)}</title>
+  <title>${isSingleBatch ? escapeHtml(sortedBatchNames[0]) : 'Employee Complaints Audit Report'} - ${escapeHtml(tenureLabel)}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
     
@@ -175,7 +196,7 @@ export async function GET(request) {
         color: #94a3b8;
       }
       @bottom-left {
-        content: "NEXUS Operations — Employee Complaints Progress Audit";
+        content: "NEXUS Operations — Employee Complaints Progress Audit (${escapeHtml(tenureLabel)})";
         font-family: 'Inter', sans-serif;
         font-size: 8pt;
         color: #94a3b8;
@@ -216,7 +237,7 @@ export async function GET(request) {
 
     .summary-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
       gap: 10px;
       margin-bottom: 20px;
       page-break-inside: avoid;
@@ -241,7 +262,7 @@ export async function GET(request) {
     }
 
     .summary-count {
-      font-size: 16pt;
+      font-size: 18pt;
       font-weight: 800;
       color: #0f172a;
       line-height: 1;
@@ -305,7 +326,7 @@ export async function GET(request) {
     }
 
     td {
-      padding: 5px 8px;
+      padding: 6px 8px;
       border: 1px solid #e2e8f0;
       vertical-align: top;
       color: #334155;
@@ -319,7 +340,7 @@ export async function GET(request) {
       font-family: 'JetBrains Mono', monospace;
       font-weight: 700;
       color: #0284c7;
-      width: 65px;
+      width: 75px;
       white-space: nowrap;
     }
 
@@ -332,6 +353,7 @@ export async function GET(request) {
     .client-col {
       width: 180px;
       font-size: 7.5pt;
+      line-height: 1.3;
     }
 
     .sender-col {
@@ -343,19 +365,20 @@ export async function GET(request) {
 
     .subject-col {
       word-break: break-word;
+      line-height: 1.35;
     }
 
     .status-col {
-      width: 95px;
+      width: 100px;
       text-align: center;
       white-space: nowrap;
     }
 
     .badge {
       display: inline-block;
-      padding: 2px 6px;
-      border-radius: 8px;
-      font-size: 6.5pt;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 7pt;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.3px;
@@ -388,22 +411,31 @@ export async function GET(request) {
 
   <div class="no-print-bar">
     <div>
-      <strong>Audit Report Ready:</strong> ${escapeHtml(tenureLabel)} &bull; Total ${tickets.length} Complaints
+      <strong>Audit Report Ready:</strong> ${escapeHtml(isSingleBatch ? sortedBatchNames[0] : 'All Batches')} &bull; Tenure: ${escapeHtml(tenureLabel)} &bull; <strong>${totalValidCount} Complaints</strong> (${excludeIrrelevant ? 'Excluding Irrelevant' : 'All Included'})
     </div>
-    <button onclick="window.print()" style="background: #4f46e5; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer;">
-      🖨️ Print / Save as PDF
-    </button>
+    <div style="display: flex; gap: 8px;">
+      <button onclick="window.print()" style="background: #4f46e5; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+        🖨️ Print / Save as PDF
+      </button>
+    </div>
   </div>
 
   <div class="report-header">
     <div>
-      <div class="report-title">EMPLOYEE COMPLAINTS AUDIT REPORT</div>
-      <div class="report-subtitle">FES Fast Engineering Solutions &mdash; Tenure: ${escapeHtml(tenureLabel)}</div>
+      <div style="font-size: 8pt; color: #4f46e5; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+        NEXUS OPERATIONS &bull; EMPLOYEE COMPLAINTS AUDIT
+      </div>
+      <div class="report-title">
+        ${isSingleBatch ? `${escapeHtml(sortedBatchNames[0])} Complaints Audit` : 'MONTHLY EMPLOYEE COMPLAINTS REPORT'}
+      </div>
+      <div class="report-subtitle">
+        Tenure: <strong>${escapeHtml(tenureLabel)}</strong> &bull; Filter: <strong>${excludeIrrelevant ? 'Excluding Irrelevant Complaints (Valid Workload Only)' : 'All Ingested Complaints Included'}</strong>
+      </div>
     </div>
     <div style="text-align: right; font-size: 8pt; color: #64748b;">
-      <div><strong>Total Complaints:</strong> ${tickets.length} Records</div>
-      <div><strong>Reporting Period:</strong> ${formatDate(startDate)} &ndash; ${formatDate(endDate)}</div>
-      <div><strong>Generated:</strong> ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+      <div><strong style="color: #0f172a; font-size: 11pt;">${totalValidCount} Valid Records</strong></div>
+      <div><strong>Date Range:</strong> ${formatDate(startDate)} &ndash; ${formatDate(endDate)}</div>
+      <div><strong>Generated:</strong> ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
     </div>
   </div>
 
@@ -412,12 +444,21 @@ export async function GET(request) {
       .map((batchName) => {
         const list = batches[batchName] || [];
         const intakeCount = list.filter((t) => t.jobMetadata).length;
-        const irrelevantCount = list.filter((t) => t.status === 'IRRELEVANT').length;
+        const cancelledCount = list.filter((t) => t.status === 'CANCELLED').length;
+        const pendingCount = list.filter((t) => !t.jobMetadata && t.status === 'PENDING').length;
+        const intakeRate = list.length > 0 ? Math.round((intakeCount / list.length) * 100) : 0;
+        
+        let borderCol = '#4f46e5';
+        if (batchName.includes('Batch 1')) borderCol = '#0284c7';
+        else if (batchName.includes('Batch 2')) borderCol = '#10b981';
+        else if (batchName.includes('Batch 3')) borderCol = '#8b5cf6';
+        else if (batchName.includes('Batch 4')) borderCol = '#f59e0b';
+
         return `
-        <div class="summary-card">
+        <div class="summary-card" style="border-top-color: ${borderCol};">
           <div class="summary-name">${escapeHtml(batchName)}</div>
           <div class="summary-count">${list.length}</div>
-          <div class="summary-meta">${intakeCount} Intake Done | ${irrelevantCount} Irrelevant</div>
+          <div class="summary-meta">${intakeCount} Intake Done (${intakeRate}%) ${cancelledCount > 0 ? `| ${cancelledCount} Cancelled` : ''} ${pendingCount > 0 ? `| ${pendingCount} Pending` : ''}</div>
         </div>
         `;
       })
@@ -428,14 +469,19 @@ export async function GET(request) {
     .map((batchName) => {
       const list = batches[batchName] || [];
       const intakeCount = list.filter((t) => t.jobMetadata).length;
-      const irrelevantCount = list.filter((t) => t.status === 'IRRELEVANT').length;
       const cancelledCount = list.filter((t) => t.status === 'CANCELLED').length;
       const pendingCount = list.filter((t) => !t.jobMetadata && t.status === 'PENDING').length;
 
+      let bannerBg = '#0f172a';
+      if (batchName.includes('Batch 1')) bannerBg = '#0284c7';
+      else if (batchName.includes('Batch 2')) bannerBg = '#059669';
+      else if (batchName.includes('Batch 3')) bannerBg = '#7c3aed';
+      else if (batchName.includes('Batch 4')) bannerBg = '#d97706';
+
       return `
-      <div class="section-banner">
+      <div class="section-banner" style="background: ${bannerBg};">
         <div class="section-title">${escapeHtml(batchName)} &mdash; Total ${list.length} Complaints</div>
-        <div class="section-badge">${intakeCount} Intake Done &bull; ${irrelevantCount} Irrelevant ${cancelledCount > 0 ? `&bull; ${cancelledCount} Cancelled ` : ''}${pendingCount > 0 ? `&bull; ${pendingCount} Pending` : ''}</div>
+        <div class="section-badge">${intakeCount} Intake Done ${cancelledCount > 0 ? `&bull; ${cancelledCount} Cancelled ` : ''}${pendingCount > 0 ? `&bull; ${pendingCount} Pending` : ''}</div>
       </div>
 
       <table>
@@ -452,7 +498,7 @@ export async function GET(request) {
         <tbody>
           ${
             list.length === 0
-              ? `<tr><td colspan="6" style="text-align:center; padding: 12px; color: #94a3b8;">No complaints recorded for this batch in the selected tenure.</td></tr>`
+              ? `<tr><td colspan="6" style="text-align:center; padding: 14px; color: #94a3b8;">No valid complaints recorded for this employee in the selected tenure.</td></tr>`
               : list
                   .map((t) => {
                     let clientBranch = '—';
@@ -467,7 +513,7 @@ export async function GET(request) {
                     <tr>
                       <td class="serial-col">${escapeHtml(t.serialNo || t.id)}</td>
                       <td class="date-col">
-                        ${formatDate(t.exactDate)}<br>
+                        <strong>${formatDate(t.exactDate)}</strong><br>
                         <span style="color: #64748b; font-size: 7pt;">${escapeHtml(t.time || '')}</span>
                       </td>
                       <td class="client-col">${clientBranch}</td>

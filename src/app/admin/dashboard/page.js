@@ -117,6 +117,7 @@ export default function AdminCommandCenter() {
   const [progressLoading, setProgressLoading] = useState(false);
   const [progressSearch, setProgressSearch] = useState('');
   const [progressSelectedBatch, setProgressSelectedBatch] = useState('all');
+  const [progressExcludeIrrelevant, setProgressExcludeIrrelevant] = useState(true);
   const [employeeAliases, setEmployeeAliases] = useState(DEFAULT_ALIASES);
   const [aliasModalOpen, setAliasModalOpen] = useState(false);
   const [editingAliases, setEditingAliases] = useState({ ...DEFAULT_ALIASES });
@@ -199,7 +200,7 @@ export default function AdminCommandCenter() {
     setTimeout(() => setMessage(''), 3000);
   };
 
-  const handleOpenPdfReport = () => {
+  const handleOpenPdfReport = (batchTarget = null) => {
     let reportUrl = '/api/admin/employee-progress/report';
     const params = new URLSearchParams();
     if (progressTenureMode === 'month') {
@@ -208,6 +209,11 @@ export default function AdminCommandCenter() {
       params.set('from', progressFromDate);
       params.set('to', progressToDate);
     }
+    const targetBatch = batchTarget !== null ? batchTarget : progressSelectedBatch;
+    if (targetBatch && targetBatch !== 'all') {
+      params.set('batch', targetBatch);
+    }
+    params.set('excludeIrrelevant', progressExcludeIrrelevant ? 'true' : 'false');
     params.set('aliases', JSON.stringify(employeeAliases));
     window.open(`${reportUrl}?${params.toString()}`, '_blank');
   };
@@ -444,9 +450,15 @@ export default function AdminCommandCenter() {
   const employees = users.filter((u) => u.role === 'EMPLOYEE');
 
   // ── Employee Progress Batch Calculations ─────────────────────────────────
+  const visibleProgressTickets = React.useMemo(() => {
+    if (!progressTickets) return [];
+    if (!progressExcludeIrrelevant) return progressTickets;
+    return progressTickets.filter((t) => t.status !== 'IRRELEVANT');
+  }, [progressTickets, progressExcludeIrrelevant]);
+
   const progressBatches = React.useMemo(() => {
     const batches = {};
-    (progressTickets || []).forEach((t) => {
+    (visibleProgressTickets || []).forEach((t) => {
       const bName = getMappedBatch(t.entryPerson);
       if (!batches[bName]) {
         batches[bName] = [];
@@ -454,7 +466,7 @@ export default function AdminCommandCenter() {
       batches[bName].push(t);
     });
     return batches;
-  }, [progressTickets, employeeAliases]);
+  }, [visibleProgressTickets, employeeAliases]);
 
   const sortedProgressBatchNames = React.useMemo(() => {
     return Object.keys(progressBatches).sort((a, b) => {
@@ -473,7 +485,7 @@ export default function AdminCommandCenter() {
   }, [progressBatches]);
 
   const filteredProgressTickets = React.useMemo(() => {
-    return (progressTickets || []).filter((t) => {
+    return (visibleProgressTickets || []).filter((t) => {
       const bName = getMappedBatch(t.entryPerson);
       if (progressSelectedBatch !== 'all' && bName !== progressSelectedBatch) {
         return false;
@@ -490,7 +502,7 @@ export default function AdminCommandCenter() {
         t.jobMetadata?.branchName?.toLowerCase().includes(q)
       );
     });
-  }, [progressTickets, progressSelectedBatch, progressSearch, employeeAliases]);
+  }, [visibleProgressTickets, progressSelectedBatch, progressSearch, employeeAliases]);
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Activity },
@@ -893,19 +905,40 @@ export default function AdminCommandCenter() {
                 <Edit3 size={15} /> Set Employee Names &amp; Batches
               </button>
 
-              <button
-                type="button"
-                className="nexus-btn nexus-btn-primary"
-                onClick={handleOpenPdfReport}
-                style={{ background: 'linear-gradient(135deg, #4f46e5, #6366f1)', boxShadow: '0 4px 14px rgba(79, 70, 229, 0.35)' }}
-              >
-                <Download size={15} /> 📄 Download / Print PDF Report
-              </button>
+              {progressSelectedBatch !== 'all' ? (
+                <>
+                  <button
+                    type="button"
+                    className="nexus-btn nexus-btn-primary"
+                    onClick={() => handleOpenPdfReport(progressSelectedBatch)}
+                    style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', boxShadow: '0 4px 14px rgba(2, 132, 199, 0.35)' }}
+                  >
+                    <Download size={15} /> 📄 Download {progressSelectedBatch.split('(')[0].trim()} PDF
+                  </button>
+                  <button
+                    type="button"
+                    className="nexus-btn nexus-btn-ghost"
+                    onClick={() => handleOpenPdfReport('all')}
+                    style={{ color: '#a78bfa', borderColor: 'rgba(167, 139, 250, 0.3)' }}
+                  >
+                    <Download size={15} /> 📚 All Batches PDF
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="nexus-btn nexus-btn-primary"
+                  onClick={() => handleOpenPdfReport('all')}
+                  style={{ background: 'linear-gradient(135deg, #4f46e5, #6366f1)', boxShadow: '0 4px 14px rgba(79, 70, 229, 0.35)' }}
+                >
+                  <Download size={15} /> 📄 Download / Print PDF Report
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Tenure & Date Range Selector Toolbar */}
-          <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: 16, borderRadius: 12, border: '1px solid rgba(255, 255, 255, 0.08)', marginBottom: 24 }}>
+          {/* Tenure, Batch & Irrelevant Filter Toolbar */}
+          <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: 16, borderRadius: 12, border: '1px solid rgba(255, 255, 255, 0.08)', marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', background: 'rgba(255, 255, 255, 0.06)', borderRadius: 8, padding: 3 }}>
@@ -944,7 +977,7 @@ export default function AdminCommandCenter() {
                 </div>
 
                 {progressTenureMode === 'month' ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Select Month:</label>
                     <input
                       type="month"
@@ -1005,17 +1038,75 @@ export default function AdminCommandCenter() {
                 {progressLoading ? 'Loading...' : 'Refresh Data'}
               </button>
             </div>
+
+            {/* Quick Filters Row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, paddingTop: 10, borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Batch / Person:</label>
+                  <select
+                    value={progressSelectedBatch}
+                    onChange={(e) => setProgressSelectedBatch(e.target.value)}
+                    className="nexus-select"
+                    style={{
+                      background: 'rgba(15, 23, 42, 0.8)',
+                      color: '#fff',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      padding: '6px 12px',
+                      borderRadius: 8,
+                      fontSize: 13,
+                    }}
+                  >
+                    <option value="all">All Batches ({visibleProgressTickets.length})</option>
+                    {sortedProgressBatchNames.map((bName) => (
+                      <option key={bName} value={bName}>
+                        {bName} ({progressBatches[bName]?.length || 0})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    cursor: 'pointer',
+                    background: progressExcludeIrrelevant ? 'rgba(34, 197, 94, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    border: progressExcludeIrrelevant ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid rgba(255, 255, 255, 0.1)',
+                    userSelect: 'none',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={progressExcludeIrrelevant}
+                    onChange={(e) => setProgressExcludeIrrelevant(e.target.checked)}
+                    style={{ accentColor: '#22c55e', cursor: 'pointer', width: 15, height: 15 }}
+                  />
+                  <span style={{ fontSize: 12, fontWeight: 600, color: progressExcludeIrrelevant ? '#4ade80' : '#94a3b8' }}>
+                    ✨ Exclude Irrelevant Complaints (Show Valid Workload Only)
+                  </span>
+                </label>
+              </div>
+
+              <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                Total Filtered Complaints: <strong style={{ color: '#00f2fe' }}>{visibleProgressTickets.length}</strong>
+              </div>
+            </div>
           </div>
 
           {/* Performance Summary Grid per Batch */}
           <div style={{ marginBottom: 24 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <h3 style={{ fontSize: 14, color: '#f8fafc', fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Employee Batches Performance &mdash; Total {progressTickets.length} Complaints
+                Employee Batches Performance &mdash; {progressExcludeIrrelevant ? `${visibleProgressTickets.length} Valid Complaints` : `${progressTickets.length} Total Complaints`}
               </h3>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14 }}>
               {sortedProgressBatchNames.map((bName) => {
                 const list = progressBatches[bName] || [];
                 const intakeCount = list.filter((t) => t.jobMetadata).length;
@@ -1030,6 +1121,7 @@ export default function AdminCommandCenter() {
                 const isBatch4 = bName.includes('Batch 4');
 
                 const accentColor = isBatch1 ? '#38bdf8' : isBatch2 ? '#34d399' : isBatch3 ? '#c084fc' : isBatch4 ? '#fbbf24' : '#94a3b8';
+                const isSelected = progressSelectedBatch === bName;
 
                 return (
                   <div
@@ -1037,18 +1129,37 @@ export default function AdminCommandCenter() {
                     className="glass-card"
                     style={{
                       padding: 16,
-                      border: `1px solid ${accentColor}33`,
-                      background: 'rgba(15, 23, 42, 0.5)',
+                      border: isSelected ? `2px solid ${accentColor}` : `1px solid ${accentColor}33`,
+                      background: isSelected ? 'rgba(15, 23, 42, 0.85)' : 'rgba(15, 23, 42, 0.5)',
                       position: 'relative',
+                      boxShadow: isSelected ? `0 0 16px ${accentColor}33` : 'none',
                     }}
                   >
-                    <div style={{ fontSize: 13, fontWeight: 700, color: accentColor, marginBottom: 6 }}>
-                      {bName}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: accentColor }}>
+                        {bName}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setProgressSelectedBatch(isSelected ? 'all' : bName)}
+                        style={{
+                          background: isSelected ? accentColor : 'transparent',
+                          color: isSelected ? '#000' : accentColor,
+                          border: `1px solid ${accentColor}66`,
+                          borderRadius: 4,
+                          padding: '2px 6px',
+                          fontSize: 10,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {isSelected ? '✓ Selected' : 'Filter'}
+                      </button>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
                       <span style={{ fontSize: 28, fontWeight: 800, color: '#fff', lineHeight: 1 }}>{list.length}</span>
-                      <span style={{ fontSize: 11, color: '#94a3b8' }}>complaints</span>
+                      <span style={{ fontSize: 11, color: '#94a3b8' }}>valid complaints</span>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: '#cbd5e1', marginBottom: 10 }}>
@@ -1056,10 +1167,12 @@ export default function AdminCommandCenter() {
                         <span style={{ color: '#22c55e' }}>✓ Intake Done:</span>
                         <strong>{intakeCount}</strong>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: '#f59e0b' }}>⚠️ Irrelevant:</span>
-                        <strong>{irrelevantCount}</strong>
-                      </div>
+                      {!progressExcludeIrrelevant && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#f59e0b' }}>⚠️ Irrelevant:</span>
+                          <strong>{irrelevantCount}</strong>
+                        </div>
+                      )}
                       {cancelledCount > 0 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                           <span style={{ color: '#ef4444' }}>✕ Cancelled:</span>
@@ -1080,6 +1193,27 @@ export default function AdminCommandCenter() {
                     <div style={{ fontSize: 10, color: '#64748b', marginTop: 4, textAlign: 'right' }}>
                       {intakeRate}% Intake Rate
                     </div>
+
+                    <button
+                      type="button"
+                      className="nexus-btn nexus-btn-ghost"
+                      onClick={() => handleOpenPdfReport(bName)}
+                      style={{
+                        width: '100%',
+                        marginTop: 10,
+                        padding: '6px 8px',
+                        fontSize: 11,
+                        color: accentColor,
+                        borderColor: `${accentColor}44`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                      }}
+                      title={`Download PDF Report for ${bName}`}
+                    >
+                      <Download size={12} /> Download PDF
+                    </button>
                   </div>
                 );
               })}

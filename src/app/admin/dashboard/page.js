@@ -6,7 +6,8 @@ import {
   Settings, Mail, FileText, RefreshCw, Filter, Search,
   DollarSign, Globe, Phone, MapPin, Save, Eye, Key,
   TrendingUp, TrendingDown, Check, ClipboardCopy,
-  CheckCircle, AlertCircle, XCircle, MessageSquare, Clock, Send
+  CheckCircle, AlertCircle, XCircle, MessageSquare, Clock, Send,
+  Award, Calendar, Download, Printer, Edit3, BarChart3
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
@@ -93,6 +94,122 @@ export default function AdminCommandCenter() {
     } finally {
       setSubmittingComment(false);
     }
+  };
+
+  // ── Employee Monthly Progress & PDF Audit State ──────────────────────────
+  const DEFAULT_ALIASES = {
+    'Rizwan Hussain': 'Ali Shehzad (Batch 1)',
+    'Ali Shezad': 'Ali Shehzad (Batch 1)',
+    'Ali Shehzad': 'Ali Shehzad (Batch 1)',
+    'Ibrahim': 'Muhammad Ibrahim (Batch 2)',
+    'Muhammad Ibrahim': 'Muhammad Ibrahim (Batch 2)',
+    'Shahzaib': 'Shah Zaib (Batch 3)',
+    'Shah Zaib': 'Shah Zaib (Batch 3)',
+    'Sermad Islam': 'Sarmad Islam (Batch 4)',
+    'Sarmad Islam': 'Sarmad Islam (Batch 4)',
+  };
+
+  const [progressTenureMode, setProgressTenureMode] = useState('month');
+  const [progressMonth, setProgressMonth] = useState('2026-08');
+  const [progressFromDate, setProgressFromDate] = useState('2026-08-01');
+  const [progressToDate, setProgressToDate] = useState('2026-08-31');
+  const [progressTickets, setProgressTickets] = useState([]);
+  const [progressLoading, setProgressLoading] = useState(false);
+  const [progressSearch, setProgressSearch] = useState('');
+  const [progressSelectedBatch, setProgressSelectedBatch] = useState('all');
+  const [employeeAliases, setEmployeeAliases] = useState(DEFAULT_ALIASES);
+  const [aliasModalOpen, setAliasModalOpen] = useState(false);
+  const [editingAliases, setEditingAliases] = useState({ ...DEFAULT_ALIASES });
+  const [newAliasKey, setNewAliasKey] = useState('');
+  const [newAliasVal, setNewAliasVal] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('nexus_employee_aliases');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setEmployeeAliases((prev) => ({ ...prev, ...parsed }));
+          setEditingAliases((prev) => ({ ...prev, ...parsed }));
+        }
+      } catch (e) {}
+    }
+  }, []);
+
+  const loadProgressData = async () => {
+    setProgressLoading(true);
+    try {
+      let url = '/api/admin/employee-progress';
+      if (progressTenureMode === 'month') {
+        url += `?month=${encodeURIComponent(progressMonth)}`;
+      } else {
+        url += `?from=${encodeURIComponent(progressFromDate)}&to=${encodeURIComponent(progressToDate)}`;
+      }
+      const res = await apiFetch(url);
+      setProgressTickets(res.tickets || []);
+    } catch (err) {
+      console.error('Error loading progress data:', err);
+    } finally {
+      setProgressLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'progress') {
+      loadProgressData();
+    }
+  }, [activeTab, progressTenureMode, progressMonth, progressFromDate, progressToDate]);
+
+  const getMappedBatch = (rawName) => {
+    if (!rawName) return 'Unassigned / Auto-Ingested';
+    if (employeeAliases[rawName]) return employeeAliases[rawName];
+    const lower = rawName.toLowerCase().trim();
+    for (const [key, val] of Object.entries(employeeAliases)) {
+      if (key.toLowerCase().trim() === lower) return val;
+      if (lower.includes('rizwan') && key.toLowerCase().includes('rizwan')) return val;
+      if (lower.includes('ibrahim') && key.toLowerCase().includes('ibrahim')) return val;
+      if ((lower.includes('shahzaib') || lower.includes('shah zaib')) && (key.toLowerCase().includes('shahzaib') || key.toLowerCase().includes('shah zaib'))) return val;
+      if ((lower.includes('sermad') || lower.includes('sarmad')) && (key.toLowerCase().includes('sermad') || key.toLowerCase().includes('sarmad'))) return val;
+    }
+    return rawName;
+  };
+
+  const handleSaveAliases = () => {
+    setEmployeeAliases({ ...editingAliases });
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('nexus_employee_aliases', JSON.stringify(editingAliases));
+      } catch (e) {}
+    }
+    setAliasModalOpen(false);
+    setMessage('Employee names & batches updated successfully!');
+    setTimeout(() => setMessage(''), 3000);
+  };
+
+  const handleResetAliases = () => {
+    setEditingAliases({ ...DEFAULT_ALIASES });
+    setEmployeeAliases({ ...DEFAULT_ALIASES });
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('nexus_employee_aliases');
+      } catch (e) {}
+    }
+    setAliasModalOpen(false);
+    setMessage('Employee aliases reset to defaults.');
+    setTimeout(() => setMessage(''), 3000);
+  };
+
+  const handleOpenPdfReport = () => {
+    let reportUrl = '/api/admin/employee-progress/report';
+    const params = new URLSearchParams();
+    if (progressTenureMode === 'month') {
+      params.set('month', progressMonth);
+    } else {
+      params.set('from', progressFromDate);
+      params.set('to', progressToDate);
+    }
+    params.set('aliases', JSON.stringify(employeeAliases));
+    window.open(`${reportUrl}?${params.toString()}`, '_blank');
   };
 
   const handleDeleteComment = async (commentId) => {
@@ -326,9 +443,59 @@ export default function AdminCommandCenter() {
 
   const employees = users.filter((u) => u.role === 'EMPLOYEE');
 
+  // ── Employee Progress Batch Calculations ─────────────────────────────────
+  const progressBatches = React.useMemo(() => {
+    const batches = {};
+    (progressTickets || []).forEach((t) => {
+      const bName = getMappedBatch(t.entryPerson);
+      if (!batches[bName]) {
+        batches[bName] = [];
+      }
+      batches[bName].push(t);
+    });
+    return batches;
+  }, [progressTickets, employeeAliases]);
+
+  const sortedProgressBatchNames = React.useMemo(() => {
+    return Object.keys(progressBatches).sort((a, b) => {
+      if (a.includes('Batch 1')) return -1;
+      if (b.includes('Batch 1')) return 1;
+      if (a.includes('Batch 2')) return -1;
+      if (b.includes('Batch 2')) return 1;
+      if (a.includes('Batch 3')) return -1;
+      if (b.includes('Batch 3')) return 1;
+      if (a.includes('Batch 4')) return -1;
+      if (b.includes('Batch 4')) return 1;
+      if (a.includes('Unassigned')) return 1;
+      if (b.includes('Unassigned')) return -1;
+      return a.localeCompare(b);
+    });
+  }, [progressBatches]);
+
+  const filteredProgressTickets = React.useMemo(() => {
+    return (progressTickets || []).filter((t) => {
+      const bName = getMappedBatch(t.entryPerson);
+      if (progressSelectedBatch !== 'all' && bName !== progressSelectedBatch) {
+        return false;
+      }
+      if (!progressSearch) return true;
+      const q = progressSearch.toLowerCase();
+      return (
+        t.subject?.toLowerCase().includes(q) ||
+        t.sender?.toLowerCase().includes(q) ||
+        t.serialNo?.toLowerCase().includes(q) ||
+        bName.toLowerCase().includes(q) ||
+        (t.entryPerson || '').toLowerCase().includes(q) ||
+        t.jobMetadata?.clientName?.toLowerCase().includes(q) ||
+        t.jobMetadata?.branchName?.toLowerCase().includes(q)
+      );
+    });
+  }, [progressTickets, progressSelectedBatch, progressSearch, employeeAliases]);
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Activity },
     { id: 'employees', label: 'Employees', icon: Users },
+    { id: 'progress', label: 'Monthly Progress & PDF', icon: Award },
     { id: 'comments', label: 'Comments', icon: MessageSquare },
     { id: 'tickets', label: 'All Tickets', icon: FileText },
     { id: 'gmail', label: 'Gmail Accounts', icon: Mail },
@@ -691,6 +858,376 @@ export default function AdminCommandCenter() {
               })}
             </tbody>
           </table>
+        </section>
+      )}
+
+      {/* EMPLOYEE MONTHLY PROGRESS & PDF AUDIT TAB */}
+      {activeTab === 'progress' && (
+        <section className="glass-card">
+          {/* Header & Main Controls */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ background: 'rgba(245, 158, 11, 0.15)', padding: 10, borderRadius: 10 }}>
+                <Award size={22} color="#f59e0b" />
+              </div>
+              <div>
+                <h2 style={{ fontSize: 18, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  Monthly Employee Progress &amp; Audit Studio
+                </h2>
+                <p style={{ color: '#94a3b8', fontSize: 13, margin: '2px 0 0' }}>
+                  Track monthly complaints workload, intake conversions, and generate PDF audit reports per employee.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="nexus-btn nexus-btn-ghost"
+                onClick={() => {
+                  setEditingAliases({ ...employeeAliases });
+                  setAliasModalOpen(true);
+                }}
+                style={{ color: '#00f2fe', borderColor: 'rgba(0, 242, 254, 0.3)' }}
+              >
+                <Edit3 size={15} /> Set Employee Names &amp; Batches
+              </button>
+
+              <button
+                type="button"
+                className="nexus-btn nexus-btn-primary"
+                onClick={handleOpenPdfReport}
+                style={{ background: 'linear-gradient(135deg, #4f46e5, #6366f1)', boxShadow: '0 4px 14px rgba(79, 70, 229, 0.35)' }}
+              >
+                <Download size={15} /> 📄 Download / Print PDF Report
+              </button>
+            </div>
+          </div>
+
+          {/* Tenure & Date Range Selector Toolbar */}
+          <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: 16, borderRadius: 12, border: '1px solid rgba(255, 255, 255, 0.08)', marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', background: 'rgba(255, 255, 255, 0.06)', borderRadius: 8, padding: 3 }}>
+                  <button
+                    type="button"
+                    onClick={() => setProgressTenureMode('month')}
+                    style={{
+                      background: progressTenureMode === 'month' ? '#4f46e5' : 'transparent',
+                      color: progressTenureMode === 'month' ? '#fff' : '#94a3b8',
+                      border: 'none',
+                      padding: '6px 14px',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    📅 Monthly Selection
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProgressTenureMode('custom')}
+                    style={{
+                      background: progressTenureMode === 'custom' ? '#4f46e5' : 'transparent',
+                      color: progressTenureMode === 'custom' ? '#fff' : '#94a3b8',
+                      border: 'none',
+                      padding: '6px 14px',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🗓️ Custom Date Range
+                  </button>
+                </div>
+
+                {progressTenureMode === 'month' ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Select Month:</label>
+                    <input
+                      type="month"
+                      className="nexus-input"
+                      value={progressMonth}
+                      onChange={(e) => setProgressMonth(e.target.value)}
+                      style={{ padding: '6px 12px', fontSize: 13, width: 160 }}
+                    />
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {['2026-08', '2026-07', '2026-09'].map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          className="nexus-btn nexus-btn-ghost"
+                          onClick={() => setProgressMonth(m)}
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: 11,
+                            background: progressMonth === m ? 'rgba(79, 70, 229, 0.2)' : 'transparent',
+                            color: progressMonth === m ? '#a78bfa' : '#64748b',
+                          }}
+                        >
+                          {m === '2026-08' ? 'August 2026' : m === '2026-07' ? 'July 2026' : 'Sept 2026'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>From:</label>
+                    <input
+                      type="date"
+                      className="nexus-input"
+                      value={progressFromDate}
+                      onChange={(e) => setProgressFromDate(e.target.value)}
+                      style={{ padding: '6px 10px', fontSize: 13, width: 150 }}
+                    />
+                    <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>To:</label>
+                    <input
+                      type="date"
+                      className="nexus-input"
+                      value={progressToDate}
+                      onChange={(e) => setProgressToDate(e.target.value)}
+                      style={{ padding: '6px 10px', fontSize: 13, width: 150 }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                className="nexus-btn nexus-btn-ghost"
+                onClick={loadProgressData}
+                disabled={progressLoading}
+                style={{ padding: '6px 12px', fontSize: 12 }}
+              >
+                <RefreshCw size={14} className={progressLoading ? 'animate-spin' : ''} />
+                {progressLoading ? 'Loading...' : 'Refresh Data'}
+              </button>
+            </div>
+          </div>
+
+          {/* Performance Summary Grid per Batch */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h3 style={{ fontSize: 14, color: '#f8fafc', fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Employee Batches Performance &mdash; Total {progressTickets.length} Complaints
+              </h3>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+              {sortedProgressBatchNames.map((bName) => {
+                const list = progressBatches[bName] || [];
+                const intakeCount = list.filter((t) => t.jobMetadata).length;
+                const irrelevantCount = list.filter((t) => t.status === 'IRRELEVANT').length;
+                const cancelledCount = list.filter((t) => t.status === 'CANCELLED').length;
+                const pendingCount = list.filter((t) => !t.jobMetadata && t.status === 'PENDING').length;
+                const intakeRate = list.length > 0 ? Math.round((intakeCount / list.length) * 100) : 0;
+
+                const isBatch1 = bName.includes('Batch 1');
+                const isBatch2 = bName.includes('Batch 2');
+                const isBatch3 = bName.includes('Batch 3');
+                const isBatch4 = bName.includes('Batch 4');
+
+                const accentColor = isBatch1 ? '#38bdf8' : isBatch2 ? '#34d399' : isBatch3 ? '#c084fc' : isBatch4 ? '#fbbf24' : '#94a3b8';
+
+                return (
+                  <div
+                    key={bName}
+                    className="glass-card"
+                    style={{
+                      padding: 16,
+                      border: `1px solid ${accentColor}33`,
+                      background: 'rgba(15, 23, 42, 0.5)',
+                      position: 'relative',
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 700, color: accentColor, marginBottom: 6 }}>
+                      {bName}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontSize: 28, fontWeight: 800, color: '#fff', lineHeight: 1 }}>{list.length}</span>
+                      <span style={{ fontSize: 11, color: '#94a3b8' }}>complaints</span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: '#cbd5e1', marginBottom: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#22c55e' }}>✓ Intake Done:</span>
+                        <strong>{intakeCount}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#f59e0b' }}>⚠️ Irrelevant:</span>
+                        <strong>{irrelevantCount}</strong>
+                      </div>
+                      {cancelledCount > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#ef4444' }}>✕ Cancelled:</span>
+                          <strong>{cancelledCount}</strong>
+                        </div>
+                      )}
+                      {pendingCount > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#94a3b8' }}>⏳ Pending:</span>
+                          <strong>{pendingCount}</strong>
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ width: '100%', height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ width: `${intakeRate}%`, height: '100%', background: accentColor, borderRadius: 2 }} />
+                    </div>
+                    <div style={{ fontSize: 10, color: '#64748b', marginTop: 4, textAlign: 'right' }}>
+                      {intakeRate}% Intake Rate
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Detailed Complaints Table & Filter Bar */}
+          <div style={{ marginTop: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <select
+                  value={progressSelectedBatch}
+                  onChange={(e) => setProgressSelectedBatch(e.target.value)}
+                  className="nexus-select"
+                  style={{
+                    background: 'rgba(15, 23, 42, 0.8)',
+                    color: '#fff',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    fontSize: 13,
+                  }}
+                >
+                  <option value="all">All Batches ({progressTickets.length})</option>
+                  {sortedProgressBatchNames.map((bName) => (
+                    <option key={bName} value={bName}>
+                      {bName} ({progressBatches[bName]?.length || 0})
+                    </option>
+                  ))}
+                </select>
+
+                <div style={{ position: 'relative', width: 280 }}>
+                  <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+                  <input
+                    type="text"
+                    className="nexus-input"
+                    placeholder="Search complaints in tenure..."
+                    value={progressSearch}
+                    onChange={(e) => setProgressSearch(e.target.value)}
+                    style={{ paddingLeft: 32, fontSize: 12 }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                Showing <strong style={{ color: '#fff' }}>{filteredProgressTickets.length}</strong> of {progressTickets.length} complaints
+              </div>
+            </div>
+
+            {progressLoading ? (
+              <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
+                <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 12px' }} />
+                Loading complaints for selected tenure...
+              </div>
+            ) : filteredProgressTickets.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', background: 'rgba(255, 255, 255, 0.02)', borderRadius: 12, border: '1px dashed rgba(255, 255, 255, 0.1)', color: '#94a3b8' }}>
+                No complaints found for the selected tenure or filters.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 80 }}>Serial #</th>
+                      <th style={{ width: 110 }}>Date &amp; Time</th>
+                      <th style={{ width: 180 }}>Employee / Batch</th>
+                      <th style={{ width: 200 }}>Client &amp; Branch / Nature</th>
+                      <th style={{ width: 180 }}>Sender</th>
+                      <th>Subject / Description</th>
+                      <th style={{ width: 110, textAlign: 'center' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredProgressTickets.map((t) => {
+                      const bName = getMappedBatch(t.entryPerson);
+                      const isBatch1 = bName.includes('Batch 1');
+                      const isBatch2 = bName.includes('Batch 2');
+                      const isBatch3 = bName.includes('Batch 3');
+                      const isBatch4 = bName.includes('Batch 4');
+                      const accentColor = isBatch1 ? '#38bdf8' : isBatch2 ? '#34d399' : isBatch3 ? '#c084fc' : isBatch4 ? '#fbbf24' : '#94a3b8';
+
+                      return (
+                        <tr key={t.id}>
+                          <td style={{ fontFamily: 'monospace', fontWeight: 700, color: '#00f2fe' }}>
+                            {t.serialNo || t.id}
+                          </td>
+                          <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                            <div>{new Date(t.exactDate).toLocaleDateString()}</div>
+                            <div style={{ fontSize: 11, color: '#64748b' }}>{t.time}</div>
+                          </td>
+                          <td>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: accentColor }}>
+                              {bName}
+                            </span>
+                            {t.entryPerson && t.entryPerson !== bName && (
+                              <div style={{ fontSize: 10, color: '#64748b' }}>({t.entryPerson})</div>
+                            )}
+                          </td>
+                          <td style={{ fontSize: 12 }}>
+                            {t.jobMetadata ? (
+                              <>
+                                <div style={{ fontWeight: 600, color: '#f8fafc' }}>{t.jobMetadata.clientName}</div>
+                                <div style={{ color: '#94a3b8', fontSize: 11 }}>{t.jobMetadata.branchName}</div>
+                                {t.jobMetadata.workNature && (
+                                  <span style={{ fontSize: 10, color: '#38bdf8', fontWeight: 600 }}>{t.jobMetadata.workNature}</span>
+                                )}
+                              </>
+                            ) : (
+                              <span style={{ color: '#64748b' }}>—</span>
+                            )}
+                          </td>
+                          <td style={{ fontSize: 11, color: '#94a3b8', maxWidth: 180, wordBreak: 'break-word' }}>
+                            {t.sender}
+                          </td>
+                          <td style={{ fontSize: 13, color: '#f8fafc' }}>
+                            <div style={{ fontWeight: 500 }}>{t.subject}</div>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            {t.jobMetadata ? (
+                              <span className="status-pill active" style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e' }}>
+                                Intake Done
+                              </span>
+                            ) : t.status === 'RELEVANT' ? (
+                              <span className="status-pill active" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>
+                                Relevant
+                              </span>
+                            ) : t.status === 'IRRELEVANT' ? (
+                              <span className="status-pill" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}>
+                                Irrelevant
+                              </span>
+                            ) : t.status === 'CANCELLED' ? (
+                              <span className="status-pill" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>
+                                Cancelled
+                              </span>
+                            ) : (
+                              <span className="status-pill" style={{ background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8' }}>
+                                Pending
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </section>
       )}
 
@@ -1216,6 +1753,148 @@ export default function AdminCommandCenter() {
                 {changingPassword ? 'Updating...' : 'Update Password'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* EMPLOYEE NAMES & BATCHES CUSTOMIZER MODAL */}
+      {aliasModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', padding: 16 }} onClick={() => setAliasModalOpen(false)}>
+          <div className="glass-card" style={{ width: '100%', maxWidth: 640, maxHeight: '88vh', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ background: 'rgba(0, 242, 254, 0.15)', padding: 8, borderRadius: 8 }}>
+                  <Edit3 size={20} color="#00f2fe" />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 17, color: '#fff' }}>Employee Names &amp; Batch Settings</h3>
+                  <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>Map raw employee names to custom display names &amp; batches</p>
+                </div>
+              </div>
+              <button type="button" className="nexus-btn nexus-btn-ghost" onClick={() => setAliasModalOpen(false)} style={{ padding: 6 }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ overflowY: 'auto', padding: '16px 0', flex: 1 }}>
+              <div style={{ background: 'rgba(79, 70, 229, 0.12)', border: '1px solid rgba(79, 70, 229, 0.25)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#cbd5e1', lineHeight: 1.5 }}>
+                💡 <strong>Admin Note:</strong> These custom names and batch assignments will be used throughout the Monthly Progress dashboard and included directly in generated PDF reports (e.g. <em>Rizwan Hussain</em> &rarr; <em>Ali Shehzad (Batch 1)</em>).
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {Object.entries(editingAliases).map(([rawKey, mappedVal]) => (
+                  <div key={rawKey} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 36px', gap: 8, alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div>
+                      <span style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 2 }}>Original Name</span>
+                      <input
+                        type="text"
+                        className="nexus-input"
+                        value={rawKey}
+                        disabled
+                        style={{ fontSize: 12, padding: '6px 10px', background: 'rgba(0,0,0,0.3)', color: '#94a3b8' }}
+                      />
+                    </div>
+                    <div>
+                      <span style={{ fontSize: 10, color: '#00f2fe', textTransform: 'uppercase', display: 'block', marginBottom: 2 }}>Custom Display / Batch</span>
+                      <input
+                        type="text"
+                        className="nexus-input"
+                        value={mappedVal}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEditingAliases((prev) => ({ ...prev, [rawKey]: val }));
+                        }}
+                        style={{ fontSize: 12, padding: '6px 10px', color: '#fff', borderColor: 'rgba(0,242,254,0.3)' }}
+                        placeholder="e.g. Ali Shehzad (Batch 1)"
+                      />
+                    </div>
+                    <div style={{ paddingTop: 14 }}>
+                      <button
+                        type="button"
+                        className="nexus-btn nexus-btn-ghost"
+                        onClick={() => {
+                          const next = { ...editingAliases };
+                          delete next[rawKey];
+                          setEditingAliases(next);
+                        }}
+                        style={{ padding: 6, color: '#ef4444' }}
+                        title="Remove mapping"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add New Mapping Row */}
+              <div style={{ marginTop: 16, padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: 8, border: '1px dashed rgba(255,255,255,0.1)' }}>
+                <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: 8 }}>+ Add Custom Name / Alias Mapping</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    className="nexus-input"
+                    placeholder="System name (e.g. John)"
+                    value={newAliasKey}
+                    onChange={(e) => setNewAliasKey(e.target.value)}
+                    style={{ fontSize: 12, padding: '6px 10px' }}
+                  />
+                  <input
+                    type="text"
+                    className="nexus-input"
+                    placeholder="Display name (e.g. John Doe (Batch 5))"
+                    value={newAliasVal}
+                    onChange={(e) => setNewAliasVal(e.target.value)}
+                    style={{ fontSize: 12, padding: '6px 10px' }}
+                  />
+                  <button
+                    type="button"
+                    className="nexus-btn nexus-btn-ghost"
+                    onClick={() => {
+                      if (!newAliasKey.trim() || !newAliasVal.trim()) return;
+                      setEditingAliases((prev) => ({ ...prev, [newAliasKey.trim()]: newAliasVal.trim() }));
+                      setNewAliasKey('');
+                      setNewAliasVal('');
+                    }}
+                    style={{ color: '#00f2fe', borderColor: 'rgba(0,242,254,0.3)', fontSize: 12, padding: '6px 12px' }}
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <button
+                type="button"
+                className="nexus-btn nexus-btn-ghost"
+                onClick={handleResetAliases}
+                style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)', fontSize: 12 }}
+              >
+                Reset to Defaults
+              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  className="nexus-btn nexus-btn-ghost"
+                  onClick={() => setAliasModalOpen(false)}
+                  style={{ fontSize: 13 }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="nexus-btn nexus-btn-primary"
+                  onClick={handleSaveAliases}
+                  style={{ fontSize: 13 }}
+                >
+                  <Save size={15} /> Save &amp; Apply
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

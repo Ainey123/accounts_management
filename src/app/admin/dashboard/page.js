@@ -61,6 +61,16 @@ export default function AdminCommandCenter() {
   };
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam) {
+        setActiveTab(tabParam);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (activeTab === 'comments' && selectedUserForComments) {
       loadUserComments(selectedUserForComments);
     }

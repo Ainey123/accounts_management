@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -28,7 +30,18 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const { jobMetadataId, amount, imageUrl, summaryNotes } = await request.json();
+    const body = await request.json();
+    const {
+      jobMetadataId,
+      amount,
+      imageUrl,
+      summaryNotes = '',
+      category = 'Site Expense',
+      expenseDate,
+      accountName,
+      personName,
+    } = body;
+
     const authCookie = request.headers.get('x-user-id') || request.cookies.get('nexus_user')?.value;
     let userId = null;
     if (authCookie) {
@@ -47,41 +60,42 @@ export async function POST(request) {
       } catch {}
     }
 
-    if (!jobMetadataId || amount === undefined || !summaryNotes) {
-      return NextResponse.json({ error: 'jobMetadataId, amount, and summaryNotes are required' }, { status: 400 });
+    if (!jobMetadataId || amount === undefined) {
+      return NextResponse.json({ error: 'jobMetadataId and amount are required' }, { status: 400 });
     }
 
-    try {
-      const expense = await prisma.expense.create({
-        data: {
-          jobMetadataId: Number(jobMetadataId),
-          amount: Number(amount),
-          imageUrl: imageUrl || null,
-          summaryNotes,
-          createdById: userId,
-        },
-        include: {
-          createdBy: { select: { id: true, employeeName: true, email: true } },
-          jobMetadata: { include: { ticket: true } },
-        },
-      });
-      return NextResponse.json({ expense }, { status: 201 });
-    } catch (e) {
-      const expense = await prisma.expense.create({
-        data: {
-          jobMetadataId: Number(jobMetadataId),
-          amount: Number(amount),
-          imageUrl: imageUrl || null,
-          summaryNotes,
-        },
-        include: {
-          jobMetadata: { include: { ticket: true } },
-        },
-      });
-      return NextResponse.json({ expense }, { status: 201 });
-    }
+    // Build enriched summary notes if account name or person name is provided
+    const notesPrefixParts = [];
+    if (accountName) notesPrefixParts.push(`[Account: ${accountName}]`);
+    if (personName) notesPrefixParts.push(`[Person: ${personName}]`);
+    if (category && category !== 'Site Expense') notesPrefixParts.push(`[${category}]`);
+
+    const prefixStr = notesPrefixParts.join(' ');
+    const finalSummaryNotes = prefixStr
+      ? `${prefixStr} ${summaryNotes || ''}`.trim()
+      : (summaryNotes || 'Site Expense claim');
+
+    const parsedDate = expenseDate ? new Date(expenseDate) : new Date();
+
+    const expense = await prisma.expense.create({
+      data: {
+        jobMetadataId: Number(jobMetadataId),
+        amount: Number(amount),
+        imageUrl: imageUrl || null,
+        summaryNotes: finalSummaryNotes,
+        category: category || 'Site Expense',
+        expenseDate: parsedDate,
+        createdById: userId,
+      },
+      include: {
+        createdBy: { select: { id: true, employeeName: true, email: true } },
+        jobMetadata: { include: { ticket: true } },
+      },
+    });
+
+    return NextResponse.json({ expense, success: true }, { status: 201 });
   } catch (error) {
     console.error('Expense create error:', error);
-    return NextResponse.json({ error: 'Failed to create expense' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create expense: ' + error.message }, { status: 500 });
   }
 }

@@ -66,9 +66,11 @@ export async function POST(request) {
       } catch {}
     }
 
-    if (!jobMetadataId || amount === undefined) {
-      return NextResponse.json({ error: 'jobMetadataId and amount are required' }, { status: 400 });
+    if (!jobMetadataId) {
+      return NextResponse.json({ error: 'jobMetadataId is required' }, { status: 400 });
     }
+
+    const finalAmount = amount !== undefined && amount !== null && !isNaN(Number(amount)) ? Number(amount) : 0;
 
     // Build rich, structured metadata tags
     const notesPrefixParts = [];
@@ -102,7 +104,7 @@ export async function POST(request) {
     const expense = await prisma.expense.create({
       data: {
         jobMetadataId: Number(jobMetadataId),
-        amount: Number(amount),
+        amount: finalAmount,
         imageUrl: imageUrl || null,
         summaryNotes: finalSummaryNotes,
         category: category || 'Site Expense',

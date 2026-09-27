@@ -30,6 +30,11 @@ model User {
   createdTickets Ticket[]        @relation("CreatedTickets")
   userComments   Comment[]       @relation("UserComments")
   adminComments  Comment[]       @relation("AdminComments")
+
+  // Employee Expense Reconciliation & Statements Relations
+  uploadedStatements BankStatement[] @relation("UploadedStatements")
+  createdOtherExpenses OtherExpense[] @relation("CreatedOtherExpenses")
+  reconciliationAudits ReconciliationAudit[] @relation("AdminReconciliationAudits")
 }
 
 /// Gmail OAuth connection and sync tracking.
@@ -122,15 +127,23 @@ model QuotationInvoice {
 }
 
 model Expense {
-  id            Int         @id @default(autoincrement())
-  jobMetadataId Int
-  jobMetadata   JobMetadata @relation(fields: [jobMetadataId], references: [id], onDelete: Cascade)
-  createdById   Int?
-  createdBy     User?       @relation("CreatedExpenses", fields: [createdById], references: [id], onDelete: SetNull)
-  amount        Float
-  imageUrl      String?
-  summaryNotes  String
-  createdAt     DateTime    @default(now())
+  id                 Int                @id @default(autoincrement())
+  jobMetadataId      Int
+  jobMetadata        JobMetadata        @relation(fields: [jobMetadataId], references: [id], onDelete: Cascade)
+  createdById        Int?
+  createdBy          User?              @relation("CreatedExpenses", fields: [createdById], references: [id], onDelete: SetNull)
+  amount             Float
+  imageUrl           String?
+  summaryNotes       String
+  category           String?            // Fuel, Spare Parts, Transport, Site Expense, Maintenance, Other
+  expenseDate        DateTime?
+  status             String             @default("UNMATCHED") // UNMATCHED, MATCHED, PARTIALLY_MATCHED, REVIEW_REQUIRED, MANUALLY_ADJUSTED
+  adjustedAmount     Float              @default(0)
+  remainingAmount    Float?
+  bankTransactionId  Int?
+  bankTransaction    BankTransaction?   @relation(fields: [bankTransactionId], references: [id], onDelete: SetNull)
+  reconciliationAudits ReconciliationAudit[]
+  createdAt          DateTime           @default(now())
 }
 
 model PaymentReceived {
@@ -188,4 +201,100 @@ model Comment {
   content    String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+/// Bank Statements uploaded by Admins for verification and auto/manual reconciliation.
+model BankStatement {
+  id               Int                @id @default(autoincrement())
+  bankName         String
+  accountNumber    String?
+  statementPeriod  String?
+  startDate        DateTime?
+  endDate          DateTime?
+  fileName         String
+  fileHash         String             // SHA-256 hash for deduplication
+  fileSize         Int?
+  fileType         String?
+  rawFileUrl       String?
+  totalCredits     Float              @default(0)
+  totalDebits      Float              @default(0)
+  openingBalance   Float?
+  closingBalance   Float?
+  transactionCount Int                @default(0)
+  status           String             @default("PROCESSED") // PROCESSED, ERROR
+  notes            String?
+  uploadedById     Int?
+  uploadedBy       User?              @relation("UploadedStatements", fields: [uploadedById], references: [id], onDelete: SetNull)
+  transactions     BankTransaction[]
+  audits           ReconciliationAudit[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+}
+
+/// Individual line items extracted from uploaded bank statements.
+model BankTransaction {
+  id               Int                @id @default(autoincrement())
+  statementId      Int
+  statement        BankStatement      @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  transactionDate  DateTime
+  valueDate        DateTime?
+  description      String
+  referenceNo      String?
+  chequeNo         String?
+  debit            Float              @default(0)
+  credit           Float              @default(0)
+  balance          Float?
+  transactionHash  String?            // MD5/SHA256 of date+desc+debit+credit+ref
+  matchStatus      String             @default("UNMATCHED") // UNMATCHED, MATCHED, PARTIALLY_MATCHED, REVIEW_REQUIRED, MANUALLY_ADJUSTED
+  reconciledAmount Float              @default(0)
+  matchedExpenses  Expense[]
+  otherExpenseId   Int?
+  otherExpense     OtherExpense?      @relation(fields: [otherExpenseId], references: [id], onDelete: SetNull)
+  audits           ReconciliationAudit[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+}
+
+/// Non-complaint manual company expenses (Rent, Utilities, Salaries, Fuel, Vendor Payments, etc.)
+model OtherExpense {
+  id               Int                @id @default(autoincrement())
+  expenseDate      DateTime           @default(now())
+  category         String             // Rent, Utilities, Fuel, Salary, Vendor, Office, Hardware, Miscellaneous
+  amount           Float
+  paidTo           String             // Person or vendor name
+  bankName         String?
+  paymentMethod    String?            // Bank Transfer, Cash, Cheque, Online
+  description      String
+  referenceNo      String?
+  attachmentUrl    String?
+  status           String             @default("RECORDED") // RECORDED, MATCHED, CANCELLED
+  adminNotes       String?
+  createdById      Int?
+  createdBy        User?              @relation("CreatedOtherExpenses", fields: [createdById], references: [id], onDelete: SetNull)
+  bankTransactions BankTransaction[]
+  audits           ReconciliationAudit[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+}
+
+/// Immutable audit trail tracking all automatic and manual reconciliation events.
+model ReconciliationAudit {
+  id               Int                @id @default(autoincrement())
+  expenseId        Int?
+  expense          Expense?           @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  statementId      Int?
+  statement        BankStatement?     @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  transactionId    Int?
+  transaction      BankTransaction?   @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  otherExpenseId   Int?
+  otherExpense     OtherExpense?      @relation(fields: [otherExpenseId], references: [id], onDelete: Cascade)
+  adminId          Int?
+  admin            User?              @relation("AdminReconciliationAudits", fields: [adminId], references: [id], onDelete: SetNull)
+  adminName        String?
+  action           String             // AUTO_MATCH, MANUAL_MATCH, MANUAL_ADJUST, UNMATCH, STATEMENT_UPLOAD, OTHER_EXPENSE_CREATED, OTHER_EXPENSE_DELETED
+  previousStatus   String?
+  newStatus        String?
+  adjustedAmount   Float?
+  comment          String?
+  createdAt        DateTime           @default(now())
 }

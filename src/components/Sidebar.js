@@ -12,6 +12,7 @@ import { useAuth } from '@/components/AuthProvider';
 const NAV_ITEMS = [
   { name: 'Operations Feed', href: '/dashboard', icon: BarChart2 },
   { name: 'Monthly Progress & PDF', href: '/admin/dashboard?tab=progress', icon: Award, adminOnly: true },
+  { name: 'Expense Reconciliation', href: '/admin/dashboard?tab=reconciliation', icon: Receipt, adminOnly: true },
   { name: 'All Tickets', href: '/tickets', icon: FileText },
   { name: 'Gmail Connection', href: '/gmail', icon: Mail, adminOnly: true },
   { name: 'Job Intake Grid', href: '/intake', icon: FileEdit },
@@ -34,6 +35,7 @@ export default function Sidebar() {
 
   const visibleItems = user?.role === 'ADMIN' ? [
     { name: 'Admin Dashboard', href: '/admin/dashboard', icon: Settings },
+    { name: 'Expense Reconciliation', href: '/admin/dashboard?tab=reconciliation', icon: Receipt },
     { name: 'Monthly Progress & PDF', href: '/admin/dashboard?tab=progress', icon: Award },
     { name: 'Employee Monitor', href: '/admin/dashboard?tab=employees', icon: Users },
     { name: 'All Tickets Inbox', href: '/admin/dashboard?tab=tickets', icon: Mail },

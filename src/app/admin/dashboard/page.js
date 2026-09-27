@@ -7,15 +7,18 @@ import {
   DollarSign, Globe, Phone, MapPin, Save, Eye, Key,
   TrendingUp, TrendingDown, Check, ClipboardCopy,
   CheckCircle, AlertCircle, XCircle, MessageSquare, Clock, Send,
-  Award, Calendar, Download, Printer, Edit3, BarChart3
+  Award, Calendar, Download, Printer, Edit3, BarChart3,
+  FileSpreadsheet, Receipt, ArrowRight
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import ReconciliationModule from '@/components/ReconciliationModule';
 
 export default function AdminCommandCenter() {
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState(null);
   const [employeeMatrix, setEmployeeMatrix] = useState([]);
   const [financials, setFinancials] = useState(null);
+  const [reconStats, setReconStats] = useState(null);
   const [tickets, setTickets] = useState([]);
   const [gmailAccounts, setGmailAccounts] = useState([]);
   const [settings, setSettings] = useState(null);
@@ -239,18 +242,20 @@ export default function AdminCommandCenter() {
   };
 
   const loadAll = async () => {
-    const [userRes, statsRes, finRes, ticketsRes, gmailRes, settingsRes] = await Promise.all([
+    const [userRes, statsRes, finRes, ticketsRes, gmailRes, settingsRes, reconRes] = await Promise.all([
       apiFetch('/api/users'),
       apiFetch('/api/admin/stats'),
       apiFetch('/api/admin/financials'),
       apiFetch('/api/tickets'),
       apiFetch('/api/gmail-account'),
       apiFetch('/api/admin/settings'),
+      apiFetch('/api/admin/reconciliation/stats').catch(() => ({ stats: null })),
     ]);
     setUsers(userRes.users || []);
     setStats(statsRes.stats);
     setEmployeeMatrix(statsRes.employeeMatrix || []);
     setFinancials(finRes.financials);
+    if (reconRes?.stats) setReconStats(reconRes.stats);
     setTickets(ticketsRes.tickets || []);
     setGmailAccounts(gmailRes.accounts || []);
     setSettings(settingsRes.settings);
@@ -516,6 +521,7 @@ export default function AdminCommandCenter() {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Activity },
+    { id: 'reconciliation', label: 'Expense Reconciliation', icon: FileSpreadsheet },
     { id: 'employees', label: 'Employees', icon: Users },
     { id: 'progress', label: 'Monthly Progress & PDF', icon: Award },
     { id: 'comments', label: 'Comments', icon: MessageSquare },
@@ -792,8 +798,83 @@ export default function AdminCommandCenter() {
                  </div>
                </div>
              )}
+             {/* EMPLOYEE EXPENSES & RECONCILIATION DASHBOARD CARD */}
+             <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                   <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(0, 242, 254, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                     <Receipt size={18} color="#00f2fe" />
+                   </div>
+                   <div>
+                     <h3 style={{ fontSize: 16, margin: 0, fontWeight: 700, color: '#f8fafc' }}>Employee Expenses &amp; Bank Reconciliation</h3>
+                     <span style={{ fontSize: 11, color: '#94a3b8' }}>Live verification state of site claims &amp; company expenses against bank debits</span>
+                   </div>
+                 </div>
+                 <button
+                   type="button"
+                   className="btn btn-secondary"
+                   onClick={() => setActiveTab('reconciliation')}
+                   style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '6px 14px', borderColor: 'rgba(0,242,254,0.4)', color: '#00f2fe' }}
+                 >
+                   <span>Open Reconciliation Studio</span>
+                   <ArrowRight size={14} />
+                 </button>
+               </div>
+
+               <div className="financial-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+                 <div className="financial-tile" style={{ borderLeft: '3px solid #3b82f6', background: 'rgba(59,130,246,0.03)' }}>
+                   <span className="field-label" style={{ color: '#94a3b8' }}>Total Claimed Expenses</span>
+                   <div className="financial-value" style={{ color: '#3b82f6', fontSize: 20 }}>
+                     Rs. {(reconStats?.totalClaimed || financials?.totalExpenses || 0).toLocaleString()}
+                     <div style={{ fontSize: 11, color: '#64748b', fontWeight: 'normal', marginTop: 4 }}>
+                       ({reconStats?.claimedCount || 0} Site Claims)
+                     </div>
+                   </div>
+                 </div>
+
+                 <div className="financial-tile" style={{ borderLeft: '3px solid #22c55e', background: 'rgba(34,197,94,0.03)' }}>
+                   <span className="field-label" style={{ color: '#22c55e' }}>Amount Adjusted</span>
+                   <div className="financial-value" style={{ color: '#22c55e', fontSize: 20 }}>
+                     Rs. {(reconStats?.totalAdjusted || 0).toLocaleString()}
+                     <div style={{ fontSize: 11, color: '#64748b', fontWeight: 'normal', marginTop: 4 }}>
+                       {reconStats?.totalClaimed ? Math.round(((reconStats.totalAdjusted || 0) / reconStats.totalClaimed) * 100) : 0}% Reconciled
+                     </div>
+                   </div>
+                 </div>
+
+                 <div className="financial-tile" style={{ borderLeft: '3px solid #ef4444', background: 'rgba(239,68,68,0.03)' }}>
+                   <span className="field-label" style={{ color: '#ef4444' }}>Unmatched Amount</span>
+                   <div className="financial-value" style={{ color: '#ef4444', fontSize: 20 }}>
+                     Rs. {(reconStats?.totalUnmatched || 0).toLocaleString()}
+                     <div style={{ fontSize: 11, color: '#64748b', fontWeight: 'normal', marginTop: 4 }}>
+                       {(reconStats?.statusCounts?.UNMATCHED || 0) + (reconStats?.statusCounts?.REVIEW_REQUIRED || 0)} Pending Verification
+                     </div>
+                   </div>
+                 </div>
+
+                 <div className="financial-tile" style={{ borderLeft: '3px solid #a78bfa', background: 'rgba(167,139,250,0.03)' }}>
+                   <span className="field-label" style={{ color: '#a78bfa' }}>Other Company Expenses</span>
+                   <div className="financial-value" style={{ color: '#a78bfa', fontSize: 20 }}>
+                     Rs. {(reconStats?.totalOtherExpenses || 0).toLocaleString()}
+                     <div style={{ fontSize: 11, color: '#64748b', fontWeight: 'normal', marginTop: 4 }}>
+                       ({reconStats?.otherExpensesCount || 0} Non-Complaint Records)
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             </div>
           </section>
         </>
+      )}
+
+      {/* RECONCILIATION TAB */}
+      {activeTab === 'reconciliation' && (
+        <ReconciliationModule
+          users={users}
+          employeeAliases={employeeAliases}
+          adminPostingName={adminPostingName || 'Fatma'}
+          onNavigateToTab={setActiveTab}
+        />
       )}
 
       {/* EMPLOYEES TAB */}

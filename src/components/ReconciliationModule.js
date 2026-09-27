@@ -5,7 +5,8 @@ import {
   DollarSign, UploadCloud, RefreshCw, Filter, Search, Plus, Trash2,
   CheckCircle, AlertCircle, XCircle, Clock, Eye, Download, FileText,
   Building, Check, X, ShieldCheck, ArrowUpRight, ArrowDownLeft,
-  ChevronRight, Calendar, User, Tag, HelpCircle, Layers, FileSpreadsheet
+  ChevronRight, Calendar, User, Tag, HelpCircle, Layers, FileSpreadsheet,
+  Edit3, Camera
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
@@ -42,6 +43,7 @@ export default function ReconciliationModule({
   const [filterMonth, setFilterMonth] = useState('2026-08');
   const [filterStartDate, setFilterStartDate] = useState('2026-08-01');
   const [filterEndDate, setFilterEndDate] = useState('2026-08-31');
+  const [filterType, setFilterType] = useState('all'); // 'all' | 'manual' | 'bank_receipt' | 'attach_bill'
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterStatement, setFilterStatement] = useState('all');
@@ -60,6 +62,20 @@ export default function ReconciliationModule({
   const [selectedTxIdForMatch, setSelectedTxIdForMatch] = useState('');
   const [txSearchQuery, setTxSearchQuery] = useState('');
   const [adjusting, setAdjusting] = useState(false);
+
+  // ── Edit Expense Modal State ─────────────────────────────────────────────
+  const [editExpenseModalOpen, setEditExpenseModalOpen] = useState(false);
+  const [selectedExpenseForEdit, setSelectedExpenseForEdit] = useState(null);
+  const [editExpenseForm, setEditExpenseForm] = useState({
+    amount: '',
+    category: 'Site Expense',
+    summaryNotes: '',
+    expenseDate: '',
+    imageUrl: '',
+    status: 'UNMATCHED',
+    adjustedAmount: '',
+  });
+  const [savingExpenseEdit, setSavingExpenseEdit] = useState(false);
 
   const [otherExpenseModalOpen, setOtherExpenseModalOpen] = useState(false);
   const [otherExpenseForm, setOtherExpenseForm] = useState({
@@ -89,6 +105,49 @@ export default function ReconciliationModule({
   const getMappedEmployeeName = (rawName) => {
     if (!rawName) return 'Unassigned';
     return employeeAliases[rawName] || rawName;
+  };
+
+  // ── Type categorization helper ───────────────────────────────────────────
+  const getExpenseType = (e) => {
+    const notes = e.summaryNotes || '';
+    const cat = e.category || '';
+    if (notes.includes('[Bank Receipt ID:') || cat === 'Bank Receipt' || notes.toLowerCase().includes('bank receipt')) {
+      return 'bank_receipt';
+    }
+    if (notes.includes('[ID ') || notes.includes('Bill ID ') || cat === 'Site Bill' || notes.toLowerCase().includes('bill id')) {
+      return 'attach_bill';
+    }
+    return 'manual';
+  };
+
+  const getExpenseTypeBadge = (e) => {
+    const notes = e.summaryNotes || '';
+    const cat = e.category || '';
+    if (notes.includes('[Bank Receipt ID:') || cat === 'Bank Receipt' || notes.toLowerCase().includes('bank receipt')) {
+      const match = notes.match(/\[Bank Receipt ID:\s*([^\]]+)\]/) || notes.match(/Bank Receipt ID\s*(\d+)/i) || notes.match(/Bank Receipt\s*(\d+)/i);
+      const receiptId = match ? match[1] : '';
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(56,189,248,0.15)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.3)', padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
+          🏦 Bank Receipt {receiptId ? `ID #${receiptId}` : ''}
+        </span>
+      );
+    }
+    if (notes.includes('[ID ') || notes.includes('Bill ID ') || cat === 'Site Bill' || notes.toLowerCase().includes('bill id')) {
+      const match = notes.match(/\[ID\s*([^\]]+)\]/) || notes.match(/Bill ID\s*(\d+)/i);
+      const billId = match ? match[1] : '';
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(34,197,94,0.15)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.3)', padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
+          📁 Attached Bill {billId ? `ID #${billId}` : ''}
+        </span>
+      );
+    }
+    const match = notes.match(/\[Bill\s*([^\]]+)\]/) || notes.match(/Bill\s*#?\s*(\d+)/i);
+    const billNo = match ? match[1] : '';
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(167,139,250,0.15)', color: '#c4b5fd', border: '1px solid rgba(167,139,250,0.3)', padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
+        📝 Manual {billNo ? `Bill #${billNo}` : ''}
+      </span>
+    );
   };
 
   // ── Data Fetching ────────────────────────────────────────────────────────
@@ -217,6 +276,19 @@ export default function ReconciliationModule({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // ── Categorized Counts & Filtered Expenses ────────────────────────────────
+  const manualExpenses = useMemo(() => expenses.filter(e => getExpenseType(e) === 'manual'), [expenses]);
+  const bankReceiptExpenses = useMemo(() => expenses.filter(e => getExpenseType(e) === 'bank_receipt'), [expenses]);
+  const attachBillExpenses = useMemo(() => expenses.filter(e => getExpenseType(e) === 'attach_bill'), [expenses]);
+
+  const displayedExpenses = useMemo(() => {
+    if (filterType === 'all') return expenses;
+    if (filterType === 'manual') return manualExpenses;
+    if (filterType === 'bank_receipt') return bankReceiptExpenses;
+    if (filterType === 'attach_bill') return attachBillExpenses;
+    return expenses;
+  }, [expenses, manualExpenses, bankReceiptExpenses, attachBillExpenses, filterType]);
+
   // ── Auto-Reconciliation Handler ──────────────────────────────────────────
   const handleRunAutoMatch = async () => {
     setAutoMatching(true);
@@ -292,6 +364,63 @@ export default function ReconciliationModule({
       }
     } catch (err) {
       alert(err.message);
+    }
+  };
+
+  // ── Edit Expense Handlers ────────────────────────────────────────────────
+  const handleOpenEditModal = (expense) => {
+    setSelectedExpenseForEdit(expense);
+    setEditExpenseForm({
+      amount: String(expense.amount || 0),
+      category: expense.category || 'Site Expense',
+      summaryNotes: expense.summaryNotes || '',
+      expenseDate: expense.expenseDate
+        ? new Date(expense.expenseDate).toISOString().slice(0, 10)
+        : (expense.createdAt ? new Date(expense.createdAt).toISOString().slice(0, 10) : ''),
+      imageUrl: expense.imageUrl || '',
+      status: expense.status || 'UNMATCHED',
+      adjustedAmount: String(expense.adjustedAmount || 0),
+    });
+    setEditExpenseModalOpen(true);
+  };
+
+  const handleSaveExpenseEdit = async (e) => {
+    e.preventDefault();
+    if (!selectedExpenseForEdit) return;
+    setSavingExpenseEdit(true);
+    try {
+      await apiFetch('/api/expenses', {
+        method: 'PUT',
+        body: JSON.stringify({
+          id: selectedExpenseForEdit.id,
+          amount: parseFloat(editExpenseForm.amount) || 0,
+          category: editExpenseForm.category,
+          summaryNotes: editExpenseForm.summaryNotes,
+          expenseDate: editExpenseForm.expenseDate,
+          imageUrl: editExpenseForm.imageUrl || null,
+          status: editExpenseForm.status,
+          adjustedAmount: parseFloat(editExpenseForm.adjustedAmount) || 0,
+        }),
+      });
+      showNotification(`Expense #${selectedExpenseForEdit.id} updated successfully!`, 'success');
+      setEditExpenseModalOpen(false);
+      await Promise.all([fetchExpenses(), fetchStats()]);
+    } catch (err) {
+      showNotification('Update failed: ' + err.message, 'error');
+    } finally {
+      setSavingExpenseEdit(false);
+    }
+  };
+
+  // ── Delete Expense Handler ───────────────────────────────────────────────
+  const handleDeleteExpense = async (expenseId) => {
+    if (!confirm(`Are you sure you want to permanently delete Expense / Attachment #${expenseId}? This cannot be undone.`)) return;
+    try {
+      await apiFetch(`/api/expenses?id=${expenseId}`, { method: 'DELETE' });
+      showNotification(`Expense #${expenseId} deleted successfully!`, 'success');
+      await Promise.all([fetchExpenses(), fetchStats()]);
+    } catch (err) {
+      showNotification('Delete failed: ' + err.message, 'error');
     }
   };
 
@@ -498,7 +627,7 @@ export default function ReconciliationModule({
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7.5);
 
-      expenses.slice(0, 30).forEach((e, idx) => {
+      displayedExpenses.slice(0, 40).forEach((e, idx) => {
         if (y > 540) {
           doc.addPage();
           y = 40;
@@ -638,10 +767,10 @@ export default function ReconciliationModule({
             </div>
             <div>
               <h2 style={{ fontSize: 20, margin: 0, fontWeight: 800, color: '#f8fafc', letterSpacing: '-0.3px' }}>
-                Employee Expense Reconciliation & Bank Statement Verification
+                Employee Expense Reconciliation &amp; Bank Statement Verification
               </h2>
               <p style={{ color: '#94a3b8', fontSize: 13, margin: '4px 0 0 0' }}>
-                Reconcile site complaints & company expenses against uploaded bank statement debits
+                Summary of all Manual expenses, Bank receipts, Attached bills &amp; Bank statement audits
               </p>
             </div>
           </div>
@@ -701,135 +830,203 @@ export default function ReconciliationModule({
         </div>
       </section>
 
-      {/* ── 4 KPI SUMMARY CARDS ────────────────────────────────────────────── */}
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+      {/* ── 5 SUMMARY KPI CARDS (INCLUDING MANUAL & ATTACHMENT BREAKDOWN) ────── */}
+      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 16 }}>
         {/* Card 1: Total Claimed */}
-        <div className="glass-card" style={{ padding: '22px 20px', border: '1px solid rgba(59,130,246,0.25)', background: 'rgba(59,130,246,0.04)', position: 'relative' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-            <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Claimed Expenses</span>
-            <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(59,130,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <DollarSign size={18} color="#3b82f6" />
+        <div className="glass-card" style={{ padding: '20px 18px', border: '1px solid rgba(59,130,246,0.25)', background: 'rgba(59,130,246,0.04)', position: 'relative' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+            <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Claimed</span>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(59,130,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <DollarSign size={16} color="#3b82f6" />
             </div>
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#3b82f6', lineHeight: 1.1 }}>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#3b82f6', lineHeight: 1.1 }}>
             Rs. {(stats?.totalClaimed || 0).toLocaleString()}
           </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>
-            {stats?.claimedCount || 0} Total Site Expense Claims
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>
+            {expenses.length} Total Expense Records
           </div>
         </div>
 
-        {/* Card 2: Total Adjusted */}
-        <div className="glass-card" style={{ padding: '22px 20px', border: '1px solid rgba(34,197,94,0.25)', background: 'rgba(34,197,94,0.04)', position: 'relative' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-            <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Adjusted</span>
-            <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(34,197,94,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <CheckCircle size={18} color="#22c55e" />
+        {/* Card 2: Manual Entries Breakdown */}
+        <div className="glass-card" style={{ padding: '20px 18px', border: '1px solid rgba(167,139,250,0.25)', background: 'rgba(167,139,250,0.04)', position: 'relative', cursor: 'pointer' }} onClick={() => setFilterType('manual')}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+            <span style={{ fontSize: 11, color: '#c4b5fd', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>📝 Manually Attached</span>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(167,139,250,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <FileText size={16} color="#c4b5fd" />
             </div>
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#22c55e', lineHeight: 1.1 }}>
-            Rs. {(stats?.totalAdjusted || 0).toLocaleString()}
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#c4b5fd', lineHeight: 1.1 }}>
+            {manualExpenses.length} <span style={{ fontSize: 13, fontWeight: 500, color: '#94a3b8' }}>Bills</span>
           </div>
-          <div style={{ marginTop: 8, height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{
-              height: '100%',
-              width: `${Math.min(100, Math.round(((stats?.totalAdjusted || 0) / Math.max(1, stats?.totalClaimed || 1)) * 100))}%`,
-              background: 'linear-gradient(90deg, #22c55e, #4ade80)'
-            }} />
+          <div style={{ fontSize: 11, color: '#a78bfa', marginTop: 6, fontWeight: 600 }}>
+            Rs. {manualExpenses.reduce((s, e) => s + (e.amount || 0), 0).toLocaleString()} Claimed
+          </div>
+        </div>
+
+        {/* Card 3: Bank Receipts Breakdown */}
+        <div className="glass-card" style={{ padding: '20px 18px', border: '1px solid rgba(56,189,248,0.25)', background: 'rgba(56,189,248,0.04)', position: 'relative', cursor: 'pointer' }} onClick={() => setFilterType('bank_receipt')}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+            <span style={{ fontSize: 11, color: '#38bdf8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>🏦 Bank Receipts</span>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(56,189,248,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Camera size={16} color="#38bdf8" />
+            </div>
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#38bdf8', lineHeight: 1.1 }}>
+            {bankReceiptExpenses.length} <span style={{ fontSize: 13, fontWeight: 500, color: '#94a3b8' }}>Receipts</span>
+          </div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>
+            Attached Bank Slips / Proofs
+          </div>
+        </div>
+
+        {/* Card 4: Attached Bills Breakdown */}
+        <div className="glass-card" style={{ padding: '20px 18px', border: '1px solid rgba(34,197,94,0.25)', background: 'rgba(34,197,94,0.04)', position: 'relative', cursor: 'pointer' }} onClick={() => setFilterType('attach_bill')}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+            <span style={{ fontSize: 11, color: '#4ade80', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>📁 Attached Bills</span>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(34,197,94,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <FileSpreadsheet size={16} color="#4ade80" />
+            </div>
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#4ade80', lineHeight: 1.1 }}>
+            {attachBillExpenses.length} <span style={{ fontSize: 13, fontWeight: 500, color: '#94a3b8' }}>Uploads</span>
+          </div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>
+            Uploaded Site Bills &amp; Vouchers
+          </div>
+        </div>
+
+        {/* Card 5: Total Adjusted vs Bank */}
+        <div className="glass-card" style={{ padding: '20px 18px', border: '1px solid rgba(34,197,94,0.25)', background: 'rgba(34,197,94,0.04)', position: 'relative' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+            <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Adjusted</span>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(34,197,94,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <CheckCircle size={16} color="#22c55e" />
+            </div>
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#22c55e', lineHeight: 1.1 }}>
+            Rs. {(stats?.totalAdjusted || 0).toLocaleString()}
           </div>
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>
             {stats?.totalClaimed ? Math.round(((stats.totalAdjusted || 0) / stats.totalClaimed) * 100) : 0}% Reconciled vs Bank
           </div>
         </div>
-
-        {/* Card 3: Total Unmatched */}
-        <div className="glass-card" style={{ padding: '22px 20px', border: '1px solid rgba(239,68,68,0.25)', background: 'rgba(239,68,68,0.04)', position: 'relative' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-            <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Unmatched</span>
-            <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(239,68,68,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <XCircle size={18} color="#ef4444" />
-            </div>
-          </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#ef4444', lineHeight: 1.1 }}>
-            Rs. {(stats?.totalUnmatched || 0).toLocaleString()}
-          </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>
-            {(stats?.statusCounts?.UNMATCHED || 0) + (stats?.statusCounts?.REVIEW_REQUIRED || 0)} Pending Verification
-          </div>
-        </div>
-
-        {/* Card 4: Other Expenses */}
-        <div className="glass-card" style={{ padding: '22px 20px', border: '1px solid rgba(167,139,250,0.25)', background: 'rgba(167,139,250,0.04)', position: 'relative' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-            <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Other Company Expenses</span>
-            <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(167,139,250,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Building size={18} color="#a78bfa" />
-            </div>
-          </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#a78bfa', lineHeight: 1.1 }}>
-            Rs. {(stats?.totalOtherExpenses || 0).toLocaleString()}
-          </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>
-            {stats?.otherExpensesCount || 0} Non-Complaint Records
-          </div>
-        </div>
       </section>
 
-      {/* ── FILTER CONTROLS & SUB-TABS ────────────────────────────────────── */}
-      <section className="glass-card" style={{ padding: '20px 24px' }}>
-        {/* Sub-tabs */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 16, marginBottom: 18 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {[
-              { id: 'grid', label: `Reconciliation Grid (${expenses.length})`, icon: Layers },
-              { id: 'other', label: `Other Expenses (${otherExpenses.length})`, icon: Building },
-              { id: 'statements', label: `Bank Statements (${statements.length})`, icon: FileSpreadsheet },
-            ].map((st) => {
-              const Icon = st.icon;
-              return (
-                <button
-                  key={st.id}
-                  type="button"
-                  onClick={() => setActiveSubTab(st.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '8px 16px',
-                    borderRadius: 8,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    background: activeSubTab === st.id ? 'rgba(0,242,254,0.15)' : 'rgba(255,255,255,0.03)',
-                    color: activeSubTab === st.id ? '#00f2fe' : '#94a3b8',
-                    border: `1px solid ${activeSubTab === st.id ? 'rgba(0,242,254,0.4)' : 'rgba(255,255,255,0.08)'}`,
-                  }}
-                >
-                  <Icon size={15} />
-                  <span>{st.label}</span>
-                </button>
-              );
-            })}
+      {/* ── SUB-TABS NAVIGATION BAR ────────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 10, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 12 }}>
+        <button
+          type="button"
+          className={`btn ${activeSubTab === 'grid' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => setActiveSubTab('grid')}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}
+        >
+          <Layers size={15} />
+          <span>Expense Matrix &amp; Proofs ({expenses.length})</span>
+        </button>
+
+        <button
+          type="button"
+          className={`btn ${activeSubTab === 'other' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => setActiveSubTab('other')}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}
+        >
+          <Building size={15} />
+          <span>Other Company Expenses ({otherExpenses.length})</span>
+        </button>
+
+        <button
+          type="button"
+          className={`btn ${activeSubTab === 'statements' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => setActiveSubTab('statements')}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}
+        >
+          <FileSpreadsheet size={15} />
+          <span>Bank Statements ({statements.length})</span>
+        </button>
+      </div>
+
+      {/* ── ADVANCED FILTERS PANEL ─────────────────────────────────────────── */}
+      <section className="glass-card" style={{ padding: '18px 22px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Filter size={16} color="#00f2fe" />
+            <span style={{ fontWeight: 700, fontSize: 13, color: '#f8fafc' }}>Filter &amp; Search Ledger</span>
           </div>
 
-          {/* Quick Refresh */}
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={reloadAll}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '6px 12px' }}
-          >
-            <RefreshCw size={14} className={loadingExpenses ? 'spin' : ''} />
-            <span>Refresh Grid</span>
-          </button>
+          {/* Quick Format / Mode Filter Pills */}
+          <div style={{ display: 'flex', gap: 6, background: 'rgba(0,0,0,0.4)', padding: 4, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)' }}>
+            <button
+              type="button"
+              onClick={() => setFilterType('all')}
+              style={{
+                padding: '4px 10px',
+                borderRadius: 6,
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: 'pointer',
+                border: 'none',
+                background: filterType === 'all' ? 'rgba(0,242,254,0.2)' : 'transparent',
+                color: filterType === 'all' ? '#00f2fe' : '#94a3b8',
+              }}
+            >
+              All Types ({expenses.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterType('manual')}
+              style={{
+                padding: '4px 10px',
+                borderRadius: 6,
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: 'pointer',
+                border: 'none',
+                background: filterType === 'manual' ? 'rgba(167,139,250,0.25)' : 'transparent',
+                color: filterType === 'manual' ? '#c4b5fd' : '#94a3b8',
+              }}
+            >
+              📝 Manual ({manualExpenses.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterType('bank_receipt')}
+              style={{
+                padding: '4px 10px',
+                borderRadius: 6,
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: 'pointer',
+                border: 'none',
+                background: filterType === 'bank_receipt' ? 'rgba(56,189,248,0.25)' : 'transparent',
+                color: filterType === 'bank_receipt' ? '#38bdf8' : '#94a3b8',
+              }}
+            >
+              🏦 Bank Receipts ({bankReceiptExpenses.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterType('attach_bill')}
+              style={{
+                padding: '4px 10px',
+                borderRadius: 6,
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: 'pointer',
+                border: 'none',
+                background: filterType === 'attach_bill' ? 'rgba(34,197,94,0.25)' : 'transparent',
+                color: filterType === 'attach_bill' ? '#4ade80' : '#94a3b8',
+              }}
+            >
+              📁 Attached Bills ({attachBillExpenses.length})
+            </button>
+          </div>
         </div>
 
-        {/* Filters Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, alignItems: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
           {/* Employee Filter */}
           <div>
-            <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: 4 }}>Employee</label>
+            <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: 4 }}>Employee / Creator</label>
             <select
               className="form-control"
               value={selectedEmployee}
@@ -837,64 +1034,39 @@ export default function ReconciliationModule({
               style={{ fontSize: 13, background: 'rgba(0,0,0,0.3)' }}
             >
               <option value="all">All Employees</option>
-              {users.filter(u => u.role === 'EMPLOYEE').map((u) => (
+              {users.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {getMappedEmployeeName(u.employeeName)}
+                  {u.employeeName || u.email}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Tenure Mode Toggle & Month / Range */}
+          {/* Month / Period Filter */}
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Tenure</label>
-              <button
-                type="button"
-                onClick={() => setFilterTenureMode(m => m === 'month' ? 'custom' : 'month')}
-                style={{ background: 'none', border: 'none', color: '#00f2fe', fontSize: 10, cursor: 'pointer', textDecoration: 'underline' }}
-              >
-                {filterTenureMode === 'month' ? 'Custom Range' : 'By Month'}
-              </button>
-            </div>
-            {filterTenureMode === 'month' ? (
-              <input
-                type="month"
-                className="form-control"
-                value={filterMonth}
-                onChange={(e) => setFilterMonth(e.target.value)}
-                style={{ fontSize: 13, background: 'rgba(0,0,0,0.3)' }}
-              />
-            ) : (
-              <div style={{ display: 'flex', gap: 6 }}>
-                <input
-                  type="date"
-                  className="form-control"
-                  value={filterStartDate}
-                  onChange={(e) => setFilterStartDate(e.target.value)}
-                  style={{ fontSize: 11, padding: '6px 8px', background: 'rgba(0,0,0,0.3)' }}
-                />
-                <input
-                  type="date"
-                  className="form-control"
-                  value={filterEndDate}
-                  onChange={(e) => setFilterEndDate(e.target.value)}
-                  style={{ fontSize: 11, padding: '6px 8px', background: 'rgba(0,0,0,0.3)' }}
-                />
-              </div>
-            )}
+            <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: 4 }}>Month</label>
+            <input
+              type="month"
+              className="form-control"
+              value={filterMonth}
+              onChange={(e) => {
+                setFilterMonth(e.target.value);
+                setFilterTenureMode('month');
+              }}
+              style={{ fontSize: 13, background: 'rgba(0,0,0,0.3)' }}
+            />
           </div>
 
-          {/* Status Filter */}
+          {/* Verification Status Filter */}
           <div>
-            <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: 4 }}>Match Status</label>
+            <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: 4 }}>Recon Status</label>
             <select
               className="form-control"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
               style={{ fontSize: 13, background: 'rgba(0,0,0,0.3)' }}
             >
-              <option value="all">All Statuses</option>
+              <option value="all">All Recon Statuses</option>
               <option value="MATCHED">Matched</option>
               <option value="PARTIALLY_MATCHED">Partially Matched</option>
               <option value="UNMATCHED">Unmatched</option>
@@ -914,40 +1086,26 @@ export default function ReconciliationModule({
             >
               <option value="all">All Categories</option>
               <option value="Site Expense">Site Expense</option>
-              <option value="Fuel">Fuel & Travel</option>
+              <option value="Fuel">Fuel &amp; Travel</option>
               <option value="Spare Parts">Spare Parts</option>
               <option value="Hardware">Hardware / Material</option>
-              <option value="Office & Operations">Office & Operations</option>
+              <option value="Labor & Wages">Labor &amp; Wages</option>
+              <option value="Food & Refreshment">Food &amp; Refreshment</option>
+              <option value="Office & Operations">Office &amp; Operations</option>
               <option value="Maintenance">Maintenance</option>
+              <option value="Bank Receipt">Bank Receipt</option>
+              <option value="Site Bill">Site Bill</option>
             </select>
           </div>
 
-          {/* Statement Session Filter */}
-          <div>
-            <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: 4 }}>Statement Session</label>
-            <select
-              className="form-control"
-              value={filterStatement}
-              onChange={(e) => setFilterStatement(e.target.value)}
-              style={{ fontSize: 13, background: 'rgba(0,0,0,0.3)' }}
-            >
-              <option value="all">All Statements</option>
-              {statements.map((s) => (
-                <option key={s.id} value={s.id}>
-                  #{s.id} - {s.bankName} ({new Date(s.createdAt).toLocaleDateString()})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Search Input */}
+          {/* Live Search */}
           <div style={{ gridColumn: 'span 2' }}>
             <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: 4 }}>Live Search</label>
             <div style={{ position: 'relative' }}>
               <input
                 type="text"
                 className="form-control"
-                placeholder="Search employee, complaint serial, client, bank narration, amount..."
+                placeholder="Search employee, Bill ID, Bank Receipt ID, client, voucher, notes..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{ paddingLeft: 34, fontSize: 13, background: 'rgba(0,0,0,0.3)' }}
@@ -967,14 +1125,14 @@ export default function ReconciliationModule({
         </div>
       </section>
 
-      {/* ── SUB-TAB 1: RECONCILIATION DATA GRID ─────────────────────────────── */}
+      {/* ── SUB-TAB 1: RECONCILIATION DATA GRID (WITH EDIT & DELETE) ────────── */}
       {activeSubTab === 'grid' && (
         <section className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
           <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Layers size={18} color="#00f2fe" />
               <span style={{ fontWeight: 700, fontSize: 14, color: '#f8fafc' }}>
-                Employee Expense Reconciliation Matrix ({expenses.length} Records)
+                Employee Expense &amp; Proof Matrix ({displayedExpenses.length} Records)
               </span>
             </div>
           </div>
@@ -984,32 +1142,33 @@ export default function ReconciliationModule({
               <RefreshCw size={24} className="spin" style={{ margin: '0 auto 12px' }} />
               <div>Loading reconciliation data...</div>
             </div>
-          ) : expenses.length === 0 ? (
+          ) : displayedExpenses.length === 0 ? (
             <div style={{ padding: 48, textAlign: 'center', color: '#64748b' }}>
               <AlertCircle size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
               <div style={{ fontSize: 15, fontWeight: 600 }}>No expense records found matching current filters.</div>
-              <div style={{ fontSize: 12, marginTop: 4 }}>Try clearing search or switching month / employee filters.</div>
+              <div style={{ fontSize: 12, marginTop: 4 }}>Try switching filter tabs or clearing search.</div>
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table className="data-table" style={{ margin: 0, width: '100%' }}>
                 <thead>
                   <tr>
-                    <th>Date & Time</th>
+                    <th>Type &amp; ID</th>
+                    <th>Date &amp; Time</th>
                     <th>Employee</th>
                     <th>Complaint / Job Ref</th>
-                    <th>Category & Notes</th>
+                    <th>Category &amp; Notes</th>
                     <th style={{ textAlign: 'right' }}>Claimed (Rs.)</th>
                     <th style={{ textAlign: 'right' }}>Adjusted (Rs.)</th>
                     <th style={{ textAlign: 'right' }}>Remaining (Rs.)</th>
                     <th style={{ textAlign: 'center' }}>Status</th>
-                    <th>Bank Transaction Verification</th>
+                    <th>Bank Verification</th>
                     <th style={{ textAlign: 'center' }}>Receipt</th>
                     <th style={{ textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {expenses.map((e) => {
+                  {displayedExpenses.map((e) => {
                     const empName = getMappedEmployeeName(e.createdBy?.employeeName || e.jobMetadata?.assignedEmployee?.employeeName);
                     const ticketSerial = e.jobMetadata?.ticket?.serialNo;
                     const clientName = e.jobMetadata?.clientName;
@@ -1017,9 +1176,16 @@ export default function ReconciliationModule({
                     const dateStr = new Date(e.expenseDate || e.createdAt).toLocaleDateString();
                     const timeStr = new Date(e.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                     const remaining = e.remainingAmount !== null && e.remainingAmount !== undefined ? e.remainingAmount : Math.max(0, e.amount - (e.adjustedAmount || 0));
+                    const isPdf = e.imageUrl && (e.imageUrl.toLowerCase().includes('.pdf') || e.imageUrl.includes('data:application/pdf'));
 
                     return (
                       <tr key={e.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        {/* Type & ID Badge */}
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          {getExpenseTypeBadge(e)}
+                          <div style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>Rec #{e.id}</div>
+                        </td>
+
                         {/* Date */}
                         <td style={{ whiteSpace: 'nowrap' }}>
                           <div style={{ fontWeight: 600, fontSize: 13, color: '#f8fafc' }}>{dateStr}</div>
@@ -1029,7 +1195,7 @@ export default function ReconciliationModule({
                         {/* Employee */}
                         <td>
                           <div style={{ fontWeight: 700, color: '#00f2fe', fontSize: 13 }}>{empName}</div>
-                          <div style={{ fontSize: 10, color: '#64748b' }}>ID #{e.id}</div>
+                          <div style={{ fontSize: 10, color: '#64748b' }}>{e.createdBy?.email || 'Staff'}</div>
                         </td>
 
                         {/* Complaint / Job Ref */}
@@ -1077,7 +1243,7 @@ export default function ReconciliationModule({
                         </td>
 
                         {/* Bank Transaction Verification Details */}
-                        <td style={{ maxWidth: 240 }}>
+                        <td style={{ maxWidth: 220 }}>
                           {e.bankTransaction ? (
                             <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', padding: '6px 10px', borderRadius: 6 }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 700, color: '#34d399' }}>
@@ -1092,7 +1258,7 @@ export default function ReconciliationModule({
                               </div>
                             </div>
                           ) : (
-                            <span style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>No bank transaction linked</span>
+                            <span style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>No bank debit linked</span>
                           )}
                         </td>
 
@@ -1103,22 +1269,50 @@ export default function ReconciliationModule({
                               type="button"
                               onClick={() => setImagePreviewUrl(e.imageUrl)}
                               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                              title="Click to view receipt"
+                              title="Click to view full receipt/doc"
                             >
-                              <img
-                                src={e.imageUrl}
-                                alt="Receipt"
-                                style={{ width: 34, height: 34, objectFit: 'cover', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)' }}
-                              />
+                              {isPdf ? (
+                                <div style={{ width: 34, height: 34, borderRadius: 6, background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
+                                  <FileText size={18} />
+                                </div>
+                              ) : (
+                                <img
+                                  src={e.imageUrl}
+                                  alt="Receipt"
+                                  style={{ width: 34, height: 34, objectFit: 'cover', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)' }}
+                                />
+                              )}
                             </button>
                           ) : (
                             <span style={{ fontSize: 11, color: '#64748b' }}>—</span>
                           )}
                         </td>
 
-                        {/* Action Buttons */}
+                        {/* Action Buttons: Edit, Delete, Match/Adjust */}
                         <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                           <div style={{ display: 'inline-flex', gap: 6 }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              onClick={() => handleOpenEditModal(e)}
+                              style={{ padding: '4px 8px', fontSize: 11, borderColor: 'rgba(0,242,254,0.4)', color: '#00f2fe', display: 'flex', alignItems: 'center', gap: 4 }}
+                              title="Edit Expense Details"
+                            >
+                              <Edit3 size={12} />
+                              <span>Edit</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              onClick={() => handleDeleteExpense(e.id)}
+                              style={{ padding: '4px 8px', fontSize: 11, borderColor: 'rgba(239,68,68,0.4)', color: '#f87171', display: 'flex', alignItems: 'center', gap: 4 }}
+                              title="Delete this expense / attachment record"
+                            >
+                              <Trash2 size={12} />
+                              <span>Delete</span>
+                            </button>
+
                             <button
                               type="button"
                               className="btn btn-secondary"
@@ -1126,7 +1320,7 @@ export default function ReconciliationModule({
                               style={{ padding: '4px 10px', fontSize: 11, borderColor: '#38bdf8', color: '#38bdf8' }}
                               title="Adjust or match against bank statement"
                             >
-                              Match / Adjust
+                              Match
                             </button>
 
                             {e.status !== 'UNMATCHED' && (
@@ -1134,10 +1328,10 @@ export default function ReconciliationModule({
                                 type="button"
                                 className="btn btn-secondary"
                                 onClick={() => handleUnmatchExpense(e.id)}
-                                style={{ padding: '4px 8px', fontSize: 11, borderColor: '#ef4444', color: '#f87171' }}
+                                style={{ padding: '4px 6px', fontSize: 11, borderColor: '#ef4444', color: '#f87171' }}
                                 title="Unlink and reset to Unmatched"
                               >
-                                <X size={13} />
+                                <X size={12} />
                               </button>
                             )}
                           </div>
@@ -1344,6 +1538,146 @@ export default function ReconciliationModule({
         </section>
       )}
 
+      {/* ── MODAL: EDIT EXPENSE ─────────────────────────────────────────────── */}
+      {editExpenseModalOpen && selectedExpenseForEdit && (
+        <div className="modal-backdrop">
+          <div className="modal-card" style={{ maxWidth: 580 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Edit3 size={22} color="#00f2fe" />
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Edit Expense #{selectedExpenseForEdit.id}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditExpenseModalOpen(false)}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveExpenseEdit}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label className="field-label" style={{ marginBottom: 4 }}>Claimed Amount (Rs.) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-control"
+                      value={editExpenseForm.amount}
+                      onChange={(e) => setEditExpenseForm({ ...editExpenseForm, amount: e.target.value })}
+                      required
+                      style={{ fontSize: 15, fontWeight: 700, color: '#f8fafc' }}
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label" style={{ marginBottom: 4 }}>Category *</label>
+                    <select
+                      className="form-control"
+                      value={editExpenseForm.category}
+                      onChange={(e) => setEditExpenseForm({ ...editExpenseForm, category: e.target.value })}
+                      required
+                    >
+                      <option value="Site Expense">Site Expense</option>
+                      <option value="Fuel & Travel">Fuel &amp; Travel</option>
+                      <option value="Spare Parts & Materials">Spare Parts &amp; Materials</option>
+                      <option value="Labor & Wages">Labor &amp; Wages</option>
+                      <option value="Food & Refreshment">Food &amp; Refreshment</option>
+                      <option value="Office & Misc">Office &amp; Misc</option>
+                      <option value="Maintenance">Maintenance</option>
+                      <option value="Bank Receipt">Bank Receipt</option>
+                      <option value="Site Bill">Site Bill</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label className="field-label" style={{ marginBottom: 4 }}>Date *</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={editExpenseForm.expenseDate}
+                      onChange={(e) => setEditExpenseForm({ ...editExpenseForm, expenseDate: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label" style={{ marginBottom: 4 }}>Recon Status</label>
+                    <select
+                      className="form-control"
+                      value={editExpenseForm.status}
+                      onChange={(e) => setEditExpenseForm({ ...editExpenseForm, status: e.target.value })}
+                    >
+                      <option value="UNMATCHED">UNMATCHED</option>
+                      <option value="MATCHED">MATCHED</option>
+                      <option value="PARTIALLY_MATCHED">PARTIALLY_MATCHED</option>
+                      <option value="REVIEW_REQUIRED">REVIEW_REQUIRED</option>
+                      <option value="MANUALLY_ADJUSTED">MANUALLY_ADJUSTED</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="field-label" style={{ marginBottom: 4 }}>Summary Notes / Metadata Description</label>
+                  <textarea
+                    className="form-control"
+                    rows={3}
+                    value={editExpenseForm.summaryNotes}
+                    onChange={(e) => setEditExpenseForm({ ...editExpenseForm, summaryNotes: e.target.value })}
+                    placeholder="Details of expense, Bill ID, Bank Receipt ID, voucher..."
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label className="field-label" style={{ marginBottom: 4 }}>Adjusted Amount (Rs.)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-control"
+                      value={editExpenseForm.adjustedAmount}
+                      onChange={(e) => setEditExpenseForm({ ...editExpenseForm, adjustedAmount: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label" style={{ marginBottom: 4 }}>Receipt / Proof URL</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={editExpenseForm.imageUrl}
+                      onChange={(e) => setEditExpenseForm({ ...editExpenseForm, imageUrl: e.target.value })}
+                      placeholder="https://..."
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setEditExpenseModalOpen(false)}
+                    disabled={savingExpenseEdit}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={savingExpenseEdit}
+                    style={{ background: 'linear-gradient(135deg, #00f2fe, #0284c7)', display: 'flex', alignItems: 'center', gap: 8, color: '#000', fontWeight: 700 }}
+                  >
+                    <Check size={16} className={savingExpenseEdit ? 'spin' : ''} />
+                    <span>{savingExpenseEdit ? 'Updating...' : 'Save Changes'}</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* ── MODAL 1: UPLOAD BANK STATEMENT ─────────────────────────────────── */}
       {uploadModalOpen && (
         <div className="modal-backdrop">
@@ -1405,7 +1739,7 @@ export default function ReconciliationModule({
                       required
                     />
                     <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>
-                      Supports all major bank statements with automated Debit & Credit parsing
+                      Supports all major bank statements with automated Debit &amp; Credit parsing
                     </div>
                   </div>
                 </div>
@@ -1431,7 +1765,7 @@ export default function ReconciliationModule({
                     style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', display: 'flex', alignItems: 'center', gap: 8 }}
                   >
                     <UploadCloud size={16} className={uploading ? 'spin' : ''} />
-                    <span>{uploading ? 'Parsing Statement...' : 'Upload & Parse'}</span>
+                    <span>{uploading ? 'Parsing Statement...' : 'Upload &amp; Parse'}</span>
                   </button>
                 </div>
               </div>
@@ -1448,7 +1782,7 @@ export default function ReconciliationModule({
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <ShieldCheck size={22} color="#00f2fe" />
                 <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
-                  Manual Match & Adjustment — Expense #{selectedExpenseForAdjust.id}
+                  Manual Match &amp; Adjustment — Expense #{selectedExpenseForAdjust.id}
                 </h3>
               </div>
               <button
@@ -1644,11 +1978,11 @@ export default function ReconciliationModule({
                       onChange={(e) => setOtherExpenseForm({ ...otherExpenseForm, category: e.target.value })}
                       required
                     >
-                      <option value="Office & Operations">Office & Operations</option>
+                      <option value="Office & Operations">Office &amp; Operations</option>
                       <option value="Rent">Office Rent</option>
-                      <option value="Utilities">Utilities & Electricity</option>
-                      <option value="Fuel & Travel">Fuel & Travel</option>
-                      <option value="Salaries & Wages">Salaries & Wages</option>
+                      <option value="Utilities">Utilities &amp; Electricity</option>
+                      <option value="Fuel & Travel">Fuel &amp; Travel</option>
+                      <option value="Salaries & Wages">Salaries &amp; Wages</option>
                       <option value="Vendor Payment">Vendor Payment</option>
                       <option value="Hardware / Tools">Hardware / Tools</option>
                       <option value="Miscellaneous">Miscellaneous</option>
@@ -1780,41 +2114,62 @@ export default function ReconciliationModule({
         </div>
       )}
 
-      {/* ── MODAL 4: RECEIPT IMAGE PREVIEW ─────────────────────────────────── */}
-      {imagePreviewUrl && (
-        <div className="modal-backdrop" onClick={() => setImagePreviewUrl(null)}>
-          <div className="modal-card" style={{ maxWidth: 700, padding: 16, background: '#090d16' }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span style={{ fontWeight: 700, fontSize: 14, color: '#f8fafc' }}>Receipt / Bill Proof Preview</span>
-              <button
-                type="button"
-                onClick={() => setImagePreviewUrl(null)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div style={{ textAlign: 'center', maxHeight: '75vh', overflow: 'auto', background: '#000', borderRadius: 8, padding: 8 }}>
-              <img
-                src={imagePreviewUrl}
-                alt="Receipt Full Preview"
-                style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
-              />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
-              <a
-                href={imagePreviewUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="btn btn-secondary"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}
-              >
-                <Eye size={14} /> Open Full Size in New Tab
-              </a>
+      {/* ── MODAL 4: RECEIPT / DOC FULL PREVIEW (IMAGES & PDFS) ─────────────── */}
+      {imagePreviewUrl && (() => {
+        const isPdf = imagePreviewUrl.toLowerCase().includes('.pdf') || imagePreviewUrl.includes('data:application/pdf');
+        return (
+          <div className="modal-backdrop" onClick={() => setImagePreviewUrl(null)}>
+            <div className="modal-card" style={{ maxWidth: 850, padding: 18, background: '#090d16' }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <span style={{ fontWeight: 700, fontSize: 15, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Eye size={16} color="#00f2fe" />
+                  {isPdf ? 'PDF Document Preview' : 'Receipt / Proof Image Preview'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setImagePreviewUrl(null)}
+                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div style={{ textAlign: 'center', maxHeight: '75vh', overflow: 'auto', background: '#000', borderRadius: 8, padding: 8 }}>
+                {isPdf ? (
+                  <div style={{ padding: 20 }}>
+                    <iframe
+                      src={imagePreviewUrl}
+                      style={{ width: '100%', height: '60vh', border: 'none', borderRadius: 8 }}
+                      title="PDF Document"
+                    />
+                  </div>
+                ) : (
+                  <img
+                    src={imagePreviewUrl}
+                    alt="Receipt Full Preview"
+                    style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
+                  />
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
+                <span style={{ fontSize: 11, color: '#64748b' }}>
+                  {isPdf ? 'PDF Document attached to database record' : 'High resolution preview'}
+                </span>
+                <a
+                  href={imagePreviewUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-secondary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, borderColor: '#00f2fe', color: '#00f2fe' }}
+                >
+                  <Eye size={14} /> Open Full Size in New Tab ↗
+                </a>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

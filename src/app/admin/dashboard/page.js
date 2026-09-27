@@ -821,48 +821,68 @@ export default function AdminCommandCenter() {
                  </button>
                </div>
 
-               <div className="financial-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-                 <div className="financial-tile" style={{ borderLeft: '3px solid #3b82f6', background: 'rgba(59,130,246,0.03)' }}>
-                   <span className="field-label" style={{ color: '#94a3b8' }}>Total Claimed Expenses</span>
-                   <div className="financial-value" style={{ color: '#3b82f6', fontSize: 20 }}>
-                     Rs. {(reconStats?.totalClaimed || financials?.totalExpenses || 0).toLocaleString()}
-                     <div style={{ fontSize: 11, color: '#64748b', fontWeight: 'normal', marginTop: 4 }}>
-                       ({reconStats?.claimedCount || 0} Site Claims)
-                     </div>
-                   </div>
-                 </div>
+                <div className="financial-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14 }}>
+                  <div className="financial-tile" style={{ borderLeft: '3px solid #3b82f6', background: 'rgba(59,130,246,0.03)' }}>
+                    <span className="field-label" style={{ color: '#94a3b8' }}>Total Claimed Expenses</span>
+                    <div className="financial-value" style={{ color: '#3b82f6', fontSize: 20 }}>
+                      Rs. {(reconStats?.totalClaimed || financials?.totalExpenses || 0).toLocaleString()}
+                      <div style={{ fontSize: 11, color: '#64748b', fontWeight: 'normal', marginTop: 4 }}>
+                        ({reconStats?.claimedCount || 0} Total Records)
+                      </div>
+                    </div>
+                  </div>
 
-                 <div className="financial-tile" style={{ borderLeft: '3px solid #22c55e', background: 'rgba(34,197,94,0.03)' }}>
-                   <span className="field-label" style={{ color: '#22c55e' }}>Amount Adjusted</span>
-                   <div className="financial-value" style={{ color: '#22c55e', fontSize: 20 }}>
-                     Rs. {(reconStats?.totalAdjusted || 0).toLocaleString()}
-                     <div style={{ fontSize: 11, color: '#64748b', fontWeight: 'normal', marginTop: 4 }}>
-                       {reconStats?.totalClaimed ? Math.round(((reconStats.totalAdjusted || 0) / reconStats.totalClaimed) * 100) : 0}% Reconciled
-                     </div>
-                   </div>
-                 </div>
+                  <div className="financial-tile" style={{ borderLeft: '3px solid #c4b5fd', background: 'rgba(167,139,250,0.03)' }}>
+                    <span className="field-label" style={{ color: '#c4b5fd' }}>📝 Manually Attached</span>
+                    <div className="financial-value" style={{ color: '#c4b5fd', fontSize: 20 }}>
+                      Rs. {(reconStats?.totalClaimed ? (reconStats.totalClaimed - (reconStats.otherExpensesSum || 0)) : (financials?.totalExpenses || 0)).toLocaleString()}
+                      <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 'normal', marginTop: 4 }}>
+                        Manual Bill Vouchers
+                      </div>
+                    </div>
+                  </div>
 
-                 <div className="financial-tile" style={{ borderLeft: '3px solid #ef4444', background: 'rgba(239,68,68,0.03)' }}>
-                   <span className="field-label" style={{ color: '#ef4444' }}>Unmatched Amount</span>
-                   <div className="financial-value" style={{ color: '#ef4444', fontSize: 20 }}>
-                     Rs. {(reconStats?.totalUnmatched || 0).toLocaleString()}
-                     <div style={{ fontSize: 11, color: '#64748b', fontWeight: 'normal', marginTop: 4 }}>
-                       {(reconStats?.statusCounts?.UNMATCHED || 0) + (reconStats?.statusCounts?.REVIEW_REQUIRED || 0)} Pending Verification
-                     </div>
-                   </div>
-                 </div>
+                  <div className="financial-tile" style={{ borderLeft: '3px solid #38bdf8', background: 'rgba(56,189,248,0.03)' }}>
+                    <span className="field-label" style={{ color: '#38bdf8' }}>🏦 Bank Receipts</span>
+                    <div className="financial-value" style={{ color: '#38bdf8', fontSize: 20 }}>
+                      Attached Proofs
+                      <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 'normal', marginTop: 4 }}>
+                        Deposit Slips & TRX IDs
+                      </div>
+                    </div>
+                  </div>
 
-                 <div className="financial-tile" style={{ borderLeft: '3px solid #a78bfa', background: 'rgba(167,139,250,0.03)' }}>
-                   <span className="field-label" style={{ color: '#a78bfa' }}>Other Company Expenses</span>
-                   <div className="financial-value" style={{ color: '#a78bfa', fontSize: 20 }}>
-                     Rs. {(reconStats?.totalOtherExpenses || 0).toLocaleString()}
-                     <div style={{ fontSize: 11, color: '#64748b', fontWeight: 'normal', marginTop: 4 }}>
-                       ({reconStats?.otherExpensesCount || 0} Non-Complaint Records)
-                     </div>
-                   </div>
-                 </div>
-               </div>
-             </div>
+                  <div className="financial-tile" style={{ borderLeft: '3px solid #4ade80', background: 'rgba(34,197,94,0.03)' }}>
+                    <span className="field-label" style={{ color: '#4ade80' }}>📁 Attached Bills</span>
+                    <div className="financial-value" style={{ color: '#4ade80', fontSize: 20 }}>
+                      Uploaded Bills
+                      <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 'normal', marginTop: 4 }}>
+                        Camera & Doc Proofs
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="financial-tile" style={{ borderLeft: '3px solid #22c55e', background: 'rgba(34,197,94,0.03)' }}>
+                    <span className="field-label" style={{ color: '#22c55e' }}>Amount Adjusted</span>
+                    <div className="financial-value" style={{ color: '#22c55e', fontSize: 20 }}>
+                      Rs. {(reconStats?.totalAdjusted || 0).toLocaleString()}
+                      <div style={{ fontSize: 11, color: '#64748b', fontWeight: 'normal', marginTop: 4 }}>
+                        {reconStats?.totalClaimed ? Math.round(((reconStats.totalAdjusted || 0) / reconStats.totalClaimed) * 100) : 0}% Reconciled vs Bank
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="financial-tile" style={{ borderLeft: '3px solid #ef4444', background: 'rgba(239,68,68,0.03)' }}>
+                    <span className="field-label" style={{ color: '#ef4444' }}>Unmatched Amount</span>
+                    <div className="financial-value" style={{ color: '#ef4444', fontSize: 20 }}>
+                      Rs. {(reconStats?.totalUnmatched || 0).toLocaleString()}
+                      <div style={{ fontSize: 11, color: '#64748b', fontWeight: 'normal', marginTop: 4 }}>
+                        {(reconStats?.statusCounts?.UNMATCHED || 0) + (reconStats?.statusCounts?.REVIEW_REQUIRED || 0)} Pending Verification
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
           </section>
         </>
       )}

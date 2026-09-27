@@ -38,6 +38,12 @@ export async function POST(request) {
       summaryNotes = '',
       category = 'Site Expense',
       expenseDate,
+      expenseTime,
+      billId,
+      billNumber,
+      bankReceiptId,
+      bankSlipNo,
+      bankName,
       accountName,
       personName,
     } = body;
@@ -64,10 +70,15 @@ export async function POST(request) {
       return NextResponse.json({ error: 'jobMetadataId and amount are required' }, { status: 400 });
     }
 
-    // Build enriched summary notes if account name or person name is provided
+    // Build rich, structured metadata tags
     const notesPrefixParts = [];
+    if (billId || billNumber) notesPrefixParts.push(`[${billId || `Bill ${billNumber}`}]`);
+    if (bankReceiptId) notesPrefixParts.push(`[Bank Receipt ID: ${bankReceiptId}]`);
+    if (bankName) notesPrefixParts.push(`[Bank: ${bankName}]`);
+    if (bankSlipNo) notesPrefixParts.push(`[Slip/Ref: ${bankSlipNo}]`);
     if (accountName) notesPrefixParts.push(`[Account: ${accountName}]`);
     if (personName) notesPrefixParts.push(`[Person: ${personName}]`);
+    if (expenseTime) notesPrefixParts.push(`[Time: ${expenseTime}]`);
     if (category && category !== 'Site Expense') notesPrefixParts.push(`[${category}]`);
 
     const prefixStr = notesPrefixParts.join(' ');
@@ -75,7 +86,18 @@ export async function POST(request) {
       ? `${prefixStr} ${summaryNotes || ''}`.trim()
       : (summaryNotes || 'Site Expense claim');
 
-    const parsedDate = expenseDate ? new Date(expenseDate) : new Date();
+    // Parse date with time if provided
+    let parsedDate = new Date();
+    if (expenseDate) {
+      if (expenseTime) {
+        parsedDate = new Date(`${expenseDate}T${expenseTime}:00`);
+        if (isNaN(parsedDate.getTime())) {
+          parsedDate = new Date(expenseDate);
+        }
+      } else {
+        parsedDate = new Date(expenseDate);
+      }
+    }
 
     const expense = await prisma.expense.create({
       data: {

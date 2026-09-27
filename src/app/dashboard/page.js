@@ -88,9 +88,12 @@ export default function EmployeeRealTimeDashboard() {
   const [savingQuotation, setSavingQuotation] = useState(false);
   const [editingQuotationId, setEditingQuotationId] = useState(null);
   
-  // Expense form state
-  const [expenseMode, setExpenseMode] = useState('quick'); // 'quick' | 'manual'
+  // Expense form state - 3 Modes: 'manual' (Manually Attached), 'bank_receipt' (Bank Receipt Attached), 'attach_bill' (Attach Bill)
+  const [expenseMode, setExpenseMode] = useState('manual'); // 'manual' | 'bank_receipt' | 'attach_bill'
+  
+  // Mode 1: Manually Attached state
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().slice(0, 10));
+  const [expenseTime, setExpenseTime] = useState(new Date().toTimeString().slice(0, 5));
   const [expenseAccountName, setExpenseAccountName] = useState('Meezan Bank');
   const [expensePersonName, setExpensePersonName] = useState('');
   const [expenseCategory, setExpenseCategory] = useState('Site Expense');
@@ -99,6 +102,24 @@ export default function EmployeeRealTimeDashboard() {
   const [expenseImg, setExpenseImg] = useState('');
   const [capturedImg, setCapturedImg] = useState(null);
   const [savingExpense, setSavingExpense] = useState(false);
+
+  // Mode 2: Bank Receipt Attached state
+  const [bankReceiptDate, setBankReceiptDate] = useState(new Date().toISOString().slice(0, 10));
+  const [bankReceiptTime, setBankReceiptTime] = useState(new Date().toTimeString().slice(0, 5));
+  const [bankReceiptBankName, setBankReceiptBankName] = useState('Meezan Bank');
+  const [bankReceiptSlipNo, setBankReceiptSlipNo] = useState('');
+  const [bankReceiptAmount, setBankReceiptAmount] = useState('');
+  const [bankReceiptNotes, setBankReceiptNotes] = useState('');
+  const [bankReceiptImg, setBankReceiptImg] = useState('');
+  const [capturedBankReceiptImg, setCapturedBankReceiptImg] = useState(null);
+
+  // Mode 3: Attach Bill state
+  const [billDate, setBillDate] = useState(new Date().toISOString().slice(0, 10));
+  const [billTime, setBillTime] = useState(new Date().toTimeString().slice(0, 5));
+  const [billAmount, setBillAmount] = useState('');
+  const [billNotes, setBillNotes] = useState('');
+  const [billImg, setBillImg] = useState('');
+  const [capturedBillImg, setCapturedBillImg] = useState(null);
 
   // Payment form state
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -502,56 +523,144 @@ export default function EmployeeRealTimeDashboard() {
     }
   };
 
-  const submitExpense = async (jobId) => {
-    if (!expenseAmount || parseFloat(expenseAmount) <= 0) {
-      setMessage('Valid expense amount is required.');
-      return;
-    }
-    if (expenseMode === 'quick' && !expenseNotes.trim()) {
-      setMessage('Expense notes are required.');
-      return;
-    }
-    if (expenseMode === 'manual' && (!expenseAccountName.trim() || !expensePersonName.trim())) {
-      setMessage('Account Name and Person Name are required for manual expense entry.');
-      return;
+  const submitExpense = async (jobId, currentJob) => {
+    const jobObj = currentJob || jobs.find((j) => j.id === jobId);
+    const existingExpenses = jobObj?.expenses || [];
+    const jobBills = existingExpenses.filter((e) => !e.summaryNotes?.includes('[Bank Receipt ID:') && e.category !== 'Bank Receipt');
+    const jobBankReceipts = existingExpenses.filter((e) => e.summaryNotes?.includes('[Bank Receipt ID:') || e.category === 'Bank Receipt');
+
+    let amountToSave = 0;
+    let payload = {};
+
+    if (expenseMode === 'manual') {
+      if (!expenseAmount || parseFloat(expenseAmount) <= 0) {
+        setMessage('Valid expense amount is required.');
+        return;
+      }
+      if (!expenseAccountName.trim() || !expensePersonName.trim()) {
+        setMessage('Account Name and Person Name are required.');
+        return;
+      }
+      const nextBillNo = jobBills.length + 1;
+      amountToSave = parseFloat(expenseAmount);
+      payload = {
+        jobMetadataId: jobId,
+        amount: amountToSave,
+        summaryNotes: expenseNotes.trim() || `${expenseCategory} by ${expensePersonName}`,
+        category: expenseCategory || 'Site Expense',
+        expenseDate: expenseDate || new Date().toISOString().slice(0, 10),
+        expenseTime: expenseTime || new Date().toTimeString().slice(0, 5),
+        billId: `Bill ${nextBillNo}`,
+        billNumber: nextBillNo,
+        accountName: expenseAccountName,
+        personName: expensePersonName,
+      };
+    } else if (expenseMode === 'bank_receipt') {
+      if (!bankReceiptAmount || parseFloat(bankReceiptAmount) <= 0) {
+        setMessage('Valid bank receipt amount is required.');
+        return;
+      }
+      if (!bankReceiptBankName.trim()) {
+        setMessage('Bank Name is required.');
+        return;
+      }
+      const nextReceiptId = jobBankReceipts.length + 1;
+      amountToSave = parseFloat(bankReceiptAmount);
+      payload = {
+        jobMetadataId: jobId,
+        amount: amountToSave,
+        summaryNotes: bankReceiptNotes.trim() || `Bank deposit/transfer to ${bankReceiptBankName}`,
+        category: 'Bank Receipt',
+        expenseDate: bankReceiptDate || new Date().toISOString().slice(0, 10),
+        expenseTime: bankReceiptTime || new Date().toTimeString().slice(0, 5),
+        bankReceiptId: String(nextReceiptId),
+        bankName: bankReceiptBankName,
+        bankSlipNo: bankReceiptSlipNo || null,
+        accountName: bankReceiptBankName,
+        personName: user?.employeeName || 'Staff',
+      };
+    } else if (expenseMode === 'attach_bill') {
+      if (!billAmount || parseFloat(billAmount) <= 0) {
+        setMessage('Valid bill amount is required.');
+        return;
+      }
+      const nextBillNo = jobBills.length + 1;
+      amountToSave = parseFloat(billAmount);
+      payload = {
+        jobMetadataId: jobId,
+        amount: amountToSave,
+        summaryNotes: billNotes.trim() || 'Uploaded physical site bill',
+        category: 'Site Bill',
+        expenseDate: billDate || new Date().toISOString().slice(0, 10),
+        expenseTime: billTime || new Date().toTimeString().slice(0, 5),
+        billId: `Bill ${nextBillNo}`,
+        billNumber: nextBillNo,
+        personName: user?.employeeName || 'Staff',
+      };
     }
 
     setSavingExpense(true);
     setMessage('');
     try {
-      let finalUrl = expenseImg;
-      if (capturedImg && capturedImg.startsWith('data:')) {
+      let finalUrl = expenseMode === 'bank_receipt' ? bankReceiptImg : (expenseMode === 'attach_bill' ? billImg : expenseImg);
+      const activeCaptured = expenseMode === 'bank_receipt' ? capturedBankReceiptImg : (expenseMode === 'attach_bill' ? capturedBillImg : capturedImg);
+
+      if (activeCaptured && activeCaptured.startsWith('data:')) {
         try {
-          const blob = await fetch(capturedImg).then((r) => r.blob());
+          const blob = await fetch(activeCaptured).then((r) => r.blob());
           finalUrl = await uploadToCloudinary(blob);
         } catch (e) {
-          finalUrl = capturedImg;
+          finalUrl = activeCaptured;
         }
       }
 
+      payload.imageUrl = finalUrl || null;
+
       await apiFetch('/api/expenses', {
         method: 'POST',
-        body: JSON.stringify({
-          jobMetadataId: jobId,
-          amount: parseFloat(expenseAmount),
-          imageUrl: finalUrl || null,
-          summaryNotes: expenseNotes.trim() || (expenseMode === 'manual' ? `${expenseCategory} by ${expensePersonName}` : 'Site expense claim'),
-          category: expenseCategory || 'Site Expense',
-          expenseDate: expenseDate || new Date().toISOString().slice(0, 10),
-          accountName: expenseAccountName || null,
-          personName: expensePersonName || null,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      setMessage('Expense logged successfully!');
+      // If bank receipt, also update bank-approval card
+      if (expenseMode === 'bank_receipt') {
+        try {
+          await apiFetch('/api/bank-approval', {
+            method: 'POST',
+            body: JSON.stringify({
+              jobMetadataId: jobId,
+              bankName: bankReceiptBankName,
+              accountNumber: bankReceiptSlipNo || null,
+              amount: amountToSave,
+              imageUrl: finalUrl || null,
+              notes: bankReceiptNotes || `Bank Receipt ${payload.bankReceiptId}`,
+              status: 'SUBMITTED',
+            }),
+          });
+        } catch {}
+      }
+
+      const successMsg = expenseMode === 'bank_receipt'
+        ? `Bank Receipt (${payload.bankReceiptId}) attached successfully!`
+        : `Bill (#${payload.billId || '1'}) recorded and attached successfully!`;
+
+      setMessage(successMsg);
       setExpenseAmount('');
       setExpenseNotes('');
       setExpenseImg('');
       setCapturedImg(null);
+      setBankReceiptAmount('');
+      setBankReceiptSlipNo('');
+      setBankReceiptNotes('');
+      setBankReceiptImg('');
+      setCapturedBankReceiptImg(null);
+      setBillAmount('');
+      setBillNotes('');
+      setBillImg('');
+      setCapturedBillImg(null);
       setActionType(null);
       await loadDashboardData();
     } catch (err) {
-      setMessage('Failed to log expense: ' + err.message);
+      setMessage('Failed to log expense/receipt: ' + err.message);
     } finally {
       setSavingExpense(false);
     }
@@ -1792,254 +1901,632 @@ export default function EmployeeRealTimeDashboard() {
                         </div>
                       )}
 
-                      {/* Expense Panel */}
-                      {actionType === 'expense' && (
-                        <div style={{ padding: 20, background: 'rgba(0,0,0,0.25)', borderRadius: 12, border: '1px solid rgba(0, 242, 254, 0.18)' }}>
-                          {/* Mode Switcher Buttons */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 14, flexWrap: 'wrap', gap: 10 }}>
-                            <div>
-                              <h3 style={{ fontSize: 17, margin: 0, fontWeight: 700, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <Camera size={18} color="#00f2fe" />
-                                <span>{expenseMode === 'quick' ? 'Log Site Expense' : 'Manual Written Expense'}</span>
-                              </h3>
-                              <span style={{ fontSize: 12, color: '#94a3b8' }}>
-                                {expenseMode === 'quick' ? 'Quick capture of site expenses with receipt' : 'Set date, bank/account name, person name, category & receipt'}
-                              </span>
-                            </div>
+                      {/* Expense Panel with 3 Distinct Options */}
+                      {actionType === 'expense' && (() => {
+                        const existingExpenses = job.expenses || [];
+                        const jobBills = existingExpenses.filter((e) => !e.summaryNotes?.includes('[Bank Receipt ID:') && e.category !== 'Bank Receipt');
+                        const jobBankReceipts = existingExpenses.filter((e) => e.summaryNotes?.includes('[Bank Receipt ID:') || e.category === 'Bank Receipt');
+                        const nextBillNo = jobBills.length + 1;
+                        const nextBankReceiptId = jobBankReceipts.length + 1;
 
-                            <div style={{ display: 'flex', gap: 6, background: 'rgba(0,0,0,0.4)', padding: 4, borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
-                              <button
-                                type="button"
-                                onClick={() => setExpenseMode('quick')}
-                                style={{
-                                  padding: '6px 14px',
-                                  borderRadius: 6,
-                                  fontSize: 12,
-                                  fontWeight: 600,
-                                  cursor: 'pointer',
-                                  border: 'none',
-                                  background: expenseMode === 'quick' ? 'rgba(0, 242, 254, 0.2)' : 'transparent',
-                                  color: expenseMode === 'quick' ? '#00f2fe' : '#94a3b8',
-                                  transition: 'all 0.2s',
-                                }}
-                              >
-                                ⚡ Quick Log
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setExpenseMode('manual');
-                                  if (!expensePersonName && user?.employeeName) {
-                                    setExpensePersonName(user.employeeName);
-                                  }
-                                }}
-                                style={{
-                                  padding: '6px 14px',
-                                  borderRadius: 6,
-                                  fontSize: 12,
-                                  fontWeight: 600,
-                                  cursor: 'pointer',
-                                  border: 'none',
-                                  background: expenseMode === 'manual' ? 'rgba(167, 139, 250, 0.25)' : 'transparent',
-                                  color: expenseMode === 'manual' ? '#a78bfa' : '#94a3b8',
-                                  transition: 'all 0.2s',
-                                }}
-                              >
-                                📝 Manual Written
-                              </button>
-                            </div>
-                          </div>
+                        const activeCapturedImg = expenseMode === 'bank_receipt' ? capturedBankReceiptImg : (expenseMode === 'attach_bill' ? capturedBillImg : capturedImg);
+                        const activeImgUrl = expenseMode === 'bank_receipt' ? bankReceiptImg : (expenseMode === 'attach_bill' ? billImg : expenseImg);
 
-                          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 20 }}>
-                            {/* Left Form Column */}
-                            <div>
-                              {/* Manual Specific Fields */}
-                              {expenseMode === 'manual' ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                                    <div>
-                                      <label className="field-label" style={{ marginBottom: 4 }}>Expense Date *</label>
-                                      <input
-                                        className="nexus-input"
-                                        type="date"
-                                        required
-                                        value={expenseDate}
-                                        onChange={(e) => setExpenseDate(e.target.value)}
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="field-label" style={{ marginBottom: 4 }}>Account / Bank Name *</label>
-                                      <input
-                                        className="nexus-input"
-                                        type="text"
-                                        required
-                                        placeholder="e.g. Meezan Bank, HBL, Cash"
-                                        value={expenseAccountName}
-                                        onChange={(e) => setExpenseAccountName(e.target.value)}
-                                      />
-                                    </div>
-                                  </div>
-
-                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                                    <div>
-                                      <label className="field-label" style={{ marginBottom: 4 }}>Person Name *</label>
-                                      <input
-                                        className="nexus-input"
-                                        type="text"
-                                        required
-                                        placeholder="e.g. Ibrahim, Ali Shehzad"
-                                        value={expensePersonName}
-                                        onChange={(e) => setExpensePersonName(e.target.value)}
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="field-label" style={{ marginBottom: 4 }}>Expense Category</label>
-                                      <select
-                                        className="nexus-input"
-                                        value={expenseCategory}
-                                        onChange={(e) => setExpenseCategory(e.target.value)}
-                                      >
-                                        <option value="Site Expense">Site Expense</option>
-                                        <option value="Fuel & Travel">Fuel &amp; Travel</option>
-                                        <option value="Spare Parts & Materials">Spare Parts &amp; Materials</option>
-                                        <option value="Labor & Wages">Labor &amp; Wages</option>
-                                        <option value="Food & Refreshment">Food &amp; Refreshment</option>
-                                        <option value="Maintenance">Maintenance</option>
-                                        <option value="Office & Misc">Office &amp; Misc</option>
-                                      </select>
-                                    </div>
-                                  </div>
-
-                                  <div>
-                                    <label className="field-label" style={{ marginBottom: 4 }}>Amount (Rs.) *</label>
-                                    <input
-                                      className="nexus-input"
-                                      type="number"
-                                      step="0.01"
-                                      required
-                                      value={expenseAmount}
-                                      onChange={(e) => setExpenseAmount(e.target.value)}
-                                      placeholder="0.00"
-                                      style={{ fontSize: 15, fontWeight: 700, color: '#f8fafc' }}
-                                    />
-                                  </div>
-
-                                  <div>
-                                    <label className="field-label" style={{ marginBottom: 4 }}>Expense Description / Notes</label>
-                                    <textarea
-                                      className="nexus-textarea"
-                                      value={expenseNotes}
-                                      onChange={(e) => setExpenseNotes(e.target.value)}
-                                      placeholder="Details of materials, items purchased, voucher number..."
-                                      style={{ minHeight: 70 }}
-                                    />
-                                  </div>
-                                </div>
-                              ) : (
-                                /* Quick Mode */
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                  <div>
-                                    <label className="field-label" style={{ marginBottom: 4 }}>Amount (Rs.) *</label>
-                                    <input
-                                      className="nexus-input"
-                                      type="number"
-                                      step="0.01"
-                                      required
-                                      value={expenseAmount}
-                                      onChange={(e) => setExpenseAmount(e.target.value)}
-                                      placeholder="0.00"
-                                      style={{ fontSize: 16, fontWeight: 700, color: '#00f2fe' }}
-                                    />
-                                  </div>
-
-                                  <div>
-                                    <label className="field-label" style={{ marginBottom: 4 }}>Expense Notes *</label>
-                                    <textarea
-                                      className="nexus-textarea"
-                                      required
-                                      value={expenseNotes}
-                                      onChange={(e) => setExpenseNotes(e.target.value)}
-                                      placeholder="Describe materials purchased, labor costs, site items..."
-                                      style={{ minHeight: 90 }}
-                                    />
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Receipt Upload Buttons Bar */}
-                              <div style={{ marginTop: 14 }}>
-                                <label className="field-label" style={{ marginBottom: 6 }}>Attach Receipt / Bill Proof</label>
-                                <div style={{ display: 'flex', gap: 8 }}>
-                                  <button
-                                    type="button"
-                                    className="nexus-btn nexus-btn-ghost"
-                                    style={{ padding: '8px 12px', fontSize: 12, flex: 1, borderColor: 'rgba(0, 242, 254, 0.3)', color: '#00f2fe' }}
-                                    onClick={capturePhoto}
-                                  >
-                                    <Camera size={14} /> Capture Receipt
-                                  </button>
-                                  <label
-                                    className="nexus-btn nexus-btn-ghost"
-                                    style={{ padding: '8px 12px', fontSize: 12, flex: 1, cursor: 'pointer', textAlign: 'center', borderColor: 'rgba(167, 139, 250, 0.3)', color: '#a78bfa' }}
-                                  >
-                                    <Upload size={14} /> Upload Receipt / Doc
-                                    <input type="file" accept="image/*,application/pdf" hidden onChange={handleExpenseFileUpload} />
-                                  </label>
-                                </div>
+                        return (
+                          <div style={{ padding: 22, background: 'rgba(0,0,0,0.3)', borderRadius: 14, border: '1px solid rgba(0, 242, 254, 0.22)', boxShadow: '0 8px 32px rgba(0,0,0,0.37)' }}>
+                            {/* Mode Switcher Buttons */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 14, flexWrap: 'wrap', gap: 12 }}>
+                              <div>
+                                <h3 style={{ fontSize: 18, margin: 0, fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <Camera size={19} color="#00f2fe" />
+                                  <span>
+                                    {expenseMode === 'manual' && '📝 Manually Attached Expense'}
+                                    {expenseMode === 'bank_receipt' && '🏦 Bank Receipt Attached'}
+                                    {expenseMode === 'attach_bill' && '📁 Attach Bill (Upload Bills)'}
+                                  </span>
+                                </h3>
+                                <span style={{ fontSize: 12, color: '#94a3b8' }}>
+                                  {expenseMode === 'manual' && `Set Date, Time, Amount, Account & Person. Automatically assigned Bill #${nextBillNo}.`}
+                                  {expenseMode === 'bank_receipt' && `Attach Bank deposit/transfer proof. Automatically assigned Bank Receipt ID #${nextBankReceiptId}.`}
+                                  {expenseMode === 'attach_bill' && `Directly snap or upload physical bills. Automatically assigned Bill #${nextBillNo}.`}
+                                </span>
                               </div>
 
-                              {/* Submit Button */}
-                              <button
-                                type="button"
-                                className="nexus-btn nexus-btn-primary"
-                                style={{ width: '100%', marginTop: 16, background: expenseMode === 'manual' ? 'linear-gradient(135deg, #8b5cf6, #6d28d9)' : undefined }}
-                                onClick={() => submitExpense(job.id)}
-                                disabled={savingExpense}
-                              >
-                                <Save size={15} /> {savingExpense ? 'Logging Expense...' : (expenseMode === 'manual' ? 'Record Manual Written Expense' : 'Log Site Expense')}
-                              </button>
+                              <div style={{ display: 'flex', gap: 6, background: 'rgba(0,0,0,0.5)', padding: 4, borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setExpenseMode('manual');
+                                    if (!expensePersonName && user?.employeeName) setExpensePersonName(user.employeeName);
+                                  }}
+                                  style={{
+                                    padding: '8px 14px',
+                                    borderRadius: 8,
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    border: 'none',
+                                    background: expenseMode === 'manual' ? 'linear-gradient(135deg, rgba(167,139,250,0.35), rgba(139,92,246,0.45))' : 'transparent',
+                                    color: expenseMode === 'manual' ? '#c4b5fd' : '#94a3b8',
+                                    boxShadow: expenseMode === 'manual' ? '0 2px 8px rgba(139,92,246,0.3)' : 'none',
+                                    transition: 'all 0.2s',
+                                  }}
+                                >
+                                  📝 Manually Attached
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setExpenseMode('bank_receipt')}
+                                  style={{
+                                    padding: '8px 14px',
+                                    borderRadius: 8,
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    border: 'none',
+                                    background: expenseMode === 'bank_receipt' ? 'linear-gradient(135deg, rgba(56,189,248,0.35), rgba(14,165,233,0.45))' : 'transparent',
+                                    color: expenseMode === 'bank_receipt' ? '#38bdf8' : '#94a3b8',
+                                    boxShadow: expenseMode === 'bank_receipt' ? '0 2px 8px rgba(14,165,233,0.3)' : 'none',
+                                    transition: 'all 0.2s',
+                                  }}
+                                >
+                                  🏦 Bank Receipt Attached
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setExpenseMode('attach_bill')}
+                                  style={{
+                                    padding: '8px 14px',
+                                    borderRadius: 8,
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    border: 'none',
+                                    background: expenseMode === 'attach_bill' ? 'linear-gradient(135deg, rgba(34,197,94,0.35), rgba(22,163,74,0.45))' : 'transparent',
+                                    color: expenseMode === 'attach_bill' ? '#4ade80' : '#94a3b8',
+                                    boxShadow: expenseMode === 'attach_bill' ? '0 2px 8px rgba(34,197,94,0.3)' : 'none',
+                                    transition: 'all 0.2s',
+                                  }}
+                                >
+                                  📁 Attach Bill
+                                </button>
+                              </div>
                             </div>
 
-                            {/* Right Camera Feed & Receipt Preview Column */}
-                            <div>
-                              <label className="field-label" style={{ marginBottom: 6 }}>Live Camera Feed / Attached Receipt</label>
-                              <div style={{ borderRadius: 10, overflow: 'hidden', background: '#0a0a0c', height: 260, border: '1px dashed rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                                {!capturedImg ? (
-                                  <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                  <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-                                    <img src={capturedImg} alt="Receipt proof" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                                    <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(34,197,94,0.9)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                      <Check size={12} /> Receipt Ready
+                            <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 1fr', gap: 22 }}>
+                              {/* Left Form Column */}
+                              <div>
+                                {/* OPTION 1: Manually Attached */}
+                                {expenseMode === 'manual' && (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(167, 139, 250, 0.12)', border: '1px solid rgba(167, 139, 250, 0.3)', padding: '8px 12px', borderRadius: 8 }}>
+                                      <span style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 600 }}>🏷️ Sequential Expense ID:</span>
+                                      <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#c4b5fd', background: 'rgba(167, 139, 250, 0.25)', padding: '2px 10px', borderRadius: 6, fontSize: 13 }}>
+                                        Bill #{nextBillNo}
+                                      </span>
                                     </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                                      <div>
+                                        <label className="field-label" style={{ marginBottom: 4 }}>Date *</label>
+                                        <input
+                                          className="nexus-input"
+                                          type="date"
+                                          required
+                                          value={expenseDate}
+                                          onChange={(e) => setExpenseDate(e.target.value)}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="field-label" style={{ marginBottom: 4 }}>Time *</label>
+                                        <input
+                                          className="nexus-input"
+                                          type="time"
+                                          required
+                                          value={expenseTime}
+                                          onChange={(e) => setExpenseTime(e.target.value)}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="field-label" style={{ marginBottom: 4 }}>Amount (Rs.) *</label>
+                                        <input
+                                          className="nexus-input"
+                                          type="number"
+                                          step="0.01"
+                                          required
+                                          value={expenseAmount}
+                                          onChange={(e) => setExpenseAmount(e.target.value)}
+                                          placeholder="0.00"
+                                          style={{ fontSize: 15, fontWeight: 700, color: '#f8fafc' }}
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                                      <div>
+                                        <label className="field-label" style={{ marginBottom: 4 }}>Account / Bank Name *</label>
+                                        <input
+                                          className="nexus-input"
+                                          type="text"
+                                          required
+                                          placeholder="e.g. Meezan Bank, HBL, Cash"
+                                          value={expenseAccountName}
+                                          onChange={(e) => setExpenseAccountName(e.target.value)}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="field-label" style={{ marginBottom: 4 }}>Person Name *</label>
+                                        <input
+                                          className="nexus-input"
+                                          type="text"
+                                          required
+                                          placeholder="e.g. Ibrahim, Ali Shehzad"
+                                          value={expensePersonName}
+                                          onChange={(e) => setExpensePersonName(e.target.value)}
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
+                                      <div>
+                                        <label className="field-label" style={{ marginBottom: 4 }}>Category</label>
+                                        <select
+                                          className="nexus-input"
+                                          value={expenseCategory}
+                                          onChange={(e) => setExpenseCategory(e.target.value)}
+                                        >
+                                          <option value="Site Expense">Site Expense</option>
+                                          <option value="Fuel & Travel">Fuel &amp; Travel</option>
+                                          <option value="Spare Parts & Materials">Spare Parts &amp; Materials</option>
+                                          <option value="Labor & Wages">Labor &amp; Wages</option>
+                                          <option value="Food & Refreshment">Food &amp; Refreshment</option>
+                                          <option value="Maintenance">Maintenance</option>
+                                          <option value="Office & Misc">Office &amp; Misc</option>
+                                        </select>
+                                      </div>
+                                    </div>
+
+                                    <div>
+                                      <label className="field-label" style={{ marginBottom: 4 }}>Expense Description / Notes</label>
+                                      <textarea
+                                        className="nexus-textarea"
+                                        value={expenseNotes}
+                                        onChange={(e) => setExpenseNotes(e.target.value)}
+                                        placeholder="Details of materials, items purchased, voucher number..."
+                                        style={{ minHeight: 65 }}
+                                      />
+                                    </div>
+
+                                    {/* Proof Attachment buttons */}
+                                    <div style={{ marginTop: 4 }}>
+                                      <label className="field-label" style={{ marginBottom: 6 }}>Attach Bill Proof (Optional)</label>
+                                      <div style={{ display: 'flex', gap: 8 }}>
+                                        <button
+                                          type="button"
+                                          className="nexus-btn nexus-btn-ghost"
+                                          style={{ padding: '8px 12px', fontSize: 12, flex: 1, borderColor: 'rgba(167, 139, 250, 0.3)', color: '#c4b5fd' }}
+                                          onClick={() => {
+                                            const shot = webcamRef.current?.getScreenshot();
+                                            if (shot) {
+                                              setCapturedImg(shot);
+                                              setExpenseImg(shot);
+                                              setMessage('Bill snapshot captured from camera.');
+                                            }
+                                          }}
+                                        >
+                                          <Camera size={14} /> Capture Photo
+                                        </button>
+                                        <label
+                                          className="nexus-btn nexus-btn-ghost"
+                                          style={{ padding: '8px 12px', fontSize: 12, flex: 1, cursor: 'pointer', textAlign: 'center', borderColor: 'rgba(167, 139, 250, 0.3)', color: '#c4b5fd' }}
+                                        >
+                                          <Upload size={14} /> Upload Bill / Doc
+                                          <input type="file" accept="image/*,application/pdf" hidden onChange={handleExpenseFileUpload} />
+                                        </label>
+                                      </div>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      className="nexus-btn nexus-btn-primary"
+                                      style={{ width: '100%', marginTop: 12, background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)' }}
+                                      onClick={() => submitExpense(job.id, job)}
+                                      disabled={savingExpense}
+                                    >
+                                      <Save size={15} /> {savingExpense ? 'Saving...' : `Record Manually Attached (Bill #${nextBillNo})`}
+                                    </button>
+                                  </div>
+                                )}
+
+                                {/* OPTION 2: Bank Receipt Attached */}
+                                {expenseMode === 'bank_receipt' && (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '8px 12px', borderRadius: 8 }}>
+                                      <span style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 600 }}>🏦 Sequential Bank Receipt ID:</span>
+                                      <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#38bdf8', background: 'rgba(56, 189, 248, 0.25)', padding: '2px 10px', borderRadius: 6, fontSize: 13 }}>
+                                        ID #{nextBankReceiptId}
+                                      </span>
+                                    </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                                      <div>
+                                        <label className="field-label" style={{ marginBottom: 4 }}>Date *</label>
+                                        <input
+                                          className="nexus-input"
+                                          type="date"
+                                          required
+                                          value={bankReceiptDate}
+                                          onChange={(e) => setBankReceiptDate(e.target.value)}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="field-label" style={{ marginBottom: 4 }}>Time *</label>
+                                        <input
+                                          className="nexus-input"
+                                          type="time"
+                                          required
+                                          value={bankReceiptTime}
+                                          onChange={(e) => setBankReceiptTime(e.target.value)}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="field-label" style={{ marginBottom: 4 }}>Amount (Rs.) *</label>
+                                        <input
+                                          className="nexus-input"
+                                          type="number"
+                                          step="0.01"
+                                          required
+                                          value={bankReceiptAmount}
+                                          onChange={(e) => setBankReceiptAmount(e.target.value)}
+                                          placeholder="0.00"
+                                          style={{ fontSize: 15, fontWeight: 700, color: '#38bdf8' }}
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                                      <div>
+                                        <label className="field-label" style={{ marginBottom: 4 }}>Bank Name *</label>
+                                        <input
+                                          className="nexus-input"
+                                          type="text"
+                                          required
+                                          placeholder="e.g. Meezan Bank, HBL, Allied"
+                                          value={bankReceiptBankName}
+                                          onChange={(e) => setBankReceiptBankName(e.target.value)}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="field-label" style={{ marginBottom: 4 }}>Slip / TRX No.</label>
+                                        <input
+                                          className="nexus-input"
+                                          type="text"
+                                          placeholder="e.g. TRX-982341 / Slip #4412"
+                                          value={bankReceiptSlipNo}
+                                          onChange={(e) => setBankReceiptSlipNo(e.target.value)}
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div>
+                                      <label className="field-label" style={{ marginBottom: 4 }}>Purpose / Notes</label>
+                                      <textarea
+                                        className="nexus-textarea"
+                                        value={bankReceiptNotes}
+                                        onChange={(e) => setBankReceiptNotes(e.target.value)}
+                                        placeholder="Bank deposit details, transfer reference, client advance..."
+                                        style={{ minHeight: 65 }}
+                                      />
+                                    </div>
+
+                                    {/* Bank Proof Attachment buttons */}
+                                    <div style={{ marginTop: 4 }}>
+                                      <label className="field-label" style={{ marginBottom: 6 }}>Attach Bank Slip / Proof</label>
+                                      <div style={{ display: 'flex', gap: 8 }}>
+                                        <button
+                                          type="button"
+                                          className="nexus-btn nexus-btn-ghost"
+                                          style={{ padding: '8px 12px', fontSize: 12, flex: 1, borderColor: 'rgba(56, 189, 248, 0.3)', color: '#38bdf8' }}
+                                          onClick={() => {
+                                            const shot = webcamRef.current?.getScreenshot();
+                                            if (shot) {
+                                              setCapturedBankReceiptImg(shot);
+                                              setBankReceiptImg(shot);
+                                              setMessage('Bank slip snapshot captured.');
+                                            }
+                                          }}
+                                        >
+                                          <Camera size={14} /> Capture Bank Slip
+                                        </button>
+                                        <label
+                                          className="nexus-btn nexus-btn-ghost"
+                                          style={{ padding: '8px 12px', fontSize: 12, flex: 1, cursor: 'pointer', textAlign: 'center', borderColor: 'rgba(56, 189, 248, 0.3)', color: '#38bdf8' }}
+                                        >
+                                          <Upload size={14} /> Upload Bank Doc
+                                          <input
+                                            type="file"
+                                            accept="image/*,application/pdf"
+                                            hidden
+                                            onChange={(e) => {
+                                              const file = e.target.files?.[0];
+                                              if (!file) return;
+                                              const reader = new FileReader();
+                                              reader.onload = (ev) => {
+                                                const res = ev.target.result;
+                                                setBankReceiptImg(res);
+                                                setCapturedBankReceiptImg(res);
+                                                setMessage('Bank receipt attached successfully.');
+                                              };
+                                              reader.readAsDataURL(file);
+                                              if (cloudName && cloudName !== 'YOUR_CLOUDINARY_CLOUD_NAME') {
+                                                uploadToCloudinary(file).then((url) => {
+                                                  setBankReceiptImg(url);
+                                                  setCapturedBankReceiptImg(url);
+                                                }).catch(() => {});
+                                              }
+                                            }}
+                                          />
+                                        </label>
+                                      </div>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      className="nexus-btn nexus-btn-primary"
+                                      style={{ width: '100%', marginTop: 12, background: 'linear-gradient(135deg, #0284c7, #0369a1)' }}
+                                      onClick={() => submitExpense(job.id, job)}
+                                      disabled={savingExpense}
+                                    >
+                                      <Save size={15} /> {savingExpense ? 'Saving...' : `Attach Bank Receipt (ID #${nextBankReceiptId})`}
+                                    </button>
+                                  </div>
+                                )}
+
+                                {/* OPTION 3: Attach Bill (Upload Bills) */}
+                                {expenseMode === 'attach_bill' && (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(34, 197, 94, 0.12)', border: '1px solid rgba(34, 197, 94, 0.3)', padding: '8px 12px', borderRadius: 8 }}>
+                                      <span style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 600 }}>🧾 Fast Bill Attachment:</span>
+                                      <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#4ade80', background: 'rgba(34, 197, 94, 0.25)', padding: '2px 10px', borderRadius: 6, fontSize: 13 }}>
+                                        Bill #{nextBillNo}
+                                      </span>
+                                    </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: 10 }}>
+                                      <div>
+                                        <label className="field-label" style={{ marginBottom: 4 }}>Date *</label>
+                                        <input
+                                          className="nexus-input"
+                                          type="date"
+                                          required
+                                          value={billDate}
+                                          onChange={(e) => setBillDate(e.target.value)}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="field-label" style={{ marginBottom: 4 }}>Time *</label>
+                                        <input
+                                          className="nexus-input"
+                                          type="time"
+                                          required
+                                          value={billTime}
+                                          onChange={(e) => setBillTime(e.target.value)}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="field-label" style={{ marginBottom: 4 }}>Bill Amount (Rs.) *</label>
+                                        <input
+                                          className="nexus-input"
+                                          type="number"
+                                          step="0.01"
+                                          required
+                                          value={billAmount}
+                                          onChange={(e) => setBillAmount(e.target.value)}
+                                          placeholder="0.00"
+                                          style={{ fontSize: 15, fontWeight: 700, color: '#4ade80' }}
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div>
+                                      <label className="field-label" style={{ marginBottom: 4 }}>Vendor / Bill Description</label>
+                                      <textarea
+                                        className="nexus-textarea"
+                                        value={billNotes}
+                                        onChange={(e) => setBillNotes(e.target.value)}
+                                        placeholder="Vendor name, items purchased, voucher number..."
+                                        style={{ minHeight: 75 }}
+                                      />
+                                    </div>
+
+                                    {/* Upload controls */}
+                                    <div style={{ marginTop: 4 }}>
+                                      <label className="field-label" style={{ marginBottom: 6 }}>Upload Bill File or Snapshot *</label>
+                                      <div style={{ display: 'flex', gap: 8 }}>
+                                        <button
+                                          type="button"
+                                          className="nexus-btn nexus-btn-ghost"
+                                          style={{ padding: '8px 12px', fontSize: 12, flex: 1, borderColor: 'rgba(34, 197, 94, 0.3)', color: '#4ade80' }}
+                                          onClick={() => {
+                                            const shot = webcamRef.current?.getScreenshot();
+                                            if (shot) {
+                                              setCapturedBillImg(shot);
+                                              setBillImg(shot);
+                                              setMessage('Bill photo captured.');
+                                            }
+                                          }}
+                                        >
+                                          <Camera size={14} /> Capture Bill
+                                        </button>
+                                        <label
+                                          className="nexus-btn nexus-btn-ghost"
+                                          style={{ padding: '8px 12px', fontSize: 12, flex: 1, cursor: 'pointer', textAlign: 'center', borderColor: 'rgba(34, 197, 94, 0.3)', color: '#4ade80' }}
+                                        >
+                                          <Upload size={14} /> Upload Bill Doc
+                                          <input
+                                            type="file"
+                                            accept="image/*,application/pdf"
+                                            hidden
+                                            onChange={(e) => {
+                                              const file = e.target.files?.[0];
+                                              if (!file) return;
+                                              const reader = new FileReader();
+                                              reader.onload = (ev) => {
+                                                const res = ev.target.result;
+                                                setBillImg(res);
+                                                setCapturedBillImg(res);
+                                                setMessage('Bill file attached successfully.');
+                                              };
+                                              reader.readAsDataURL(file);
+                                              if (cloudName && cloudName !== 'YOUR_CLOUDINARY_CLOUD_NAME') {
+                                                uploadToCloudinary(file).then((url) => {
+                                                  setBillImg(url);
+                                                  setCapturedBillImg(url);
+                                                }).catch(() => {});
+                                              }
+                                            }}
+                                          />
+                                        </label>
+                                      </div>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      className="nexus-btn nexus-btn-primary"
+                                      style={{ width: '100%', marginTop: 12, background: 'linear-gradient(135deg, #16a34a, #15803d)' }}
+                                      onClick={() => submitExpense(job.id, job)}
+                                      disabled={savingExpense}
+                                    >
+                                      <Save size={15} /> {savingExpense ? 'Uploading...' : `Upload & Attach Bill (Bill #${nextBillNo})`}
+                                    </button>
                                   </div>
                                 )}
                               </div>
 
-                              {capturedImg && (
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-                                  <button
-                                    type="button"
-                                    className="nexus-btn nexus-btn-ghost"
-                                    style={{ padding: '4px 10px', fontSize: 11, color: '#ef4444' }}
-                                    onClick={() => { setCapturedImg(null); setExpenseImg(''); }}
-                                  >
-                                    <Trash2 size={12} /> Remove Receipt
-                                  </button>
-                                  <a
-                                    href={capturedImg}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    style={{ fontSize: 11, color: '#00f2fe', textDecoration: 'underline' }}
-                                  >
-                                    View Full Size
-                                  </a>
+                              {/* Right Camera Feed & Receipt Preview Column */}
+                              <div>
+                                <label className="field-label" style={{ marginBottom: 6 }}>Live Camera Feed / Attached Receipt Preview</label>
+                                <div style={{ borderRadius: 10, overflow: 'hidden', background: '#0a0a0c', height: 210, border: '1px dashed rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                                  {!activeCapturedImg ? (
+                                    <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                  ) : isPdfDocumentUrl(activeCapturedImg) ? (
+                                    <div style={{ padding: 16, textAlign: 'center' }}>
+                                      <FileText size={36} color="#38bdf8" style={{ margin: '0 auto 8px' }} />
+                                      <div style={{ fontSize: 13, fontWeight: 700, color: '#f8fafc' }}>PDF Document Ready</div>
+                                      <div style={{ fontSize: 11, color: '#94a3b8' }}>Will be attached to database record</div>
+                                    </div>
+                                  ) : (
+                                    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+                                      <img src={activeCapturedImg} alt="Receipt proof" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                                      <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(34,197,94,0.9)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        <Check size={12} /> Ready
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                              )}
+
+                                {activeCapturedImg && (
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                                    <button
+                                      type="button"
+                                      className="nexus-btn nexus-btn-ghost"
+                                      style={{ padding: '4px 10px', fontSize: 11, color: '#ef4444' }}
+                                      onClick={() => {
+                                        if (expenseMode === 'bank_receipt') {
+                                          setCapturedBankReceiptImg(null);
+                                          setBankReceiptImg('');
+                                        } else if (expenseMode === 'attach_bill') {
+                                          setCapturedBillImg(null);
+                                          setBillImg('');
+                                        } else {
+                                          setCapturedImg(null);
+                                          setExpenseImg('');
+                                        }
+                                      }}
+                                    >
+                                      <Trash2 size={12} /> Remove Attachment
+                                    </button>
+                                    {activeImgUrl && activeImgUrl.startsWith('http') && (
+                                      <a
+                                        href={activeImgUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        style={{ fontSize: 11, color: '#00f2fe', textDecoration: 'underline' }}
+                                      >
+                                        View Full Size ↗
+                                      </a>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Attached Records History for this Job */}
+                                <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0' }}>
+                                      📋 Attached to Job ({existingExpenses.length})
+                                    </span>
+                                    <span style={{ fontSize: 11, color: '#00f2fe' }}>
+                                      Total: Rs. {existingExpenses.reduce((s, e) => s + (e.amount || 0), 0).toLocaleString()}
+                                    </span>
+                                  </div>
+
+                                  {existingExpenses.length === 0 ? (
+                                    <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic', padding: '8px 0' }}>
+                                      No bills or bank receipts attached yet.
+                                    </div>
+                                  ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 150, overflowY: 'auto' }}>
+                                      {existingExpenses.map((exp, idx) => {
+                                        const isBank = exp.summaryNotes?.includes('[Bank Receipt ID:') || exp.category === 'Bank Receipt';
+                                        return (
+                                          <div
+                                            key={exp.id || idx}
+                                            style={{
+                                              display: 'flex',
+                                              justifyContent: 'space-between',
+                                              alignItems: 'center',
+                                              padding: '6px 10px',
+                                              background: isBank ? 'rgba(56,189,248,0.08)' : 'rgba(255,255,255,0.03)',
+                                              border: isBank ? '1px solid rgba(56,189,248,0.2)' : '1px solid rgba(255,255,255,0.06)',
+                                              borderRadius: 6,
+                                              fontSize: 11,
+                                            }}
+                                          >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                              <span style={{ fontFamily: 'monospace', fontWeight: 700, color: isBank ? '#38bdf8' : '#a78bfa' }}>
+                                                {isBank ? `Bank Receipt #${idx + 1}` : `Bill #${idx + 1}`}
+                                              </span>
+                                              <span style={{ color: '#94a3b8' }}>
+                                                · {exp.expenseDate ? new Date(exp.expenseDate).toLocaleDateString() : '—'}
+                                              </span>
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                              <span style={{ fontWeight: 700, color: '#f8fafc' }}>
+                                                Rs. {exp.amount.toLocaleString()}
+                                              </span>
+                                              {exp.imageUrl && (
+                                                <a
+                                                  href={exp.imageUrl}
+                                                  target="_blank"
+                                                  rel="noreferrer"
+                                                  style={{ color: '#00f2fe', textDecoration: 'none' }}
+                                                  title="View Attached Proof"
+                                                >
+                                                  📎 Proof
+                                                </a>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       {/* Payment Panel */}
                       {actionType === 'payment' && (

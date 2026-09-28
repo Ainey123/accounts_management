@@ -10,6 +10,84 @@ import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
 import DocumentStudio from '@/components/DocumentStudio';
 
+const PARTITION_CONFIGS = {
+  field: {
+    key: 'field',
+    title: 'Field Work',
+    badge: '🏗️ Field Work',
+    icon: '🏗️',
+    color: '#00f2fe',
+    tag: '[Field Work]',
+    desc: 'Site & Job Operational Expenses (Fuel, Travel, Parts, Site Labor)',
+    defaultCategory: 'Site Expense',
+    categories: [
+      'Site Expense',
+      'Fuel & Travel',
+      'Spare Parts & Materials',
+      'Labor & Wages',
+      'Food & Refreshment',
+      'Maintenance',
+      'Emergency Repair',
+    ],
+  },
+  office: {
+    key: 'office',
+    title: 'Office',
+    badge: '🏢 Office',
+    icon: '🏢',
+    color: '#f59e0b',
+    tag: '[Office]',
+    desc: 'Office Administration, Utilities, Supplies, Rent & Maintenance',
+    defaultCategory: 'Office Expense',
+    categories: [
+      'Office Expense',
+      'Office Rent & Utilities',
+      'Internet & Telephone',
+      'Office Supplies & Stationery',
+      'Tea & Refreshments',
+      'Staff Welfare',
+      'Office Maintenance',
+      'Courier & Postage',
+    ],
+  },
+  other: {
+    key: 'other',
+    title: 'Other Expense',
+    badge: '💼 Other Expense',
+    icon: '💼',
+    color: '#ec4899',
+    tag: '[Other Expense]',
+    desc: 'Company Miscellaneous, Vendor Payments, Legal/Govt Fees & General Expenses',
+    defaultCategory: 'Other Expense',
+    categories: [
+      'Other Expense',
+      'Other Company Expense',
+      'Vendor Miscellaneous',
+      'Client Entertainment',
+      'Govt / Legal Fees',
+      'Software & Subscriptions',
+      'Bank Charges',
+      'Miscellaneous',
+    ],
+  },
+};
+
+function getExpensePartition(e) {
+  const notes = (e.summaryNotes || '').toLowerCase();
+  const cat = (e.category || '').toLowerCase();
+  if (notes.includes('[office]') || cat.includes('office')) return 'office';
+  if (notes.includes('[other expense]') || notes.includes('[other]') || cat.includes('other') || cat.includes('vendor') || cat.includes('legal')) return 'other';
+  return 'field';
+}
+
+function getExpenseFormat(e) {
+  const notes = (e.summaryNotes || '').toLowerCase();
+  const cat = (e.category || '').toLowerCase();
+  if (notes.includes('[bank receipt id:') || cat === 'bank receipt' || notes.includes('bank receipt')) return 'bank_receipt';
+  if (notes.includes('[id ') || cat === 'site bill' || cat === 'office bill' || cat === 'other bill' || notes.includes('bill id') || notes.includes('attached bill')) return 'attach_bill';
+  return 'manual';
+}
+
 export default function EmployeeRealTimeDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('tasks');
@@ -88,8 +166,11 @@ export default function EmployeeRealTimeDashboard() {
   const [savingQuotation, setSavingQuotation] = useState(false);
   const [editingQuotationId, setEditingQuotationId] = useState(null);
   
-  // Expense form state - 3 Modes: 'manual' (Manually Attached), 'bank_receipt' (Bank Receipt Attached), 'attach_bill' (Attach Bill)
+  // Expense form state - 3 Partitions: 'field' (Field Work), 'office' (Office), 'other' (Other Expense)
+  // 3 Sub-Modes: 'manual' (Manually Attached), 'bank_receipt' (Bank Receipt Attached), 'attach_bill' (Attach Bill)
+  const [expensePartition, setExpensePartition] = useState('field'); // 'field' | 'office' | 'other'
   const [expenseMode, setExpenseMode] = useState('manual'); // 'manual' | 'bank_receipt' | 'attach_bill'
+  const [attachedRecordsFilter, setAttachedRecordsFilter] = useState('all'); // 'all' | 'manual' | 'bank_receipt' | 'attach_bill'
   
   // Mode 1: Manually Attached state
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().slice(0, 10));
@@ -526,8 +607,15 @@ export default function EmployeeRealTimeDashboard() {
   const submitExpense = async (jobId, currentJob) => {
     const jobObj = currentJob || jobs.find((j) => j.id === jobId);
     const existingExpenses = jobObj?.expenses || [];
-    const jobBills = existingExpenses.filter((e) => !e.summaryNotes?.includes('[Bank Receipt ID:') && e.category !== 'Bank Receipt');
-    const jobBankReceipts = existingExpenses.filter((e) => e.summaryNotes?.includes('[Bank Receipt ID:') || e.category === 'Bank Receipt');
+    const partConfig = PARTITION_CONFIGS[expensePartition] || PARTITION_CONFIGS.field;
+
+    // Filter existing expenses for this partition to calculate sequential IDs
+    const partitionExpenses = existingExpenses.filter((e) => getExpensePartition(e) === expensePartition);
+    const partitionBills = partitionExpenses.filter((e) => getExpenseFormat(e) !== 'bank_receipt');
+    const partitionBankReceipts = partitionExpenses.filter((e) => getExpenseFormat(e) === 'bank_receipt');
+
+    const nextBillNo = partitionBills.length + 1;
+    const nextBankReceiptId = partitionBankReceipts.length + 1;
 
     let amountToSave = 0;
     let payload = {};
@@ -541,13 +629,12 @@ export default function EmployeeRealTimeDashboard() {
         setMessage('Account Name and Person Name are required.');
         return;
       }
-      const nextBillNo = jobBills.length + 1;
       amountToSave = parseFloat(expenseAmount);
       payload = {
         jobMetadataId: jobId,
         amount: amountToSave,
-        summaryNotes: expenseNotes.trim() || `${expenseCategory} by ${expensePersonName}`,
-        category: expenseCategory || 'Site Expense',
+        summaryNotes: `${partConfig.tag} [Bill ${nextBillNo}] ${expenseNotes.trim() || `${expenseCategory} by ${expensePersonName}`}`,
+        category: expenseCategory || partConfig.defaultCategory,
         expenseDate: expenseDate || new Date().toISOString().slice(0, 10),
         expenseTime: expenseTime || new Date().toTimeString().slice(0, 5),
         billId: `Bill ${nextBillNo}`,
@@ -561,13 +648,12 @@ export default function EmployeeRealTimeDashboard() {
         setMessage('Please capture or upload a bank receipt attachment first.');
         return;
       }
-      const nextReceiptId = jobBankReceipts.length + 1;
       payload = {
         jobMetadataId: jobId,
         amount: 0,
-        summaryNotes: `Bank Receipt ID ${nextReceiptId} Attached`,
+        summaryNotes: `${partConfig.tag} Bank Receipt ID ${nextBankReceiptId} Attached`,
         category: 'Bank Receipt',
-        bankReceiptId: String(nextReceiptId),
+        bankReceiptId: String(nextBankReceiptId),
         personName: user?.employeeName || 'Staff',
       };
     } else if (expenseMode === 'attach_bill') {
@@ -576,14 +662,13 @@ export default function EmployeeRealTimeDashboard() {
         setMessage('Please capture or upload a bill attachment first.');
         return;
       }
-      const nextBillId = jobBills.length + 1;
       payload = {
         jobMetadataId: jobId,
         amount: 0,
-        summaryNotes: `Bill ID ${nextBillId} Attached`,
-        category: 'Site Bill',
-        billId: `ID ${nextBillId}`,
-        billNumber: nextBillId,
+        summaryNotes: `${partConfig.tag} Bill ID ${nextBillNo} Attached`,
+        category: expensePartition === 'office' ? 'Office Bill' : (expensePartition === 'other' ? 'Other Bill' : 'Site Bill'),
+        billId: `ID ${nextBillNo}`,
+        billNumber: nextBillNo,
         personName: user?.employeeName || 'Staff',
       };
     }
@@ -1890,34 +1975,95 @@ export default function EmployeeRealTimeDashboard() {
                         </div>
                       )}
 
-                      {/* Expense Panel with 3 Distinct Options */}
+                      {/* Expense Panel with 3 Distinct Partitions & Formats */}
                       {actionType === 'expense' && (() => {
                         const existingExpenses = job.expenses || [];
-                        const jobBills = existingExpenses.filter((e) => !e.summaryNotes?.includes('[Bank Receipt ID:') && e.category !== 'Bank Receipt');
-                        const jobBankReceipts = existingExpenses.filter((e) => e.summaryNotes?.includes('[Bank Receipt ID:') || e.category === 'Bank Receipt');
-                        const nextBillNo = jobBills.length + 1;
-                        const nextBankReceiptId = jobBankReceipts.length + 1;
+                        const currentPartitionConfig = PARTITION_CONFIGS[expensePartition] || PARTITION_CONFIGS.field;
+
+                        // Calculate sequential IDs for current partition
+                        const partitionExpenses = existingExpenses.filter((e) => getExpensePartition(e) === expensePartition);
+                        const partitionBills = partitionExpenses.filter((e) => getExpenseFormat(e) !== 'bank_receipt');
+                        const partitionBankReceipts = partitionExpenses.filter((e) => getExpenseFormat(e) === 'bank_receipt');
+
+                        const nextBillNo = partitionBills.length + 1;
+                        const nextBankReceiptId = partitionBankReceipts.length + 1;
 
                         const activeCapturedImg = expenseMode === 'bank_receipt' ? capturedBankReceiptImg : (expenseMode === 'attach_bill' ? capturedBillImg : capturedImg);
                         const activeImgUrl = expenseMode === 'bank_receipt' ? bankReceiptImg : (expenseMode === 'attach_bill' ? billImg : expenseImg);
 
+                        // Unified filtered list of attached records
+                        const displayedExpenses = existingExpenses.filter((e) => {
+                          if (attachedRecordsFilter === 'manual') return getExpenseFormat(e) === 'manual';
+                          if (attachedRecordsFilter === 'bank_receipt') return getExpenseFormat(e) === 'bank_receipt';
+                          if (attachedRecordsFilter === 'attach_bill') return getExpenseFormat(e) === 'attach_bill';
+                          return true;
+                        });
+
+                        const manualCount = existingExpenses.filter((e) => getExpenseFormat(e) === 'manual').length;
+                        const receiptCount = existingExpenses.filter((e) => getExpenseFormat(e) === 'bank_receipt').length;
+                        const billCount = existingExpenses.filter((e) => getExpenseFormat(e) === 'attach_bill').length;
+
                         return (
                           <div style={{ padding: 22, background: 'rgba(0,0,0,0.3)', borderRadius: 14, border: '1px solid rgba(0, 242, 254, 0.22)', boxShadow: '0 8px 32px rgba(0,0,0,0.37)' }}>
-                            {/* Mode Switcher Buttons */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 14, flexWrap: 'wrap', gap: 12 }}>
+                            {/* 1. TOP PARTITION SELECTOR: Field Work | Office | Other Expense */}
+                            <div style={{ marginBottom: 18, background: 'rgba(0,0,0,0.45)', padding: 8, borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)' }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', marginBottom: 8, paddingLeft: 4 }}>
+                                Select Expense Partition:
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                                {[
+                                  { key: 'field', label: '🏗️ Field Work', desc: 'Site & Job Expenses', color: '#00f2fe' },
+                                  { key: 'office', label: '🏢 Office', desc: 'Office & Admin Bills', color: '#f59e0b' },
+                                  { key: 'other', label: '💼 Other Expense', desc: 'Misc & Other Expenses', color: '#ec4899' },
+                                ].map((part) => {
+                                  const isSelected = expensePartition === part.key;
+                                  return (
+                                    <button
+                                      key={part.key}
+                                      type="button"
+                                      onClick={() => {
+                                        setExpensePartition(part.key);
+                                        setExpenseCategory(PARTITION_CONFIGS[part.key].defaultCategory);
+                                      }}
+                                      style={{
+                                        padding: '10px 14px',
+                                        borderRadius: 8,
+                                        border: isSelected ? `1px solid ${part.color}` : '1px solid rgba(255,255,255,0.06)',
+                                        background: isSelected ? `linear-gradient(135deg, ${part.color}25, ${part.color}10)` : 'rgba(255,255,255,0.02)',
+                                        cursor: 'pointer',
+                                        textAlign: 'left',
+                                        transition: 'all 0.2s',
+                                        boxShadow: isSelected ? `0 0 12px ${part.color}30` : 'none',
+                                      }}
+                                    >
+                                      <div style={{ fontSize: 13, fontWeight: 800, color: isSelected ? '#ffffff' : '#cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <span>{part.label}</span>
+                                        {isSelected && <span style={{ fontSize: 9, background: part.color, color: '#0f172a', fontWeight: 900, padding: '1px 5px', borderRadius: 4 }}>ACTIVE</span>}
+                                      </div>
+                                      <div style={{ fontSize: 11, color: isSelected ? part.color : '#64748b', marginTop: 2 }}>
+                                        {part.desc}
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* 2. SUB-MODE SELECTOR: Manually Attached | Bank Receipt Attached | Attach Bill */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 14, flexWrap: 'wrap', gap: 12 }}>
                               <div>
-                                <h3 style={{ fontSize: 18, margin: 0, fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <Camera size={19} color="#00f2fe" />
+                                <h3 style={{ fontSize: 17, margin: 0, fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <Camera size={18} color={currentPartitionConfig.color} />
                                   <span>
-                                    {expenseMode === 'manual' && '📝 Manually Attached Expense'}
+                                    {currentPartitionConfig.badge} — {expenseMode === 'manual' && '📝 Manually Attached'}
                                     {expenseMode === 'bank_receipt' && '🏦 Bank Receipt Attached'}
-                                    {expenseMode === 'attach_bill' && '📁 Attach Bill (Upload Bills)'}
+                                    {expenseMode === 'attach_bill' && '📁 Attach Bill'}
                                   </span>
                                 </h3>
                                 <span style={{ fontSize: 12, color: '#94a3b8' }}>
-                                  {expenseMode === 'manual' && `Set Date, Time, Amount, Account & Person. Automatically assigned Bill #${nextBillNo}.`}
-                                  {expenseMode === 'bank_receipt' && `Attach Bank deposit/transfer proof. Automatically assigned Bank Receipt ID #${nextBankReceiptId}.`}
-                                  {expenseMode === 'attach_bill' && `Directly snap or upload physical bills. Automatically assigned Bill #${nextBillNo}.`}
+                                  {expenseMode === 'manual' && `Set Date, Time, Amount, Account & Person for ${currentPartitionConfig.title}. Automatically assigned Bill #${nextBillNo}.`}
+                                  {expenseMode === 'bank_receipt' && `Attach Bank deposit/transfer proof for ${currentPartitionConfig.title}. Automatically assigned Bank Receipt ID #${nextBankReceiptId}.`}
+                                  {expenseMode === 'attach_bill' && `Directly snap or upload physical bills for ${currentPartitionConfig.title}. Automatically assigned Bill #${nextBillNo}.`}
                                 </span>
                               </div>
 
@@ -1989,7 +2135,9 @@ export default function EmployeeRealTimeDashboard() {
                                 {expenseMode === 'manual' && (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(167, 139, 250, 0.12)', border: '1px solid rgba(167, 139, 250, 0.3)', padding: '8px 12px', borderRadius: 8 }}>
-                                      <span style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 600 }}>🏷️ Sequential Expense ID:</span>
+                                      <span style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 600 }}>
+                                        🏷️ Sequential ID ({currentPartitionConfig.title}):
+                                      </span>
                                       <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#c4b5fd', background: 'rgba(167, 139, 250, 0.25)', padding: '2px 10px', borderRadius: 6, fontSize: 13 }}>
                                         Bill #{nextBillNo}
                                       </span>
@@ -2058,19 +2206,15 @@ export default function EmployeeRealTimeDashboard() {
 
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
                                       <div>
-                                        <label className="field-label" style={{ marginBottom: 4 }}>Category</label>
+                                        <label className="field-label" style={{ marginBottom: 4 }}>Category ({currentPartitionConfig.title})</label>
                                         <select
                                           className="nexus-input"
                                           value={expenseCategory}
                                           onChange={(e) => setExpenseCategory(e.target.value)}
                                         >
-                                          <option value="Site Expense">Site Expense</option>
-                                          <option value="Fuel & Travel">Fuel &amp; Travel</option>
-                                          <option value="Spare Parts & Materials">Spare Parts &amp; Materials</option>
-                                          <option value="Labor & Wages">Labor &amp; Wages</option>
-                                          <option value="Food & Refreshment">Food &amp; Refreshment</option>
-                                          <option value="Maintenance">Maintenance</option>
-                                          <option value="Office & Misc">Office &amp; Misc</option>
+                                          {currentPartitionConfig.categories.map((catName) => (
+                                            <option key={catName} value={catName}>{catName}</option>
+                                          ))}
                                         </select>
                                       </div>
                                     </div>
@@ -2081,7 +2225,7 @@ export default function EmployeeRealTimeDashboard() {
                                         className="nexus-textarea"
                                         value={expenseNotes}
                                         onChange={(e) => setExpenseNotes(e.target.value)}
-                                        placeholder="Details of materials, items purchased, voucher number..."
+                                        placeholder={`Details of ${currentPartitionConfig.title.toLowerCase()} expenses, voucher or receipt notes...`}
                                         style={{ minHeight: 65 }}
                                       />
                                     </div>
@@ -2122,7 +2266,7 @@ export default function EmployeeRealTimeDashboard() {
                                       onClick={() => submitExpense(job.id, job)}
                                       disabled={savingExpense}
                                     >
-                                      <Save size={15} /> {savingExpense ? 'Saving...' : `Record Manually Attached (Bill #${nextBillNo})`}
+                                      <Save size={15} /> {savingExpense ? 'Saving...' : `Record Manually Attached (${currentPartitionConfig.title} Bill #${nextBillNo})`}
                                     </button>
                                   </div>
                                 )}
@@ -2133,7 +2277,7 @@ export default function EmployeeRealTimeDashboard() {
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '10px 14px', borderRadius: 8 }}>
                                       <div>
                                         <div style={{ fontSize: 13, color: '#f8fafc', fontWeight: 700 }}>🏦 Bank Receipt Attachment</div>
-                                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Direct proof attachment for bank slips and transfers</div>
+                                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{currentPartitionConfig.title} — Deposit / transfer slip</div>
                                       </div>
                                       <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#38bdf8', background: 'rgba(56, 189, 248, 0.25)', padding: '4px 12px', borderRadius: 6, fontSize: 14 }}>
                                         ID #{nextBankReceiptId}
@@ -2209,7 +2353,7 @@ export default function EmployeeRealTimeDashboard() {
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(34, 197, 94, 0.12)', border: '1px solid rgba(34, 197, 94, 0.3)', padding: '10px 14px', borderRadius: 8 }}>
                                       <div>
                                         <div style={{ fontSize: 13, color: '#f8fafc', fontWeight: 700 }}>🧾 Bill Attachment</div>
-                                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Direct physical bill snapshot &amp; doc upload</div>
+                                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{currentPartitionConfig.title} — Physical bill snapshot &amp; doc upload</div>
                                       </div>
                                       <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#4ade80', background: 'rgba(34, 197, 94, 0.25)', padding: '4px 12px', borderRadius: 6, fontSize: 14 }}>
                                         ID #{nextBillNo}
@@ -2280,10 +2424,10 @@ export default function EmployeeRealTimeDashboard() {
                                 )}
                               </div>
 
-                              {/* Right Camera Feed & Receipt Preview Column */}
+                              {/* Right Camera Feed & UNIFIED Receipt/Bill Preview Column */}
                               <div>
-                                <label className="field-label" style={{ marginBottom: 6 }}>Live Camera Feed / Attached Receipt Preview</label>
-                                <div style={{ borderRadius: 10, overflow: 'hidden', background: '#0a0a0c', height: 210, border: '1px dashed rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                                <label className="field-label" style={{ marginBottom: 6 }}>Live Camera Feed / Attached Preview</label>
+                                <div style={{ borderRadius: 10, overflow: 'hidden', background: '#0a0a0c', height: 180, border: '1px dashed rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                                   {!activeCapturedImg ? (
                                     <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                   ) : isPdfDocumentUrl(activeCapturedImg) ? (
@@ -2336,25 +2480,59 @@ export default function EmployeeRealTimeDashboard() {
                                   </div>
                                 )}
 
-                                {/* Attached Records History for this Job */}
+                                {/* UNIFIED ATTACHED RECORDS LIST (Both Bank Receipts, Attached Bills & Manual Entries on Same Screen) */}
                                 <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
                                     <span style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0' }}>
-                                      📋 Attached to Job ({existingExpenses.length})
+                                      📋 Attached Records ({existingExpenses.length})
                                     </span>
-                                    <span style={{ fontSize: 11, color: '#00f2fe' }}>
+                                    <span style={{ fontSize: 11, color: '#00f2fe', fontWeight: 700 }}>
                                       Total: Rs. {existingExpenses.reduce((s, e) => s + (e.amount || 0), 0).toLocaleString()}
                                     </span>
                                   </div>
 
-                                  {existingExpenses.length === 0 ? (
-                                    <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic', padding: '8px 0' }}>
-                                      No bills or bank receipts attached yet.
+                                  {/* Quick Filter Tabs */}
+                                  <div style={{ display: 'flex', gap: 4, marginBottom: 8, overflowX: 'auto', paddingBottom: 2 }}>
+                                    {[
+                                      { key: 'all', label: `All (${existingExpenses.length})` },
+                                      { key: 'manual', label: `📝 Manual (${manualCount})` },
+                                      { key: 'bank_receipt', label: `🏦 Bank Receipts (${receiptCount})` },
+                                      { key: 'attach_bill', label: `📁 Bills (${billCount})` },
+                                    ].map((f) => (
+                                      <button
+                                        key={f.key}
+                                        type="button"
+                                        onClick={() => setAttachedRecordsFilter(f.key)}
+                                        style={{
+                                          padding: '3px 8px',
+                                          borderRadius: 6,
+                                          fontSize: 10,
+                                          fontWeight: 600,
+                                          cursor: 'pointer',
+                                          border: 'none',
+                                          background: attachedRecordsFilter === f.key ? 'rgba(0, 242, 254, 0.2)' : 'rgba(255,255,255,0.05)',
+                                          color: attachedRecordsFilter === f.key ? '#00f2fe' : '#94a3b8',
+                                        }}
+                                      >
+                                        {f.label}
+                                      </button>
+                                    ))}
+                                  </div>
+
+                                  {/* Attached Records Stream */}
+                                  {displayedExpenses.length === 0 ? (
+                                    <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic', padding: '10px 0', textAlign: 'center' }}>
+                                      No attached records found for this filter.
                                     </div>
                                   ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 150, overflowY: 'auto' }}>
-                                      {existingExpenses.map((exp, idx) => {
-                                        const isBank = exp.summaryNotes?.includes('[Bank Receipt ID:') || exp.category === 'Bank Receipt';
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 180, overflowY: 'auto', paddingRight: 4 }}>
+                                      {displayedExpenses.map((exp, idx) => {
+                                        const expFormat = getExpenseFormat(exp);
+                                        const expPart = getExpensePartition(exp);
+                                        const partCfg = PARTITION_CONFIGS[expPart] || PARTITION_CONFIGS.field;
+                                        const isBank = expFormat === 'bank_receipt';
+                                        const isAttachBill = expFormat === 'attach_bill';
+
                                         return (
                                           <div
                                             key={exp.id || idx}
@@ -2362,31 +2540,36 @@ export default function EmployeeRealTimeDashboard() {
                                               display: 'flex',
                                               justifyContent: 'space-between',
                                               alignItems: 'center',
-                                              padding: '6px 10px',
-                                              background: isBank ? 'rgba(56,189,248,0.08)' : 'rgba(255,255,255,0.03)',
-                                              border: isBank ? '1px solid rgba(56,189,248,0.2)' : '1px solid rgba(255,255,255,0.06)',
-                                              borderRadius: 6,
+                                              padding: '7px 10px',
+                                              background: isBank ? 'rgba(56,189,248,0.08)' : (isAttachBill ? 'rgba(34,197,94,0.08)' : 'rgba(167,139,250,0.08)'),
+                                              border: isBank ? '1px solid rgba(56,189,248,0.25)' : (isAttachBill ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(167,139,250,0.25)'),
+                                              borderRadius: 8,
                                               fontSize: 11,
                                             }}
                                           >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                              <span style={{ fontFamily: 'monospace', fontWeight: 700, color: isBank ? '#38bdf8' : '#a78bfa' }}>
-                                                {isBank ? `Bank Receipt #${idx + 1}` : `Bill #${idx + 1}`}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                              <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: partCfg.bg, color: partCfg.color, border: `1px solid ${partCfg.border}`, fontWeight: 700 }}>
+                                                {partCfg.icon} {partCfg.title}
                                               </span>
-                                              <span style={{ color: '#94a3b8' }}>
+                                              <span style={{ fontFamily: 'monospace', fontWeight: 800, color: isBank ? '#38bdf8' : (isAttachBill ? '#4ade80' : '#c4b5fd') }}>
+                                                {isBank ? `🏦 Bank Receipt #${idx + 1}` : (isAttachBill ? `📁 Bill #${idx + 1}` : `📝 Bill #${idx + 1}`)}
+                                              </span>
+                                              <span style={{ color: '#94a3b8', fontSize: 10 }}>
                                                 · {exp.expenseDate ? new Date(exp.expenseDate).toLocaleDateString() : '—'}
                                               </span>
                                             </div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                              <span style={{ fontWeight: 700, color: '#f8fafc' }}>
-                                                Rs. {exp.amount.toLocaleString()}
-                                              </span>
+                                              {exp.amount > 0 && (
+                                                <span style={{ fontWeight: 800, color: '#f8fafc', fontSize: 11 }}>
+                                                  Rs. {exp.amount.toLocaleString()}
+                                                </span>
+                                              )}
                                               {exp.imageUrl && (
                                                 <a
                                                   href={exp.imageUrl}
                                                   target="_blank"
                                                   rel="noreferrer"
-                                                  style={{ color: '#00f2fe', textDecoration: 'none' }}
+                                                  style={{ color: '#00f2fe', textDecoration: 'none', background: 'rgba(0, 242, 254, 0.15)', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}
                                                   title="View Attached Proof"
                                                 >
                                                   📎 Proof

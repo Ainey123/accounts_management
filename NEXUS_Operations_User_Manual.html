@@ -1,0 +1,809 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NEXUS Operations — Enterprise User Manual</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
+    @page {
+      size: A4 portrait;
+      margin: 18mm 15mm 18mm 15mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #1e293b;
+      background: #ffffff;
+      line-height: 1.55;
+      font-size: 10pt;
+    }
+
+    .cover-page {
+      min-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      page-break-after: always;
+      padding: 30px 10px;
+    }
+
+    .cover-top {
+      border-top: 6px solid #4f46e5;
+      padding-top: 25px;
+    }
+
+    .badge-org {
+      display: inline-block;
+      background: #eef2ff;
+      color: #4f46e5;
+      font-size: 8.5pt;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+      border: 1px solid #c7d2fe;
+    }
+
+    .cover-title {
+      font-size: 30pt;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.15;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+
+    .cover-subtitle {
+      font-size: 13pt;
+      color: #64748b;
+      font-weight: 400;
+      line-height: 1.4;
+      max-width: 90%;
+    }
+
+    .cover-meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 30px;
+    }
+
+    .meta-item label {
+      display: block;
+      font-size: 8pt;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #94a3b8;
+      letter-spacing: 0.8px;
+      margin-bottom: 4px;
+    }
+
+    .meta-item .val {
+      display: block;
+      font-size: 10.5pt;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .cover-footer {
+      border-top: 1px solid #e2e8f0;
+      padding-top: 15px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 8.5pt;
+      color: #94a3b8;
+    }
+
+    h1 {
+      font-size: 16pt;
+      font-weight: 800;
+      color: #0f172a;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 6px;
+      margin-top: 22px;
+      margin-bottom: 12px;
+      page-break-after: avoid;
+    }
+
+    h2 {
+      font-size: 12pt;
+      font-weight: 700;
+      color: #1e293b;
+      margin-top: 16px;
+      margin-bottom: 8px;
+      page-break-after: avoid;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h3 {
+      font-size: 10pt;
+      font-weight: 600;
+      color: #334155;
+      margin-top: 10px;
+      margin-bottom: 6px;
+      page-break-after: avoid;
+    }
+
+    p {
+      margin-bottom: 10px;
+      color: #334155;
+    }
+
+    ul, ol {
+      margin-left: 20px;
+      margin-bottom: 12px;
+      color: #334155;
+    }
+
+    li {
+      margin-bottom: 5px;
+    }
+
+    .card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      page-break-inside: avoid;
+    }
+
+    .callout {
+      border-left: 4px solid #4f46e5;
+      background: #f5f3ff;
+      padding: 10px 14px;
+      border-radius: 0 8px 8px 0;
+      margin: 10px 0;
+      page-break-inside: avoid;
+    }
+
+    .callout-title {
+      font-weight: 700;
+      color: #4f46e5;
+      font-size: 9pt;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .callout-success {
+      border-left-color: #10b981;
+      background: #ecfdf5;
+    }
+    .callout-success .callout-title { color: #059669; }
+
+    .callout-warning {
+      border-left-color: #f59e0b;
+      background: #fffbeb;
+    }
+    .callout-warning .callout-title { color: #d97706; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 14px 0;
+      font-size: 8.5pt;
+      page-break-inside: avoid;
+    }
+
+    th {
+      background: #f1f5f9;
+      color: #334155;
+      font-weight: 700;
+      text-align: left;
+      padding: 7px 9px;
+      border: 1px solid #cbd5e1;
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    td {
+      padding: 7px 9px;
+      border: 1px solid #e2e8f0;
+      color: #334155;
+      vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+      background: #f8fafc;
+    }
+
+    .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      background: #4f46e5;
+      color: #ffffff;
+      border-radius: 50%;
+      font-size: 8pt;
+      font-weight: 700;
+      margin-right: 6px;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-size: 7pt;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .pill-blue { background: #e0f2fe; color: #0284c7; }
+    .pill-green { background: #dcfce7; color: #15803d; }
+    .pill-yellow { background: #fef3c7; color: #b45309; }
+    .pill-red { background: #fee2e2; color: #b91c1c; }
+    .pill-purple { background: #ede9fe; color: #6d28d9; }
+
+    .stage-header {
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      color: #ffffff;
+      padding: 10px 14px;
+      border-radius: 6px;
+      margin-top: 16px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      page-break-after: avoid;
+    }
+
+    .stage-title {
+      font-size: 10.5pt;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .stage-tag {
+      background: rgba(255, 255, 255, 0.15);
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 7.5pt;
+      font-weight: 600;
+      color: #38bdf8;
+    }
+
+    .page-break {
+      page-break-after: always;
+    }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8pt;
+      background: #f1f5f9;
+      padding: 1px 4px;
+      border-radius: 4px;
+      color: #475569;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==================== COVER PAGE ==================== -->
+  <div class="cover-page">
+    <div class="cover-top">
+      <div class="badge-org">Enterprise Operations Manual</div>
+      <h1 class="cover-title">NEXUS OPERATIONS</h1>
+      <p class="cover-subtitle">Complete End-to-End User Guide & Operational Manual for Administrators and Field Staff</p>
+
+      <div class="cover-meta-grid">
+        <div class="meta-item">
+          <label>Organization</label>
+          <div class="val">FES Fast Engineering Solutions</div>
+        </div>
+        <div class="meta-item">
+          <label>System Name</label>
+          <div class="val">NEXUS Operations Suite</div>
+        </div>
+        <div class="meta-item">
+          <label>Version</label>
+          <div class="val">Release 2.4 (Enterprise Edition)</div>
+        </div>
+        <div class="meta-item">
+          <label>Target Audience</label>
+          <div class="val">Admins, Operations Managers, Field Staff</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="background: #f1f5f9; border-radius: 8px; padding: 14px; font-size: 8.5pt; color: #475569;">
+      <strong>Purpose of this Document:</strong> This manual provides a clear, step-by-step walkthrough of how to use the NEXUS Operations web application. It covers everything from complaint email intake, surveys, quotations, and PO approvals to tax invoicing, work completion, field expense tracking, payments, and executive ledger reporting.
+    </div>
+
+    <div class="cover-footer">
+      <span>Confidential & Proprietary — FES Operations</span>
+      <span>Document Published: September 2026</span>
+    </div>
+  </div>
+
+  <!-- ==================== TABLE OF CONTENTS ==================== -->
+  <h1>Table of Contents</h1>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 10%;">Section</th>
+        <th style="width: 70%;">Topic</th>
+        <th style="width: 20%;">Focus</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>1.0</strong></td>
+        <td>System Overview & Core Philosophy</td>
+        <td>General Introduction</td>
+      </tr>
+      <tr>
+        <td><strong>2.0</strong></td>
+        <td>User Access & Login (Admin vs. Employee)</td>
+        <td>Authentication</td>
+      </tr>
+      <tr>
+        <td><strong>3.0</strong></td>
+        <td>The 8-Stage Operational Lifecycle Walkthrough</td>
+        <td>Core Daily Workflow</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>&bull; Stage 1: Ticket Ingestion & Complaint Intake</td>
+        <td>Intake / Filtering</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>&bull; Stage 2: Survey & Field Assessment Report</td>
+        <td>Site Inspection</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>&bull; Stage 3: Price Quotation Generation</td>
+        <td>Pricing / Line Items</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>&bull; Stage 4: Purchase Order & Bank Approval</td>
+        <td>Client Approval</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>&bull; Stage 5: Commercial Tax Invoicing</td>
+        <td>Billing & Taxes</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>&bull; Stage 6: Site Work Execution & Completion</td>
+        <td>Execution / Photos</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>&bull; Stage 7: Expenses & Payments Received</td>
+        <td>Cost & Cash Flow</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>&bull; Stage 8: Job Ledger & Profit/Loss Audit</td>
+        <td>Audit & Reporting</td>
+      </tr>
+      <tr>
+        <td><strong>4.0</strong></td>
+        <td>Admin Command Center & Strategic Tools</td>
+        <td>Management Controls</td>
+      </tr>
+      <tr>
+        <td><strong>5.0</strong></td>
+        <td>All Documents Repository & CSV Exports</td>
+        <td>Records & Auditing</td>
+      </tr>
+      <tr>
+        <td><strong>6.0</strong></td>
+        <td>Gmail Integration & Automated Sync</td>
+        <td>Email Automation</td>
+      </tr>
+      <tr>
+        <td><strong>7.0</strong></td>
+        <td>Frequently Asked Questions (FAQ) & Troubleshooting</td>
+        <td>Support & Assistance</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ==================== SECTION 1 ==================== -->
+  <h1>1.0 System Overview & Core Philosophy</h1>
+  <p><strong>NEXUS Operations</strong> is an enterprise operational lifecycle management system built specifically for engineering solutions, facility management, and maintenance contractors. It replaces scattered spreadsheets, manual email threads, and paper records with a unified, transparent pipeline.</p>
+
+  <div class="card">
+    <h3>Key Benefits & Objectives</h3>
+    <ul>
+      <li><strong>Zero Lost Complaints:</strong> Ingests complaint emails directly from Gmail, assigns unique sequential serial numbers, and tracks resolution progress.</li>
+      <li><strong>Standardized Documentation:</strong> Generates uniform, branded PDF Quotations, Survey Reports, Invoices, and Completion Certificates in seconds.</li>
+      <li><strong>Financial Precision:</strong> Tracks costs, tax deductions at source (WHT), payments received, and exact job-level Profit or Loss in real time.</li>
+      <li><strong>Simple Employee Access:</strong> Employees log in with a fast 4–6 digit PIN without needing email setups.</li>
+    </ul>
+  </div>
+
+  <!-- ==================== SECTION 2 ==================== -->
+  <h1>2.0 User Access & Logging In</h1>
+  <p>The system supports two distinct roles with tailored interfaces:</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Role</th>
+        <th>Login Method</th>
+        <th>Permissions & Capabilities</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Administrator</strong><br><span class="pill pill-purple">Level 5 Access</span></td>
+        <td>Email + Password</td>
+        <td>
+          &bull; Admin Command Center & Financial Overview<br>
+          &bull; Employee creation, PIN updates, and password resets<br>
+          &bull; Two-way commenting/messaging with employees<br>
+          &bull; Full access to all job stages, documents, and ledger exports<br>
+          &bull; Gmail integration & auto-sync controls
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Employee</strong><br><span class="pill pill-blue">Field Staff</span></td>
+        <td>Fast 4–6 Digit PIN</td>
+        <td>
+          &bull; Viewing Assigned Tickets and Intake<br>
+          &bull; Submitting Survey Reports & Site Photos<br>
+          &bull; Generating Quotations & Invoices<br>
+          &bull; Recording Work Completion, Expenses & Payments Received<br>
+          &bull; Replying to Admin Comments
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <div class="callout-title">Step-by-Step Login Instructions</div>
+    <ol>
+      <li>Open the web app URL in any modern web browser (Google Chrome, Edge, Safari, or Firefox).</li>
+      <li><strong>For Admins:</strong> Select the "Admin Login" tab, enter your registered email and password, and click <strong>Sign In</strong>.</li>
+      <li><strong>For Employees:</strong> Select the "Employee PIN" tab, enter your employee name and your 4–6 digit PIN, and click <strong>Log In</strong>.</li>
+    </ol>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- ==================== SECTION 3: THE 8-STAGE LIFECYCLE ==================== -->
+  <h1>3.0 The 8-Stage Operational Lifecycle</h1>
+  <p>Every maintenance job in NEXUS Operations follows a structured, sequential 8-stage journey. This ensures that no job moves to invoicing or completion without proper survey, quotation, and client approval.</p>
+
+  <!-- STAGE 1 -->
+  <div class="stage-header">
+    <div class="stage-title"><span class="step-num">1</span> Ticket Ingestion & Complaint Intake</div>
+    <div class="stage-tag">Routes: /tickets & /intake</div>
+  </div>
+
+  <p>The intake process begins when customer complaint emails arrive or when a customer calls in an emergency.</p>
+
+  <h3>How to Process Intake:</h3>
+  <ol>
+    <li>Navigate to <strong>All Tickets Inbox</strong> (<code>/tickets</code>) in the sidebar.</li>
+    <li>Each ticket shows its sequential <strong>Serial Number</strong>, Date, Time, Sender, and Subject.</li>
+    <li>Click on any ticket to review its content. You can categorize it into one of four statuses:
+      <ul>
+        <li><span class="pill pill-green">Relevant</span>: Valid job request that requires technical action.</li>
+        <li><span class="pill pill-yellow">Irrelevant</span>: Spam, newsletter, or unrelated communication.</li>
+        <li><span class="pill pill-red">Cancelled</span>: Complaint cancelled by client.</li>
+        <li><span class="pill pill-blue">Intake Done</span>: Already converted into an active job.</li>
+      </ul>
+    </li>
+    <li>To turn a ticket into an active job, open <strong>Intake</strong> (<code>/intake</code>):
+      <ul>
+        <li><strong>Client Name:</strong> Commercial client name (e.g., Bank Alfalah, Allied Bank, Shell).</li>
+        <li><strong>Site / Branch:</strong> Specific branch location (e.g., Mall Road Branch, F-7 Islamabad).</li>
+        <li><strong>Person of Contact (POC):</strong> Name and phone number of the site manager.</li>
+        <li><strong>Nature of Work:</strong> Short summary of the issue (e.g., AC compressor replacement, Main breaker tripping).</li>
+        <li><strong>Assign Employee:</strong> Select the field engineer responsible for handling this job.</li>
+      </ul>
+    </li>
+    <li>Click <strong>Save Job Intake</strong>. The job is now registered in the system with an active tracking ID!</li>
+  </ol>
+
+  <!-- STAGE 2 -->
+  <div class="stage-header">
+    <div class="stage-title"><span class="step-num">2</span> Survey & Field Assessment Report</div>
+    <div class="stage-tag">Route: /survey</div>
+  </div>
+
+  <p>After reaching the client's site, the assigned field engineer conducts an initial technical inspection.</p>
+
+  <h3>How to Submit a Survey Report:</h3>
+  <ol>
+    <li>Navigate to <strong>Survey Report</strong> (<code>/survey</code>).</li>
+    <li>Use the <strong>Job Selector</strong> dropdown at the top to select the client branch.</li>
+    <li>Type in the <strong>Technical Findings & Observation Notes</strong> (e.g., "Found 3-phase capacitor burnt due to voltage surge; requires replacement of 45uF capacitor and contactor switch").</li>
+    <li>Upload <strong>Site Inspection Photos</strong> as visual evidence.</li>
+    <li>Click <strong>Submit Survey Report</strong>. This document is automatically saved into the job's permanent record.</li>
+  </ol>
+
+  <!-- STAGE 3 -->
+  <div class="stage-header">
+    <div class="stage-title"><span class="step-num">3</span> Price Quotation Generation</div>
+    <div class="stage-tag">Route: /quotation</div>
+  </div>
+
+  <p>Based on the survey report, generate a formal commercial price quotation to send to the client for budget approval.</p>
+
+  <h3>How to Create a Quotation:</h3>
+  <ol>
+    <li>Navigate to <strong>Quotation Generator</strong> (<code>/quotation</code>).</li>
+    <li>Select the target Job from the dropdown.</li>
+    <li>Add line items by specifying:
+      <ul>
+        <li><strong>Item Description:</strong> Item name or service description (e.g., "Schneider 32A Contactor").</li>
+        <li><strong>Quantity:</strong> Number of units or labor hours.</li>
+        <li><strong>Unit Price (Rs.):</strong> Cost per unit.</li>
+      </ul>
+    </li>
+    <li>Click <strong>+ Add Line Item</strong> for additional parts/labor.</li>
+    <li>The system automatically calculates the <strong>Subtotal</strong>, applies the configured <strong>Tax Rate (e.g., 15%)</strong>, and computes the <strong>Net Quotation Total</strong>.</li>
+    <li>Click <strong>Generate & Save Quotation</strong>. You can instantly preview, print, or download the formal PDF quotation to email to the client.</li>
+  </ol>
+
+  <div class="page-break"></div>
+
+  <!-- STAGE 4 -->
+  <div class="stage-header">
+    <div class="stage-title"><span class="step-num">4</span> Purchase Order & Bank / Client Approval</div>
+    <div class="stage-tag">Route: /approval</div>
+  </div>
+
+  <p>Before physical work or procurement starts, record the client's official authorization or PO confirmation.</p>
+
+  <h3>How to Record Approvals:</h3>
+  <ol>
+    <li>Navigate to <strong>Bank Approval & PO</strong> (<code>/approval</code>).</li>
+    <li>Select the active Job.</li>
+    <li>Enter the <strong>Purchase Order Number (PO #)</strong> or Bank Reference Code.</li>
+    <li>Enter the <strong>Approved Amount (Rs.)</strong> authorized by the client.</li>
+    <li>Upload a photo or scan of the signed PO or bank approval email.</li>
+    <li>Click <strong>Save Approval Record</strong>. The job status updates to "Approved for Execution".</li>
+  </ol>
+
+  <!-- STAGE 5 -->
+  <div class="stage-header">
+    <div class="stage-title"><span class="step-num">5</span> Commercial Tax Invoicing</div>
+    <div class="stage-tag">Route: /invoice</div>
+  </div>
+
+  <p>When the job is authorized and ready for billing, create the formal commercial Sales Tax Invoice.</p>
+
+  <h3>How to Generate an Invoice:</h3>
+  <ol>
+    <li>Navigate to <strong>Invoice Studio</strong> (<code>/invoice</code>).</li>
+    <li>Select the active Job. The system automatically pre-fills the client details and approved line items.</li>
+    <li>Review line items, invoice date, and payment terms (e.g., Net 30 Days).</li>
+    <li>Click <strong>Issue Tax Invoice</strong>.</li>
+    <li>The invoice is permanently archived with a unique Invoice Number and is instantly available for print/PDF export.</li>
+  </ol>
+
+  <!-- STAGE 6 -->
+  <div class="stage-header">
+    <div class="stage-title"><span class="step-num">6</span> Site Work Execution & Completion</div>
+    <div class="stage-tag">Routes: /site & /work-status</div>
+  </div>
+
+  <p>Tracks physical installation, maintenance, or repair progress at the client branch.</p>
+
+  <h3>How to Update Work Status:</h3>
+  <ol>
+    <li>Navigate to <strong>Site Work Status</strong> (<code>/site</code> or <code>/work-status</code>).</li>
+    <li>Select the Job being executed.</li>
+    <li>Update execution status:
+      <ul>
+        <li><span class="pill pill-yellow">Pending</span>: Awaiting technician arrival / parts delivery.</li>
+        <li><span class="pill pill-blue">In Progress</span>: Work currently underway.</li>
+        <li><span class="pill pill-green">Work Completed</span>: Physical work finished and tested on-site.</li>
+      </ul>
+    </li>
+    <li>Upload <strong>Work Completion Photos</strong> and client site sign-off slip.</li>
+    <li>Click <strong>Save Work Completion</strong>.</li>
+  </ol>
+
+  <div class="page-break"></div>
+
+  <!-- STAGE 7 -->
+  <div class="stage-header">
+    <div class="stage-title"><span class="step-num">7</span> Expenses & Client Payments Tracking</div>
+    <div class="stage-tag">Route: /payment-status</div>
+  </div>
+
+  <p>This stage handles real-time accounting for both money spent (field expenses) and money received from the client.</p>
+
+  <h3>1. Recording Field Expenses (Costs):</h3>
+  <ul>
+    <li>Select the active Job on the <strong>Payment Status</strong> page.</li>
+    <li>Under <strong>Add Expense</strong>, enter the expense amount (Rs.), category/notes (e.g., "Purchased 15m 4mm Cable + Taxi fare"), and attach the receipt photo.</li>
+    <li>Click <strong>Save Expense</strong>. The cost is instantly factored into the job's profitability calculation.</li>
+  </ul>
+
+  <h3>2. Recording Payments Received:</h3>
+  <ul>
+    <li>Under <strong>Payment Received</strong>, enter the Amount Received into bank/cash.</li>
+    <li>Enter the <strong>Tax Deducted (WHT)</strong> at source by the corporate client.</li>
+    <li>Enter payment mode (Cheque #, Online Bank Transfer, Cash) and notes.</li>
+    <li>Click <strong>Record Payment</strong>.</li>
+    <li>The <strong>Payment Progress Indicator</strong> automatically updates from 0% to 100% (e.g., Partial Payment, Fully Paid).</li>
+  </ul>
+
+  <!-- STAGE 8 -->
+  <div class="stage-header">
+    <div class="stage-title"><span class="step-num">8</span> Job Financial Ledger & Profit/Loss Audit</div>
+    <div class="stage-tag">Route: /ledger</div>
+  </div>
+
+  <p>The Job Ledger provides an executive 360-degree audit of all income and expenses for any job.</p>
+
+  <div class="card">
+    <h3>Ledger Breakdown Items</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Total Quoted / Invoiced</strong></td>
+          <td>Gross revenue billed to the client.</td>
+        </tr>
+        <tr>
+          <td><strong>Total Tax Withheld (WHT)</strong></td>
+          <td>Withholding tax deducted by corporate bank/client.</td>
+        </tr>
+        <tr>
+          <td><strong>Net Receivables</strong></td>
+          <td>Actual net cash expected after tax deduction.</td>
+        </tr>
+        <tr>
+          <td><strong>Total Costs & Expenses</strong></td>
+          <td>Sum of all field purchases, materials, and labor paid out.</td>
+        </tr>
+        <tr>
+          <td><strong>Net Profit / Loss</strong></td>
+          <td><code>(Total Received - Total Expenses)</code> with visual Profit/Loss indicator.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- ==================== SECTION 4 ==================== -->
+  <h1>4.0 Admin Command Center & Strategic Management</h1>
+  <p>The <strong>Admin Command Center</strong> (<code>/admin/dashboard</code>) is the central nerve center for directors and operations managers. It provides top-level oversight across all company jobs, employees, and finances.</p>
+
+  <div class="card">
+    <h2>1. Strategic Workflow Matrix</h2>
+    <p>Live, real-time counter tiles displaying where every complaint stands across the whole company:</p>
+    <ul>
+      <li><strong>Not Entered Complaints:</strong> Raw emails not yet converted into jobs (Needs Attention).</li>
+      <li><strong>Entered Emails:</strong> Complaints successfully converted into active site jobs.</li>
+      <li><strong>Generated Quotes:</strong> Total formal price estimates prepared for clients.</li>
+      <li><strong>Approved Quotes:</strong> Quotes approved by bank/client with PO received.</li>
+      <li><strong>Generated Invoices:</strong> Billed jobs undergoing payment collection.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>2. Live Employee Matrix & PIN Management</h2>
+    <p>Admins can manage and monitor all team members from the <strong>Employees</strong> tab:</p>
+    <ul>
+      <li><strong>Add New Employee:</strong> Click <code>+ Register User</code>, enter their name, and assign a 4–6 digit numeric PIN.</li>
+      <li><strong>Change PIN:</strong> Enter existing employee name with a new PIN to instantly update their login credentials.</li>
+      <li><strong>Monitor Active Job:</strong> See which ticket/serial number each employee is actively handling in the field.</li>
+      <li><strong>Active/Inactive Toggle:</strong> Safely grant or suspend access without deleting user history.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>3. Dedicated Two-Way Employee Comments & Chat</h2>
+    <p>Direct communication thread between administrators (Fatma/Anie) and individual field employees:</p>
+    <ul>
+      <li>Select any employee from the dropdown to open their private comment history.</li>
+      <li>Type a message or instruction and click <strong>Post Comment</strong>.</li>
+      <li>Employees see the admin note when they log in and can post replies directly.</li>
+    </ul>
+  </div>
+
+  <!-- ==================== SECTION 5 ==================== -->
+  <h1>5.0 All Documents Repository & CSV Exports</h1>
+  <p>Accessible at <code>/admin/documents</code>, this master repository organizes all documents generated across the enterprise:</p>
+  <ul>
+    <li><strong>Document Filters:</strong> Filter by Quotations, Invoices, Survey Reports, Bank Approvals, or Work Completions.</li>
+    <li><strong>Date Range Filtering:</strong> Specify <em>From Date</em> and <em>To Date</em> to audit performance for any fiscal month or quarter.</li>
+    <li><strong>Download Ledger CSV:</strong> Click <strong>Download Ledger CSV</strong> to export a clean spreadsheet formatted for external accounting software (QuickBooks, Excel, Zoho).</li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <!-- ==================== SECTION 6 ==================== -->
+  <h1>6.0 Gmail Integration & Email Sync Hub</h1>
+  <p>Located at <code>/gmail</code>, this subsystem connects your company's operational inbox (e.g. <code>fesopreations@gmail.com</code>) to automatically ingest complaints.</p>
+
+  <div class="callout callout-success">
+    <div class="callout-title">How Auto-Sync Works</div>
+    <p>When complaint emails arrive in your Gmail, the system extracts the <strong>Sender</strong>, <strong>Subject</strong>, <strong>Exact Date & Time</strong>, assigns a <strong>Sequential Serial Number</strong>, and filters out spam or newsletters automatically.</p>
+  </div>
+
+  <h3>Gmail Management Actions:</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Action</th>
+        <th>When to Use</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Sync Gmail Accounts Now</strong></td>
+        <td>Regular button to fetch latest unread complaint emails from inbox.</td>
+      </tr>
+      <tr>
+        <td><strong>Force Full Re-Sync</strong></td>
+        <td>Re-scans all complaint emails from July 2026 onwards without deleting existing tickets or links.</td>
+      </tr>
+      <tr>
+        <td><strong>Reconnect Account</strong></td>
+        <td>Use when the Gmail account password has been changed. Re-authorizes Google OAuth in one click.</td>
+      </tr>
+      <tr>
+        <td><strong>Run Diagnostics</strong></td>
+        <td>Checks token expiry dates, Google API connectivity, and shows detailed sync health.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ==================== SECTION 7 ==================== -->
+  <h1>7.0 Frequently Asked Questions (FAQ) & Troubleshooting</h1>
+
+  <div class="card">
+    <h3>Q1: I changed my Gmail account password and scanning stopped. What should I do?</h3>
+    <p><strong>Answer:</strong> When you change your Google password, Google automatically cancels previous app tokens. Go to <code>/gmail</code>, click <strong>Reconnect</strong> next to your account, sign in with your new password, and click <strong>Allow</strong>. Your scanning will resume immediately with all existing data preserved.</p>
+  </div>
+
+  <div class="card">
+    <h3>Q2: An employee forgot their PIN. How can they log in?</h3>
+    <p><strong>Answer:</strong> An admin can open the <strong>Admin Command Center</strong> (<code>/admin/dashboard</code>), go to the <strong>Employees</strong> tab, click <strong>Register User</strong>, enter the employee's name, and enter a new 4–6 digit PIN. The PIN is updated instantly.</p>
+  </div>
+
+  <div class="card">
+    <h3>Q3: An email was marked "Irrelevant" by mistake. How can we convert it to a Job?</h3>
+    <p><strong>Answer:</strong> Go to <strong>All Tickets</strong> (<code>/tickets</code>), click on the ticket, change its status pill to <strong>Relevant</strong>, then go to <strong>Intake</strong> (<code>/intake</code>) and enter the client branch details.</p>
+  </div>
+
+  <div class="card">
+    <h3>Q4: How do I export records for tax or accountant auditing?</h3>
+    <p><strong>Answer:</strong> Go to <strong>All Documents</strong> (<code>/admin/documents</code>), select your date range (e.g., July 1 to Sept 30), and click <strong>Download Ledger CSV</strong>. The file can be opened directly in Microsoft Excel.</p>
+  </div>
+
+  <div style="margin-top: 30px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 15px; color: #94a3b8; font-size: 8.5pt;">
+    NEXUS Operations Manual &copy; 2026 FES Fast Engineering Solutions. All rights reserved.
+  </div>
+
+</body>
+</html>

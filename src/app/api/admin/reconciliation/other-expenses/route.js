@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, withDbRetry } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,12 +34,14 @@ export async function GET(req) {
       }
     }
 
-    const otherExpenses = await prisma.otherExpense.findMany({
-      where,
-      orderBy: { expenseDate: 'desc' },
-      include: {
-        createdBy: { select: { id: true, employeeName: true, email: true } },
-      },
+    const otherExpenses = await withDbRetry(async () => {
+      return await prisma.otherExpense.findMany({
+        where,
+        orderBy: { expenseDate: 'desc' },
+        include: {
+          createdBy: { select: { id: true, employeeName: true, email: true } },
+        },
+      });
     });
 
     let filtered = otherExpenses;
@@ -93,31 +95,34 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: 'Valid positive amount required' }, { status: 400 });
     }
 
-    const otherExpense = await prisma.otherExpense.create({
-      data: {
-        expenseDate: expenseDate ? new Date(expenseDate) : new Date(),
-        category: category.trim(),
-        amount: numAmount,
-        paidTo: (paidTo || 'N/A').trim(),
-        bankName: bankName ? bankName.trim() : null,
-        paymentMethod: paymentMethod ? paymentMethod.trim() : 'Bank Transfer',
-        description: description.trim(),
-        referenceNo: referenceNo ? referenceNo.trim() : null,
-        attachmentUrl: attachmentUrl || null,
-        adminNotes: adminNotes ? adminNotes.trim() : null,
-        status: 'RECORDED',
-      },
-    });
+    const otherExpense = await withDbRetry(async () => {
+      const created = await prisma.otherExpense.create({
+        data: {
+          expenseDate: expenseDate ? new Date(expenseDate) : new Date(),
+          category: category.trim(),
+          amount: numAmount,
+          paidTo: (paidTo || 'N/A').trim(),
+          bankName: bankName ? bankName.trim() : null,
+          paymentMethod: paymentMethod ? paymentMethod.trim() : 'Bank Transfer',
+          description: description.trim(),
+          referenceNo: referenceNo ? referenceNo.trim() : null,
+          attachmentUrl: attachmentUrl || null,
+          adminNotes: adminNotes ? adminNotes.trim() : null,
+          status: 'RECORDED',
+        },
+      });
 
-    // Record audit log
-    await prisma.reconciliationAudit.create({
-      data: {
-        otherExpenseId: otherExpense.id,
-        adminName,
-        action: 'OTHER_EXPENSE_CREATED',
-        adjustedAmount: numAmount,
-        comment: `Recorded Other Expense: ${category} - Rs. ${numAmount.toLocaleString()} to ${paidTo || 'N/A'} ("${description}")`,
-      },
+      await prisma.reconciliationAudit.create({
+        data: {
+          otherExpenseId: created.id,
+          adminName,
+          action: 'OTHER_EXPENSE_CREATED',
+          adjustedAmount: numAmount,
+          comment: `Recorded Other Expense: ${category} - Rs. ${numAmount.toLocaleString()} to ${paidTo || 'N/A'} ("${description}")`,
+        },
+      });
+
+      return created;
     });
 
     return NextResponse.json({
@@ -141,25 +146,27 @@ export async function DELETE(req) {
       return NextResponse.json({ success: false, error: 'Other Expense ID is required' }, { status: 400 });
     }
 
-    const existing = await prisma.otherExpense.findUnique({
-      where: { id },
-    });
+    await withDbRetry(async () => {
+      const existing = await prisma.otherExpense.findUnique({
+        where: { id },
+      });
 
-    if (!existing) {
-      return NextResponse.json({ success: false, error: 'Record not found' }, { status: 404 });
-    }
+      if (!existing) {
+        throw new Error('Record not found');
+      }
 
-    await prisma.otherExpense.delete({
-      where: { id },
-    });
+      await prisma.otherExpense.delete({
+        where: { id },
+      });
 
-    await prisma.reconciliationAudit.create({
-      data: {
-        adminName,
-        action: 'OTHER_EXPENSE_DELETED',
-        adjustedAmount: existing.amount,
-        comment: `Deleted Other Expense #${id}: ${existing.category} - Rs. ${existing.amount.toLocaleString()}`,
-      },
+      await prisma.reconciliationAudit.create({
+        data: {
+          adminName,
+          action: 'OTHER_EXPENSE_DELETED',
+          adjustedAmount: existing.amount,
+          comment: `Deleted Other Expense #${id}: ${existing.category} - Rs. ${existing.amount.toLocaleString()}`,
+        },
+      });
     });
 
     return NextResponse.json({

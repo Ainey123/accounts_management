@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, withDbRetry } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,27 +51,29 @@ export async function GET(req) {
       }
     }
 
-    const expenses = await prisma.expense.findMany({
-      where,
-      include: {
-        jobMetadata: {
-          include: {
-            assignedEmployee: { select: { id: true, employeeName: true, email: true } },
-            ticket: { select: { id: true, serialNo: true, subject: true, exactDate: true, time: true, sender: true } },
+    const expenses = await withDbRetry(async () => {
+      return await prisma.expense.findMany({
+        where,
+        include: {
+          jobMetadata: {
+            include: {
+              assignedEmployee: { select: { id: true, employeeName: true, email: true } },
+              ticket: { select: { id: true, serialNo: true, subject: true, exactDate: true, time: true, sender: true } },
+            },
+          },
+          createdBy: { select: { id: true, employeeName: true, email: true } },
+          bankTransaction: {
+            include: {
+              statement: { select: { id: true, bankName: true, fileName: true, statementPeriod: true } },
+            },
+          },
+          reconciliationAudits: {
+            take: 5,
+            orderBy: { createdAt: 'desc' },
           },
         },
-        createdBy: { select: { id: true, employeeName: true, email: true } },
-        bankTransaction: {
-          include: {
-            statement: { select: { id: true, bankName: true, fileName: true, statementPeriod: true } },
-          },
-        },
-        reconciliationAudits: {
-          take: 5,
-          orderBy: { createdAt: 'desc' },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
+      });
     });
 
     // In-memory text filtering for flexible search

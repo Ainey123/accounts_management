@@ -254,13 +254,19 @@ export default function ReconciliationModule({
   };
 
   const reloadAll = async () => {
-    await Promise.all([
-      fetchStats(),
-      fetchExpenses(),
-      fetchOtherExpenses(),
-      fetchStatements(),
-      fetchTransactions(),
-    ]);
+    try {
+      await fetchStats();
+      await Promise.all([
+        fetchExpenses(),
+        fetchOtherExpenses(),
+      ]);
+      await Promise.all([
+        fetchStatements(),
+        fetchTransactions(),
+      ]);
+    } catch (e) {
+      console.error('Error reloading reconciliation matrix:', e);
+    }
   };
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, withDbRetry } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,23 +10,25 @@ export async function GET(request) {
 
     const where = jobMetadataId ? { jobMetadataId: Number(jobMetadataId) } : undefined;
 
-    const expenses = await prisma.expense.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        createdBy: { select: { id: true, employeeName: true, email: true } },
-        jobMetadata: {
-          include: {
-            ticket: true,
-            assignedEmployee: { select: { id: true, employeeName: true, email: true } },
+    const expenses = await withDbRetry(async () => {
+      return await prisma.expense.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          createdBy: { select: { id: true, employeeName: true, email: true } },
+          jobMetadata: {
+            include: {
+              ticket: true,
+              assignedEmployee: { select: { id: true, employeeName: true, email: true } },
+            },
+          },
+          bankTransaction: {
+            include: {
+              statement: { select: { id: true, bankName: true, fileName: true } },
+            },
           },
         },
-        bankTransaction: {
-          include: {
-            statement: { select: { id: true, bankName: true, fileName: true } },
-          },
-        },
-      },
+      });
     });
 
     return NextResponse.json({ expenses, success: true });
@@ -109,20 +111,22 @@ export async function POST(request) {
       }
     }
 
-    const expense = await prisma.expense.create({
-      data: {
-        jobMetadataId: Number(jobMetadataId),
-        amount: finalAmount,
-        imageUrl: imageUrl || null,
-        summaryNotes: finalSummaryNotes,
-        category: category || 'Site Expense',
-        expenseDate: parsedDate,
-        createdById: userId,
-      },
-      include: {
-        createdBy: { select: { id: true, employeeName: true, email: true } },
-        jobMetadata: { include: { ticket: true } },
-      },
+    const expense = await withDbRetry(async () => {
+      return await prisma.expense.create({
+        data: {
+          jobMetadataId: Number(jobMetadataId),
+          amount: finalAmount,
+          imageUrl: imageUrl || null,
+          summaryNotes: finalSummaryNotes,
+          category: category || 'Site Expense',
+          expenseDate: parsedDate,
+          createdById: userId,
+        },
+        include: {
+          createdBy: { select: { id: true, employeeName: true, email: true } },
+          jobMetadata: { include: { ticket: true } },
+        },
+      });
     });
 
     return NextResponse.json({ expense, success: true }, { status: 201 });
@@ -176,23 +180,25 @@ export async function PUT(request) {
       updateData.adjustedAmount = Number(adjustedAmount);
     }
 
-    const updated = await prisma.expense.update({
-      where: { id: Number(id) },
-      data: updateData,
-      include: {
-        createdBy: { select: { id: true, employeeName: true, email: true } },
-        jobMetadata: {
-          include: {
-            ticket: true,
-            assignedEmployee: { select: { id: true, employeeName: true, email: true } },
+    const updated = await withDbRetry(async () => {
+      return await prisma.expense.update({
+        where: { id: Number(id) },
+        data: updateData,
+        include: {
+          createdBy: { select: { id: true, employeeName: true, email: true } },
+          jobMetadata: {
+            include: {
+              ticket: true,
+              assignedEmployee: { select: { id: true, employeeName: true, email: true } },
+            },
+          },
+          bankTransaction: {
+            include: {
+              statement: { select: { id: true, bankName: true, fileName: true } },
+            },
           },
         },
-        bankTransaction: {
-          include: {
-            statement: { select: { id: true, bankName: true, fileName: true } },
-          },
-        },
-      },
+      });
     });
 
     return NextResponse.json({ expense: updated, success: true });
@@ -220,24 +226,26 @@ export async function DELETE(request) {
 
     const expenseId = Number(id);
 
-    // If linked to a bank transaction, reset transaction status
-    const existing = await prisma.expense.findUnique({
-      where: { id: expenseId },
-      select: { bankTransactionId: true, adjustedAmount: true },
-    });
+    await withDbRetry(async () => {
+      // If linked to a bank transaction, reset transaction status
+      const existing = await prisma.expense.findUnique({
+        where: { id: expenseId },
+        select: { bankTransactionId: true, adjustedAmount: true },
+      });
 
-    if (existing?.bankTransactionId) {
-      await prisma.bankTransaction.update({
-        where: { id: existing.bankTransactionId },
-        data: {
-          matchStatus: 'UNMATCHED',
-          reconciledAmount: { decrement: existing.adjustedAmount || 0 },
-        },
-      }).catch(() => {});
-    }
+      if (existing?.bankTransactionId) {
+        await prisma.bankTransaction.update({
+          where: { id: existing.bankTransactionId },
+          data: {
+            matchStatus: 'UNMATCHED',
+            reconciledAmount: { decrement: existing.adjustedAmount || 0 },
+          },
+        }).catch(() => {});
+      }
 
-    await prisma.expense.delete({
-      where: { id: expenseId },
+      await prisma.expense.delete({
+        where: { id: expenseId },
+      });
     });
 
     return NextResponse.json({ success: true, deletedId: expenseId, message: `Expense #${expenseId} deleted successfully.` });

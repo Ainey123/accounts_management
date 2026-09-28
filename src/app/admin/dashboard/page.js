@@ -242,23 +242,30 @@ export default function AdminCommandCenter() {
   };
 
   const loadAll = async () => {
-    const [userRes, statsRes, finRes, ticketsRes, gmailRes, settingsRes, reconRes] = await Promise.all([
-      apiFetch('/api/users'),
-      apiFetch('/api/admin/stats'),
-      apiFetch('/api/admin/financials'),
-      apiFetch('/api/tickets'),
-      apiFetch('/api/gmail-account'),
-      apiFetch('/api/admin/settings'),
-      apiFetch('/api/admin/reconciliation/stats').catch(() => ({ stats: null })),
-    ]);
-    setUsers(userRes.users || []);
-    setStats(statsRes.stats);
-    setEmployeeMatrix(statsRes.employeeMatrix || []);
-    setFinancials(finRes.financials);
-    if (reconRes?.stats) setReconStats(reconRes.stats);
-    setTickets(ticketsRes.tickets || []);
-    setGmailAccounts(gmailRes.accounts || []);
-    setSettings(settingsRes.settings);
+    try {
+      const [userRes, statsRes, finRes] = await Promise.all([
+        apiFetch('/api/users').catch(() => ({ users: [] })),
+        apiFetch('/api/admin/stats').catch(() => ({ stats: null, employeeMatrix: [] })),
+        apiFetch('/api/admin/financials').catch(() => ({ financials: null })),
+      ]);
+      setUsers(userRes.users || []);
+      setStats(statsRes.stats);
+      setEmployeeMatrix(statsRes.employeeMatrix || []);
+      setFinancials(finRes.financials);
+
+      const [ticketsRes, gmailRes, settingsRes, reconRes] = await Promise.all([
+        apiFetch('/api/tickets').catch(() => ({ tickets: [] })),
+        apiFetch('/api/gmail-account').catch(() => ({ accounts: [] })),
+        apiFetch('/api/admin/settings').catch(() => ({ settings: null })),
+        apiFetch('/api/admin/reconciliation/stats').catch(() => ({ stats: null })),
+      ]);
+      setTickets(ticketsRes.tickets || []);
+      setGmailAccounts(gmailRes.accounts || []);
+      if (settingsRes?.settings) setSettings(settingsRes.settings);
+      if (reconRes?.stats) setReconStats(reconRes.stats);
+    } catch (err) {
+      console.error('Failed loading admin dashboard data:', err);
+    }
   };
 
   useEffect(() => {

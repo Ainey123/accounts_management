@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sarmad Islam (Batch 4) - August 2026 Complaints Report</title>
+  <style>
+    
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+    
+    @page {
+      size: A4 landscape;
+      margin: 12mm 10mm 12mm 10mm;
+      @bottom-right {
+        content: "Page " counter(page) " of " counter(pages);
+        font-family: 'Inter', sans-serif;
+        font-size: 8pt;
+        color: #94a3b8;
+      }
+      @bottom-left {
+        content: "NEXUS Operations — Employee Complaints Progress Audit (August 2026)";
+        font-family: 'Inter', sans-serif;
+        font-size: 8pt;
+        color: #94a3b8;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      font-size: 8.5pt;
+      line-height: 1.4;
+      padding: 10px;
+    }
+
+    .report-header {
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .report-title {
+      font-size: 18pt;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.5px;
+    }
+
+    .report-subtitle {
+      font-size: 9.5pt;
+      color: #64748b;
+      margin-top: 3px;
+    }
+
+    .batch-badge {
+      display: inline-block;
+      background: #f59e0b;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 8pt;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin-left: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      vertical-align: middle;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+      page-break-inside: avoid;
+    }
+
+    .summary-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px 14px;
+      border-top: 4px solid #f59e0b;
+    }
+
+    .summary-label {
+      font-size: 7.5pt;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .summary-count {
+      font-size: 20pt;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1;
+    }
+
+    .summary-subtext {
+      font-size: 7.5pt;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+
+    .section-header {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 10pt;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 16px;
+      margin-bottom: 10px;
+      page-break-after: avoid;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+      page-break-inside: auto;
+    }
+
+    tr {
+      page-break-inside: avoid;
+      page-break-after: auto;
+    }
+
+    thead {
+      display: table-header-group;
+    }
+
+    th {
+      background: #f1f5f9;
+      color: #334155;
+      font-weight: 700;
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 7px 8px;
+      border-bottom: 2px solid #cbd5e1;
+      text-align: left;
+    }
+
+    td {
+      padding: 7px 8px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+      font-size: 8pt;
+    }
+
+    tr:nth-child(even) td {
+      background-color: #fafafa;
+    }
+
+    .serial-col {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: #f59e0b;
+      width: 85px;
+      white-space: nowrap;
+    }
+
+    .date-col {
+      width: 105px;
+      white-space: nowrap;
+    }
+
+    .client-col {
+      width: 180px;
+      line-height: 1.3;
+    }
+
+    .sender-col {
+      width: 160px;
+      font-size: 7.5pt;
+      color: #475569;
+      word-break: break-all;
+    }
+
+    .subject-col {
+      line-height: 1.35;
+    }
+
+    .status-col {
+      width: 105px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 7pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .badge-green { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+    .badge-blue { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    .badge-red { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+    .badge-gray { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+  
+  </style>
+</head>
+<body>
+  <div class="report-header">
+    <div>
+      <div style="font-size: 8pt; color: #f59e0b; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+        NEXUS OPERATIONS — INDIVIDUAL EMPLOYEE AUDIT
+      </div>
+      <div class="report-title">
+        Sarmad Islam <span class="batch-badge">Batch 4</span>
+      </div>
+      <div class="report-subtitle">
+        Tenure: <strong>August 1, 2026 – August 31, 2026</strong> &bull; System Names: <em>Sarmad Islam, Sermad Islam</em> &bull; Filter: <strong>Excluding Irrelevant Complaints</strong>
+      </div>
+    </div>
+    <div style="text-align: right;">
+      <div style="font-size: 14pt; font-weight: 800; color: #f59e0b;">13 Complaints</div>
+      <div style="font-size: 7.5pt; color: #64748b;">Generated on Sep 12, 2026</div>
+    </div>
+  </div>
+
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="summary-label">Total Valid Complaints</div>
+      <div class="summary-count">13</div>
+      <div class="summary-subtext">All relevant tasks processed</div>
+    </div>
+    <div class="summary-card" style="border-top-color: #10b981;">
+      <div class="summary-label">Intake Done (Converted)</div>
+      <div class="summary-count" style="color: #10b981;">12</div>
+      <div class="summary-subtext">92% Conversion rate</div>
+    </div>
+    <div class="summary-card" style="border-top-color: #ef4444;">
+      <div class="summary-label">Cancelled</div>
+      <div class="summary-count" style="color: #ef4444;">1</div>
+      <div class="summary-subtext">Cancelled or voided</div>
+    </div>
+    <div class="summary-card" style="border-top-color: #64748b;">
+      <div class="summary-label">Pending / In-Progress</div>
+      <div class="summary-count" style="color: #64748b;">0</div>
+      <div class="summary-subtext">Awaiting next steps</div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <span>Detailed Complaints Breakdown (13 Records)</span>
+    <span style="font-size: 8pt; font-weight: 500;">August 2026 &bull; Sorted chronologically</span>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 85px;">Serial #</th>
+        <th style="width: 105px;">Date &amp; Time</th>
+        <th style="width: 190px;">Client &amp; Branch / Nature</th>
+        <th style="width: 160px;">Sender</th>
+        <th>Subject &amp; Details</th>
+        <th style="width: 105px; text-align: center;">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      <tr>
+        <td class="serial-col">2557</td>
+        <td class="date-col">
+          <strong>Aug 5, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:17 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Ghari Shahu Lahore Branch</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Ticket No :168884</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2582</td>
+        <td class="date-col">
+          <strong>Aug 5, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">07:09 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-IBG-Central</strong><br><span style="color:#64748b;">Johar Town Branch Lahore</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">MAINTENANCE</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :168965</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2581</td>
+        <td class="date-col">
+          <strong>Aug 5, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">07:14 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">PIA Road Branch</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">MAINTENANCE</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :168967</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2798</td>
+        <td class="date-col">
+          <strong>Aug 11, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">06:26 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Carrefour Anwar Industries</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Branch down due to transformer issue-Main Wire Of Branch Cut Due To Wasa Digging</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2804</td>
+        <td class="date-col">
+          <strong>Aug 11, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">07:51 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Canal Road Br</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Tariq Karim - 5183 &lt;tariq.karim@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>FW: [External] Re: Electric Short circuit - Canal Road Branch (0754) 7541</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2870</td>
+        <td class="date-col">
+          <strong>Aug 13, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">06:11 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Citi Housing branch Sialkot</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">BAL-CENTRAL</td>
+        <td class="subject-col">
+          <strong>RE: BRANCH ELECTRICITY ISSUE CITI HOUSING BR -0554 SIALKOT</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3396</td>
+        <td class="date-col">
+          <strong>Aug 18, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:23 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">New Garden Town</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">MAINTENANCE</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170349</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3394</td>
+        <td class="date-col">
+          <strong>Aug 18, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:26 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Johar Town Branch Lahore</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">MAINTENANCE</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170352</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3393</td>
+        <td class="date-col">
+          <strong>Aug 18, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:41 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170364</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-red">✕ Cancelled</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3415</td>
+        <td class="date-col">
+          <strong>Aug 18, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">07:11 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">IBG - Peco Road Kot Lakhpat Branch</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170401</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3414</td>
+        <td class="date-col">
+          <strong>Aug 18, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">07:32 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Daska Branch</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170413</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3419</td>
+        <td class="date-col">
+          <strong>Aug 18, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">09:51 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-NORTH</strong><br><span style="color:#64748b;">Jhelum Branch</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">WAPDA</span></td>
+        <td class="sender-col">Noor Un Nisa - 14466 &lt;noor.nisa@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Power issue:</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3446</td>
+        <td class="date-col">
+          <strong>Aug 19, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">08:38 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Rahwali Cantt Branch Gujranwala</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: ELECTRIC ISSUE IN GULABPURA RAHWALI CANTT BRANCH (0538)</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+    </tbody>
+  </table>
+</body>
+</html>

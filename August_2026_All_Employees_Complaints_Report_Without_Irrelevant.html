@@ -1,0 +1,2148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>August 2026 Employee Complaints Audit Report (Without Irrelevant)</title>
+  <style>
+    
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+    
+    @page {
+      size: A4 landscape;
+      margin: 12mm 10mm 12mm 10mm;
+      @bottom-right {
+        content: "Page " counter(page) " of " counter(pages);
+        font-family: 'Inter', sans-serif;
+        font-size: 8pt;
+        color: #94a3b8;
+      }
+      @bottom-left {
+        content: "NEXUS Operations — Employee Complaints Progress Audit (August 2026)";
+        font-family: 'Inter', sans-serif;
+        font-size: 8pt;
+        color: #94a3b8;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      font-size: 8.5pt;
+      line-height: 1.4;
+      padding: 10px;
+    }
+
+    .report-header {
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .report-title {
+      font-size: 18pt;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.5px;
+    }
+
+    .report-subtitle {
+      font-size: 9.5pt;
+      color: #64748b;
+      margin-top: 3px;
+    }
+
+    .batch-badge {
+      display: inline-block;
+      background: #4f46e5;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 8pt;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin-left: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      vertical-align: middle;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+      page-break-inside: avoid;
+    }
+
+    .summary-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px 14px;
+      border-top: 4px solid #4f46e5;
+    }
+
+    .summary-label {
+      font-size: 7.5pt;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .summary-count {
+      font-size: 20pt;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1;
+    }
+
+    .summary-subtext {
+      font-size: 7.5pt;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+
+    .section-header {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 10pt;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 16px;
+      margin-bottom: 10px;
+      page-break-after: avoid;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+      page-break-inside: auto;
+    }
+
+    tr {
+      page-break-inside: avoid;
+      page-break-after: auto;
+    }
+
+    thead {
+      display: table-header-group;
+    }
+
+    th {
+      background: #f1f5f9;
+      color: #334155;
+      font-weight: 700;
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 7px 8px;
+      border-bottom: 2px solid #cbd5e1;
+      text-align: left;
+    }
+
+    td {
+      padding: 7px 8px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+      font-size: 8pt;
+    }
+
+    tr:nth-child(even) td {
+      background-color: #fafafa;
+    }
+
+    .serial-col {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: #4f46e5;
+      width: 85px;
+      white-space: nowrap;
+    }
+
+    .date-col {
+      width: 105px;
+      white-space: nowrap;
+    }
+
+    .client-col {
+      width: 180px;
+      line-height: 1.3;
+    }
+
+    .sender-col {
+      width: 160px;
+      font-size: 7.5pt;
+      color: #475569;
+      word-break: break-all;
+    }
+
+    .subject-col {
+      line-height: 1.35;
+    }
+
+    .status-col {
+      width: 105px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 7pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .badge-green { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+    .badge-blue { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    .badge-red { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+    .badge-gray { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+  
+  </style>
+</head>
+<body>
+  <div class="report-header">
+    <div>
+      <div style="font-size: 8pt; color: #4f46e5; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+        NEXUS OPERATIONS &bull; MONTHLY PERFORMANCE AUDIT
+      </div>
+      <div class="report-title">
+        August 2026 Complaints &amp; Workload Audit Report
+      </div>
+      <div class="report-subtitle">
+        Tenure: <strong>August 1, 2026 – August 31, 2026</strong> &bull; Filter: <strong>Excluding Irrelevant Complaints</strong> &bull; Total Valid Records: <strong>127</strong>
+      </div>
+    </div>
+    <div style="text-align: right;">
+      <div style="font-size: 14pt; font-weight: 800; color: #4f46e5;">127 Complaints</div>
+      <div style="font-size: 7.5pt; color: #64748b;">Generated on Sep 12, 2026</div>
+    </div>
+  </div>
+
+  <div class="summary-grid" style="grid-template-columns: repeat(5, 1fr);">
+    <div class="summary-card" style="border-top-color: #0284c7;">
+      <div class="summary-label">Ali Shehzad (Batch 1)</div>
+      <div class="summary-count" style="color: #0284c7;">20</div>
+      <div class="summary-subtext">20 Intakes Done</div>
+    </div>
+    <div class="summary-card" style="border-top-color: #10b981;">
+      <div class="summary-label">M. Ibrahim (Batch 2)</div>
+      <div class="summary-count" style="color: #10b981;">27</div>
+      <div class="summary-subtext">20 Intakes Done</div>
+    </div>
+    <div class="summary-card" style="border-top-color: #8b5cf6;">
+      <div class="summary-label">Shah Zaib (Batch 3)</div>
+      <div class="summary-count" style="color: #8b5cf6;">10</div>
+      <div class="summary-subtext">10 Intakes Done</div>
+    </div>
+    <div class="summary-card" style="border-top-color: #f59e0b;">
+      <div class="summary-label">Sarmad Islam (Batch 4)</div>
+      <div class="summary-count" style="color: #f59e0b;">13</div>
+      <div class="summary-subtext">12 Intakes Done</div>
+    </div>
+    <div class="summary-card" style="border-top-color: #64748b;">
+      <div class="summary-label">Other / Auto-Ingested</div>
+      <div class="summary-count" style="color: #64748b;">57</div>
+      <div class="summary-subtext">Unassigned intake / pending</div>
+    </div>
+  </div>
+
+      <div class="section-header" style="background: #0284c7; margin-top: 24px;">
+        <span>Ali Shehzad (Batch 1) &mdash; 20 Complaints</span>
+        <span style="font-size: 8pt; font-weight: 500;">Original aliases: Rizwan Hussain, Ali Shezad</span>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 85px;">Serial #</th>
+            <th style="width: 105px;">Date &amp; Time</th>
+            <th style="width: 190px;">Client &amp; Branch / Nature</th>
+            <th style="width: 160px;">Sender</th>
+            <th>Subject &amp; Details</th>
+            <th style="width: 105px; text-align: center;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+      <tr>
+        <td class="serial-col">2808</td>
+        <td class="date-col">
+          <strong>Aug 11, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">09:08 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL</strong><br><span style="color:#64748b;">SHEIKHUPURA MAIN BRANCH</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">BAL</td>
+        <td class="subject-col">
+          <strong>149470</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2838</td>
+        <td class="date-col">
+          <strong>Aug 12, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">04:50 AM</span>
+        </td>
+        <td class="client-col"><strong>noreply-apps-scripts-notifications</strong><br><span style="color:#64748b;">Grain Market Branch Faisalabad</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">WAPDA</span></td>
+        <td class="sender-col">Muhammad Nadeem Iqbal &lt;mnadeem.iqbal@jsbl.com&gt;</td>
+        <td class="subject-col">
+          <strong>Re: FESCO Notice for extension of load; Approval Required for the Expense of &quot;Rs. 160,000/-&quot; in favor of M/s FAST Engineering Solutions for load extension.</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2858</td>
+        <td class="date-col">
+          <strong>Aug 12, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">06:47 AM</span>
+        </td>
+        <td class="client-col"><strong>Oracle Notification &lt;oracle.notification</strong><br><span style="color:#64748b;">Ghazi Abad Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">WAPDA</span></td>
+        <td class="sender-col">Muhammad Irfan Akbar &lt;irfan.akbar@ubl.com.pk&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Transformer &amp; Three Phase Meter Approval Required Ghaziabad Branch</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3330</td>
+        <td class="date-col">
+          <strong>Aug 17, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">04:57 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-Central</strong><br><span style="color:#64748b;">Montgumery Road Branch Lahore</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170126</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3379</td>
+        <td class="date-col">
+          <strong>Aug 17, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">07:45 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-Central</strong><br><span style="color:#64748b;">Carefour Anwer Industries Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: [External] Re: Branch Down 0676 Carrefour Anwar Industries due to electricity breakage</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3377</td>
+        <td class="date-col">
+          <strong>Aug 17, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">08:28 AM</span>
+        </td>
+        <td class="client-col"><strong>Mazhar Iqbal - 44180 &lt;mazhar.iqbal</strong><br><span style="color:#64748b;">IBG Chung Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: [External] Re: 5361 | IBD Chuhng Branch | Short Circuit issue [1489251] : Network Down of IBG Chung 5536</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3388</td>
+        <td class="date-col">
+          <strong>Aug 17, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">09:40 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-Central</strong><br><span style="color:#64748b;">IBG Sharakpur Sharif Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Muhammad Asif - 2109 &lt;masif2@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: [External] Re: Electricity phase issue</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3380</td>
+        <td class="date-col">
+          <strong>Aug 17, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">11:11 AM</span>
+        </td>
+        <td class="client-col"><strong>Mazhar Iqbal - 44180 &lt;mazhar.iqbal</strong><br><span style="color:#64748b;">IBG Chung Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: [External] Re: DATA AND POWER CABBLE CONNECTION REQUIRED FOR NEWLY INSTALLED Q-MATIC</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3400</td>
+        <td class="date-col">
+          <strong>Aug 18, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">04:42 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-South</strong><br><span style="color:#64748b;">IBG Mumtazabad Branch Multan</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Arsalan Farooq - BAF0886 &lt;a.farooq@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: [External] Re: Branch down due to electricity and UPS issue &gt; IBG Mumtazabad Branch 5558</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3410</td>
+        <td class="date-col">
+          <strong>Aug 18, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:43 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-Central</strong><br><span style="color:#64748b;">IBG Chung Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Pending Shahdara Branch 0095 Electrical Work</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3411</td>
+        <td class="date-col">
+          <strong>Aug 18, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:46 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-Central</strong><br><span style="color:#64748b;">IBG Chung Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Muhammad Moeed Shahid - 51515 &lt;moeed.shahid@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Invoice# FES-BAL-1672 Manga Mandi Branch Pls Process for Payment</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3431</td>
+        <td class="date-col">
+          <strong>Aug 19, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">04:14 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL_CENTRAL</strong><br><span style="color:#64748b;">Rail Bazar</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170460</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3477</td>
+        <td class="date-col">
+          <strong>Aug 21, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">04:21 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-South</strong><br><span style="color:#64748b;">M.A Jinnah Road Branch Okara</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170841</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3475</td>
+        <td class="date-col">
+          <strong>Aug 21, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">04:27 AM</span>
+        </td>
+        <td class="client-col"><strong>UBL-South</strong><br><span style="color:#64748b;">Bangla Manthar Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">HERE4U &lt;here4u.svc@ubl.com.pk&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :120345</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3474</td>
+        <td class="date-col">
+          <strong>Aug 21, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:07 AM</span>
+        </td>
+        <td class="client-col"><strong>SBL-Central</strong><br><span style="color:#64748b;">Khurrianwala Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Muhammad Arslan Ismail &lt;arslan.ismail@soneribank.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Camera - Khurrianwala Branch (0245)</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3478</td>
+        <td class="date-col">
+          <strong>Aug 21, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">07:48 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-South</strong><br><span style="color:#64748b;">Quaid-e-Azam Road Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">MAINTENANCE</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170956</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3562</td>
+        <td class="date-col">
+          <strong>Aug 27, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:28 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-Central</strong><br><span style="color:#64748b;">Chuburji Branch Lahore</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Sumreen Hafeez - BF1012 &lt;sumreen.hafeez@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Ticket No :171421</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3560</td>
+        <td class="date-col">
+          <strong>Aug 27, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">06:10 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-Central</strong><br><span style="color:#64748b;">Kamkoki Branch Gujranwala</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :171449</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3581</td>
+        <td class="date-col">
+          <strong>Aug 27, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">09:19 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-Central</strong><br><span style="color:#64748b;">IB Main Branch Lahore</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">MAINTENANCE</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :171511</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3588</td>
+        <td class="date-col">
+          <strong>Aug 27, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">12:43 PM</span>
+        </td>
+        <td class="client-col"><strong>BAL-Central</strong><br><span style="color:#64748b;">Fruit Market Branch Lahore</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Electricity Sparking / failure in Fruit market ||0291</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+        </tbody>
+      </table>
+    
+      <div class="section-header" style="background: #10b981; margin-top: 24px;">
+        <span>Muhammad Ibrahim (Batch 2) &mdash; 27 Complaints</span>
+        <span style="font-size: 8pt; font-weight: 500;">Original aliases: Muhammad Ibrahim, Ibrahim</span>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 85px;">Serial #</th>
+            <th style="width: 105px;">Date &amp; Time</th>
+            <th style="width: 190px;">Client &amp; Branch / Nature</th>
+            <th style="width: 160px;">Sender</th>
+            <th>Subject &amp; Details</th>
+            <th style="width: 105px; text-align: center;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+      <tr>
+        <td class="serial-col">2417</td>
+        <td class="date-col">
+          <strong>Aug 3, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">04:22 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">SHEIKHUPURA MAIN BRANCH</span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :168489</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2427</td>
+        <td class="date-col">
+          <strong>Aug 3, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:51 AM</span>
+        </td>
+        <td class="client-col"><strong>UBL-SOUTH</strong><br><span style="color:#64748b;">Kambo Chowk Chichawatni </span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">MAINTENANCE</span></td>
+        <td class="sender-col">HERE4U &lt;here4u.svc@ubl.com.pk&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :116812</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2426</td>
+        <td class="date-col">
+          <strong>Aug 3, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">06:30 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Muridke Branch</span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: ELECTRATION REQURIED TO REPAIR BRANCH ELECTRIC CABLES (MURIDKE BR.0136)</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3071</td>
+        <td class="date-col">
+          <strong>Aug 3, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">03:55 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">LinkedIn &lt;updates-noreply@linkedin.com&gt;</td>
+        <td class="subject-col">
+          <strong>Awais Iftikhar recently posted</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-red">✕ Cancelled</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3052</td>
+        <td class="date-col">
+          <strong>Aug 4, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">12:40 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">LinkedIn &lt;messages-noreply@linkedin.com&gt;</td>
+        <td class="subject-col">
+          <strong>New skill available: Puzzle solving 🧩</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-red">✕ Cancelled</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3044</td>
+        <td class="date-col">
+          <strong>Aug 5, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:33 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">LinkedIn &lt;messages-noreply@linkedin.com&gt;</td>
+        <td class="subject-col">
+          <strong>👤 Abdul Manan, add Abdallah B.</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-red">✕ Cancelled</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3034</td>
+        <td class="date-col">
+          <strong>Aug 5, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:05 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">LinkedIn &lt;notifications-noreply@linkedin.com&gt;</td>
+        <td class="subject-col">
+          <strong>You appeared in recent searches</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-red">✕ Cancelled</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3025</td>
+        <td class="date-col">
+          <strong>Aug 6, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">08:39 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">LinkedIn &lt;jobs-noreply@linkedin.com&gt;</td>
+        <td class="subject-col">
+          <strong>SPERTON - Where Great People Meet is hiring for a Manufacturing role</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-red">✕ Cancelled</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3023</td>
+        <td class="date-col">
+          <strong>Aug 6, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">12:46 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">LinkedIn &lt;messages-noreply@linkedin.com&gt;</td>
+        <td class="subject-col">
+          <strong>Your puzzle is live, Abdul Manan 🧩</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-red">✕ Cancelled</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2673</td>
+        <td class="date-col">
+          <strong>Aug 7, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">04:43 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Wandala Road Branch</span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: ELECRTICITY ISSUE-WANDALA-0606</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2670</td>
+        <td class="date-col">
+          <strong>Aug 7, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">04:52 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Gulbahar Sialkot Branch</span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :169242</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2667</td>
+        <td class="date-col">
+          <strong>Aug 7, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:32 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-SOUTTH</strong><br><span style="color:#64748b;">Eden Garden Branch</span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">MAINTENANCE</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :169273</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2720</td>
+        <td class="date-col">
+          <strong>Aug 7, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">11:58 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">SHEIKHUPURA MAIN BRANCH</span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :169362</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2993</td>
+        <td class="date-col">
+          <strong>Aug 8, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:33 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">LinkedIn Job Alerts &lt;jobalerts-noreply@linkedin.com&gt;</td>
+        <td class="subject-col">
+          <strong>Accounts Assistant / Trainee at BIACCOUNTAX</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-red">✕ Cancelled</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2734</td>
+        <td class="date-col">
+          <strong>Aug 10, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">06:27 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">	SHEIKHUPURA MAIN BRANCH</span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :169470</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2835</td>
+        <td class="date-col">
+          <strong>Aug 12, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:03 AM</span>
+        </td>
+        <td class="client-col"><strong>UBL-SOUTH</strong><br><span style="color:#64748b;">GHAZIABAD BRANCH</span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">WAPDA</span></td>
+        <td class="sender-col">UBL-SOUTH</td>
+        <td class="subject-col">
+          <strong>Transformer &amp; Three Phase Meter Approval Required Ghaziabad Branch</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2836</td>
+        <td class="date-col">
+          <strong>Aug 12, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:51 AM</span>
+        </td>
+        <td class="client-col"><strong>JS</strong><br><span style="color:#64748b;">Jhelum Branch </span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">JS</td>
+        <td class="subject-col">
+          <strong>JHELUM BRANCH 50 KV PMT REPAIRING WORK</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2872</td>
+        <td class="date-col">
+          <strong>Aug 13, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:15 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">SHAHDARA BRANCH</span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Ticket No :169967</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2871</td>
+        <td class="date-col">
+          <strong>Aug 13, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:35 AM</span>
+        </td>
+        <td class="client-col"><strong>IBG-CENTRAL</strong><br><span style="color:#64748b;">	Ib Main Branch Lahore</span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">MAINTENANCE</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :169982</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3110</td>
+        <td class="date-col">
+          <strong>Aug 13, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">08:16 AM</span>
+        </td>
+        <td class="client-col"><strong>IBG-CENTRAL</strong><br><span style="color:#64748b;">Puli Top Khana</span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Muhammad Hasnain - 48727 &lt;mu.hasnain@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>CCTV not working.</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3461</td>
+        <td class="date-col">
+          <strong>Aug 20, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">06:51 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">RAIL BAZAR, GUJRANWALA</span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170752</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3459</td>
+        <td class="date-col">
+          <strong>Aug 20, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">07:27 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Citi Housing Gujranwala</span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Sumreen Hafeez - BF1012 &lt;sumreen.hafeez@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Ticket No :170771</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3530</td>
+        <td class="date-col">
+          <strong>Aug 25, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">04:25 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">KALASKAY BRANCH GUJRANWALA</span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :171209</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3539</td>
+        <td class="date-col">
+          <strong>Aug 25, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">07:38 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Wapda Town Branch</span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Electrical Maintenance Required at CPU Gujranwala.</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3551</td>
+        <td class="date-col">
+          <strong>Aug 25, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">11:28 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Ali Chowk Branch, Hafizabad(ABEP</span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Jiya Rai - BF0842 &lt;jiya.rai@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: [External] Re: Ticket No :171326</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3613</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">06:23 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-NORTH</strong><br><span style="color:#64748b;">NATHIAGALI BRANCH </span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">BAL-NORTH</td>
+        <td class="subject-col">
+          <strong>FW: Nathiagali Electric bill</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3614</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">06:58 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-NORTH</strong><br><span style="color:#64748b;">TARNOL BRANCH </span><br><span style="color:#10b981; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">BAL-NORTH</td>
+        <td class="subject-col">
+          <strong>RE: IESCO NOTICE</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+        </tbody>
+      </table>
+    
+      <div class="section-header" style="background: #8b5cf6; margin-top: 24px;">
+        <span>Shah Zaib (Batch 3) &mdash; 10 Complaints</span>
+        <span style="font-size: 8pt; font-weight: 500;">Original aliases: Shahzaib, Shah Zaib</span>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 85px;">Serial #</th>
+            <th style="width: 105px;">Date &amp; Time</th>
+            <th style="width: 190px;">Client &amp; Branch / Nature</th>
+            <th style="width: 160px;">Sender</th>
+            <th>Subject &amp; Details</th>
+            <th style="width: 105px; text-align: center;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+      <tr>
+        <td class="serial-col">2450</td>
+        <td class="date-col">
+          <strong>Aug 3, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">09:52 AM</span>
+        </td>
+        <td class="client-col"><strong>Tariq Karim - 5183 &lt;tariq.karim</strong><br><span style="color:#64748b;">Kehror Pecca Branch</span><br><span style="color:#8b5cf6; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Tariq Karim - 5183 &lt;tariq.karim@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>FW: [External] Re: 0466-Kehror pacca Fire incident in Branch electric meter</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2609</td>
+        <td class="date-col">
+          <strong>Aug 5, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">06:39 PM</span>
+        </td>
+        <td class="client-col"><strong>BAL_CENTRAL</strong><br><span style="color:#64748b;">Shahdra Branch</span><br><span style="color:#8b5cf6; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Useer Ahmed - 46486 &lt;useer.ahmed@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: [External] RE: 0951 | Shadra Branch WC | Pending Electric Tasks and Earthing B/O | Cash Dispenser Issue</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2809</td>
+        <td class="date-col">
+          <strong>Aug 11, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">09:59 AM</span>
+        </td>
+        <td class="client-col"><strong>IBG_CENTRAL</strong><br><span style="color:#64748b;">New Garden Town Br</span><br><span style="color:#8b5cf6; font-size: 7pt; font-weight:600;">MAINTENANCE</span></td>
+        <td class="sender-col">IBG</td>
+        <td class="subject-col">
+          <strong>169095</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2812</td>
+        <td class="date-col">
+          <strong>Aug 11, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">10:01 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-SOUTH</strong><br><span style="color:#64748b;">Dera Adda Branch</span><br><span style="color:#8b5cf6; font-size: 7pt; font-weight:600;">WAPDA</span></td>
+        <td class="sender-col">Tariq Karim - 5183 &lt;tariq.karim@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: [External] Fwd: ATB BOX WORK AT DERA ADDA BRANCH MULTAN</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2813</td>
+        <td class="date-col">
+          <strong>Aug 11, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">10:38 AM</span>
+        </td>
+        <td class="client-col"><strong>BAl</strong><br><span style="color:#64748b;">Race Course Br</span><br><span style="color:#8b5cf6; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">BAL Central</td>
+        <td class="subject-col">
+          <strong>167723</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3430</td>
+        <td class="date-col">
+          <strong>Aug 19, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">04:24 AM</span>
+        </td>
+        <td class="client-col"><strong>SBL</strong><br><span style="color:#64748b;">IB DHA Phase vi</span><br><span style="color:#8b5cf6; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Muhammad Arslan Ismail &lt;arslan.ismail@soneribank.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: FIRE ALARM ISSUE IN BRANCH------IB DHA PHASE 6, LAHORE (5017)</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3437</td>
+        <td class="date-col">
+          <strong>Aug 19, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">07:02 AM</span>
+        </td>
+        <td class="client-col"><strong>IBG_CENTRAL</strong><br><span style="color:#64748b;">IB Main Branch </span><br><span style="color:#8b5cf6; font-size: 7pt; font-weight:600;">MAINTENANCE</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170571</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3443</td>
+        <td class="date-col">
+          <strong>Aug 19, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">08:21 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL_CENTRAL</strong><br><span style="color:#64748b;">Muridke Br</span><br><span style="color:#8b5cf6; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170608</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3448</td>
+        <td class="date-col">
+          <strong>Aug 19, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">09:24 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-NORTH</strong><br><span style="color:#64748b;">Balakot Branch</span><br><span style="color:#8b5cf6; font-size: 7pt; font-weight:600;">WAPDA</span></td>
+        <td class="sender-col">Ali Afzal - 27401 &lt;ali.afzal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>FW: EAC-202607-0029 - Approval for acquiring rental premises for Conventional Banking Branch at Gari Habib Ullah Tehsil Balakot Dist. Manshera</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3447</td>
+        <td class="date-col">
+          <strong>Aug 19, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">10:51 AM</span>
+        </td>
+        <td class="client-col"><strong>JS</strong><br><span style="color:#64748b;">Badamibagh Br</span><br><span style="color:#8b5cf6; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Decibel &lt;decibel@decibelbpo.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket # Admin 47612 - Request For Electrical 9611-Badamibagh Branch</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+        </tbody>
+      </table>
+    
+      <div class="section-header" style="background: #f59e0b; margin-top: 24px;">
+        <span>Sarmad Islam (Batch 4) &mdash; 13 Complaints</span>
+        <span style="font-size: 8pt; font-weight: 500;">Original aliases: Sarmad Islam, Sermad Islam</span>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 85px;">Serial #</th>
+            <th style="width: 105px;">Date &amp; Time</th>
+            <th style="width: 190px;">Client &amp; Branch / Nature</th>
+            <th style="width: 160px;">Sender</th>
+            <th>Subject &amp; Details</th>
+            <th style="width: 105px; text-align: center;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+      <tr>
+        <td class="serial-col">2557</td>
+        <td class="date-col">
+          <strong>Aug 5, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:17 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Ghari Shahu Lahore Branch</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Ticket No :168884</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2582</td>
+        <td class="date-col">
+          <strong>Aug 5, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">07:09 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-IBG-Central</strong><br><span style="color:#64748b;">Johar Town Branch Lahore</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">MAINTENANCE</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :168965</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2581</td>
+        <td class="date-col">
+          <strong>Aug 5, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">07:14 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">PIA Road Branch</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">MAINTENANCE</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :168967</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2798</td>
+        <td class="date-col">
+          <strong>Aug 11, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">06:26 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Carrefour Anwar Industries</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Branch down due to transformer issue-Main Wire Of Branch Cut Due To Wasa Digging</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2804</td>
+        <td class="date-col">
+          <strong>Aug 11, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">07:51 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Canal Road Br</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Tariq Karim - 5183 &lt;tariq.karim@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>FW: [External] Re: Electric Short circuit - Canal Road Branch (0754) 7541</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2870</td>
+        <td class="date-col">
+          <strong>Aug 13, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">06:11 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Citi Housing branch Sialkot</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">BAL-CENTRAL</td>
+        <td class="subject-col">
+          <strong>RE: BRANCH ELECTRICITY ISSUE CITI HOUSING BR -0554 SIALKOT</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3396</td>
+        <td class="date-col">
+          <strong>Aug 18, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:23 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">New Garden Town</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">MAINTENANCE</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170349</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3394</td>
+        <td class="date-col">
+          <strong>Aug 18, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:26 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Johar Town Branch Lahore</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">MAINTENANCE</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170352</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3393</td>
+        <td class="date-col">
+          <strong>Aug 18, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:41 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170364</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-red">✕ Cancelled</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3415</td>
+        <td class="date-col">
+          <strong>Aug 18, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">07:11 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">IBG - Peco Road Kot Lakhpat Branch</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170401</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3414</td>
+        <td class="date-col">
+          <strong>Aug 18, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">07:32 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Daska Branch</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170413</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3419</td>
+        <td class="date-col">
+          <strong>Aug 18, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">09:51 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-NORTH</strong><br><span style="color:#64748b;">Jhelum Branch</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">WAPDA</span></td>
+        <td class="sender-col">Noor Un Nisa - 14466 &lt;noor.nisa@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Power issue:</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3446</td>
+        <td class="date-col">
+          <strong>Aug 19, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">08:38 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-CENTRAL</strong><br><span style="color:#64748b;">Rahwali Cantt Branch Gujranwala</span><br><span style="color:#f59e0b; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: ELECTRIC ISSUE IN GULABPURA RAHWALI CANTT BRANCH (0538)</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+        </tbody>
+      </table>
+    
+      <div class="section-header" style="background: #475569; margin-top: 24px;">
+        <span>Other / Unassigned &mdash; 57 Complaints</span>
+        <span style="font-size: 8pt; font-weight: 500;">Auto-ingested emails</span>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 85px;">Serial #</th>
+            <th style="width: 105px;">Date &amp; Time</th>
+            <th style="width: 190px;">Client &amp; Branch / Nature</th>
+            <th style="width: 160px;">Sender</th>
+            <th>Subject &amp; Details</th>
+            <th style="width: 105px; text-align: center;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+      <tr>
+        <td class="serial-col">2604</td>
+        <td class="date-col">
+          <strong>Aug 6, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:07 AM</span>
+        </td>
+        <td class="client-col"><strong>m</strong><br><span style="color:#64748b;">mmm</span><br><span style="color:#475569; font-size: 7pt; font-weight:600;">PROJECT</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :169095</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3714</td>
+        <td class="date-col">
+          <strong>Aug 30, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">06:19 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Google One &lt;googleone-noreply@google.com&gt;</td>
+        <td class="subject-col">
+          <strong>Explore your new Google AI Pro plan, Master Business</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3713</td>
+        <td class="date-col">
+          <strong>Aug 30, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">06:19 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Google Play &lt;googleplay-noreply@google.com&gt;</td>
+        <td class="subject-col">
+          <strong>Your Google Play Order Receipt from Aug 30, 2026</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3712</td>
+        <td class="date-col">
+          <strong>Aug 30, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">08:00 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Google &lt;no-reply@accounts.google.com&gt;</td>
+        <td class="subject-col">
+          <strong>Security alert</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3711</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">04:58 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">noreply-apps-scripts-notifications@google.com</td>
+        <td class="subject-col">
+          <strong>Summary of failures for Google Apps Script: Auto genrated email</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3710</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:29 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Muhammad Moeed Shahid - 51515 &lt;moeed.shahid@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: [External] Re: FES || Invoice Log || Invoice # xxxxxx</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3709</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:34 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Muhammad Moeed Shahid - 51515 &lt;moeed.shahid@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: [External] Re: FES || Invoice Log || Invoice # xxxxxx</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3708</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:38 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;po@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Purchase Order-123564</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3707</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:39 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Ali Afzal - 27401 &lt;ali.afzal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>FW: [External] Invoice# FES-BAL-1699-1699-A Nathiagali Branch Pls Process for Payment</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3706</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:39 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Islamic - OU - Standard Purchase Order 123564, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3705</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:55 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Faisal Mumtaz &lt;faisalmumtaz.0909@gmail.com&gt;</td>
+        <td class="subject-col">
+          <strong>No Subject</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3704</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">06:04 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Abaid Ullah -24233 &lt;abaid.ullah@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Pending Shahdara Branch 0095 Electrical Work</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3703</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">06:38 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Pending Shahdara Branch 0095 Electrical Work</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3702</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">06:50 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Muhammad Arslan Ismail &lt;arslan.ismail@soneribank.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Earthing Issue - Jampur Branch - 0307 - Level - 1</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3701</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">10:10 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Tariq Karim - 5183 &lt;tariq.karim@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Invoices</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3700</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">11:29 AM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: ELECTRICITY ISSUE ON ONE SIDE OF WAPDA BREAKER****5685</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3699</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:05 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Syed Nasir Pasha on LinkedIn &lt;notifications-noreply@linkedin.com&gt;</td>
+        <td class="subject-col">
+          <strong>Congratulate Syed Nasir Pasha for 1 year at Falcon Global Forwarding Services…</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3694</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:28 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;po@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Purchase Order-397916</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3687</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:28 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;po@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Purchase Order-123916</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3695</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:28 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;po@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Purchase Order-397930</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3693</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:28 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;po@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Purchase Order-397921</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3692</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:28 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;po@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Purchase Order-397926</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3678</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:28 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;po@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Purchase Order-397924</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3679</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:28 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;po@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Purchase Order-397929</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3681</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:28 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;po@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Purchase Order-397919</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3682</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:28 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;po@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Purchase Order-397922</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3683</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:28 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;po@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Purchase Order-123915</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3690</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:28 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;po@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Purchase Order-123914</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3689</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:28 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;po@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Purchase Order-397915</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3688</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:28 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;po@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Purchase Order-123917</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3684</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:28 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;po@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Purchase Order-397927</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3686</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:28 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;po@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Purchase Order-397928</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3696</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:28 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;po@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Purchase Order-397925</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3680</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:28 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;po@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Purchase Order-397920</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3685</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:28 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">&lt;po@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Purchase Order-397923</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3677</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:29 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Conventional - OU - Standard Purchase Order 397922, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3671</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:29 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Islamic - OU - Standard Purchase Order 123913, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3672</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:29 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Conventional - OU - Standard Purchase Order 397915, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3673</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:29 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Conventional - OU - Standard Purchase Order 397918, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3676</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:29 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Conventional - OU - Standard Purchase Order 397923, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3674</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:29 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Conventional - OU - Standard Purchase Order 397916, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3666</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:30 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Conventional - OU - Standard Purchase Order 397930, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3669</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:30 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Conventional - OU - Standard Purchase Order 397924, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3670</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:30 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Conventional - OU - Standard Purchase Order 397919, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3660</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:30 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Conventional - OU - Standard Purchase Order 397928, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3675</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:30 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Conventional - OU - Standard Purchase Order 397927, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3663</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:30 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Conventional - OU - Standard Purchase Order 397920, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3665</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:30 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Conventional - OU - Standard Purchase Order 397917, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3664</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:30 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Conventional - OU - Standard Purchase Order 397925, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3668</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:30 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Conventional - OU - Standard Purchase Order 397921, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3667</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:30 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Islamic - OU - Standard Purchase Order 123915, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3661</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:30 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Conventional - OU - Standard Purchase Order 397926, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3657</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:30 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Conventional - OU - Standard Purchase Order 397929, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3658</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:30 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Islamic - OU - Standard Purchase Order 123914, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3659</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:30 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Islamic - OU - Standard Purchase Order 123917, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3662</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">02:30 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">Oracle Notification &lt;oracle.notification@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>For Your Information: BAFL Pakistan Islamic - OU - Standard Purchase Order 123916, 0</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3656</td>
+        <td class="date-col">
+          <strong>Aug 31, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">03:35 PM</span>
+        </td>
+        <td class="client-col">—</td>
+        <td class="sender-col">LinkedIn &lt;updates-noreply@linkedin.com&gt;</td>
+        <td class="subject-col">
+          <strong>Antonio Molina Alcolea - Socio reacted to this post: 🔥 No todos los incendios son…</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-gray">⏳ Pending</span></td>
+      </tr>
+    
+        </tbody>
+      </table>
+    
+</body>
+</html>

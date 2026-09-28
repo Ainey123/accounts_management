@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ali Shehzad (Batch 1) - August 2026 Complaints Report</title>
+  <style>
+    
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+    
+    @page {
+      size: A4 landscape;
+      margin: 12mm 10mm 12mm 10mm;
+      @bottom-right {
+        content: "Page " counter(page) " of " counter(pages);
+        font-family: 'Inter', sans-serif;
+        font-size: 8pt;
+        color: #94a3b8;
+      }
+      @bottom-left {
+        content: "NEXUS Operations — Employee Complaints Progress Audit (August 2026)";
+        font-family: 'Inter', sans-serif;
+        font-size: 8pt;
+        color: #94a3b8;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      font-size: 8.5pt;
+      line-height: 1.4;
+      padding: 10px;
+    }
+
+    .report-header {
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .report-title {
+      font-size: 18pt;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.5px;
+    }
+
+    .report-subtitle {
+      font-size: 9.5pt;
+      color: #64748b;
+      margin-top: 3px;
+    }
+
+    .batch-badge {
+      display: inline-block;
+      background: #0284c7;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 8pt;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin-left: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      vertical-align: middle;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+      page-break-inside: avoid;
+    }
+
+    .summary-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px 14px;
+      border-top: 4px solid #0284c7;
+    }
+
+    .summary-label {
+      font-size: 7.5pt;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .summary-count {
+      font-size: 20pt;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1;
+    }
+
+    .summary-subtext {
+      font-size: 7.5pt;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+
+    .section-header {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 10pt;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 16px;
+      margin-bottom: 10px;
+      page-break-after: avoid;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+      page-break-inside: auto;
+    }
+
+    tr {
+      page-break-inside: avoid;
+      page-break-after: auto;
+    }
+
+    thead {
+      display: table-header-group;
+    }
+
+    th {
+      background: #f1f5f9;
+      color: #334155;
+      font-weight: 700;
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 7px 8px;
+      border-bottom: 2px solid #cbd5e1;
+      text-align: left;
+    }
+
+    td {
+      padding: 7px 8px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+      font-size: 8pt;
+    }
+
+    tr:nth-child(even) td {
+      background-color: #fafafa;
+    }
+
+    .serial-col {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: #0284c7;
+      width: 85px;
+      white-space: nowrap;
+    }
+
+    .date-col {
+      width: 105px;
+      white-space: nowrap;
+    }
+
+    .client-col {
+      width: 180px;
+      line-height: 1.3;
+    }
+
+    .sender-col {
+      width: 160px;
+      font-size: 7.5pt;
+      color: #475569;
+      word-break: break-all;
+    }
+
+    .subject-col {
+      line-height: 1.35;
+    }
+
+    .status-col {
+      width: 105px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 7pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .badge-green { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+    .badge-blue { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    .badge-red { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+    .badge-gray { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+  
+  </style>
+</head>
+<body>
+  <div class="report-header">
+    <div>
+      <div style="font-size: 8pt; color: #0284c7; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+        NEXUS OPERATIONS — INDIVIDUAL EMPLOYEE AUDIT
+      </div>
+      <div class="report-title">
+        Ali Shehzad <span class="batch-badge">Batch 1</span>
+      </div>
+      <div class="report-subtitle">
+        Tenure: <strong>August 1, 2026 – August 31, 2026</strong> &bull; System Names: <em>Rizwan Hussain, Ali Shezad</em> &bull; Filter: <strong>Excluding Irrelevant Complaints</strong>
+      </div>
+    </div>
+    <div style="text-align: right;">
+      <div style="font-size: 14pt; font-weight: 800; color: #0284c7;">20 Complaints</div>
+      <div style="font-size: 7.5pt; color: #64748b;">Generated on Sep 12, 2026</div>
+    </div>
+  </div>
+
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="summary-label">Total Valid Complaints</div>
+      <div class="summary-count">20</div>
+      <div class="summary-subtext">All relevant tasks processed</div>
+    </div>
+    <div class="summary-card" style="border-top-color: #10b981;">
+      <div class="summary-label">Intake Done (Converted)</div>
+      <div class="summary-count" style="color: #10b981;">20</div>
+      <div class="summary-subtext">100% Conversion rate</div>
+    </div>
+    <div class="summary-card" style="border-top-color: #ef4444;">
+      <div class="summary-label">Cancelled</div>
+      <div class="summary-count" style="color: #ef4444;">0</div>
+      <div class="summary-subtext">Cancelled or voided</div>
+    </div>
+    <div class="summary-card" style="border-top-color: #64748b;">
+      <div class="summary-label">Pending / In-Progress</div>
+      <div class="summary-count" style="color: #64748b;">0</div>
+      <div class="summary-subtext">Awaiting next steps</div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <span>Detailed Complaints Breakdown (20 Records)</span>
+    <span style="font-size: 8pt; font-weight: 500;">August 2026 &bull; Sorted chronologically</span>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 85px;">Serial #</th>
+        <th style="width: 105px;">Date &amp; Time</th>
+        <th style="width: 190px;">Client &amp; Branch / Nature</th>
+        <th style="width: 160px;">Sender</th>
+        <th>Subject &amp; Details</th>
+        <th style="width: 105px; text-align: center;">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      <tr>
+        <td class="serial-col">2808</td>
+        <td class="date-col">
+          <strong>Aug 11, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">09:08 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL</strong><br><span style="color:#64748b;">SHEIKHUPURA MAIN BRANCH</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">BAL</td>
+        <td class="subject-col">
+          <strong>149470</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2838</td>
+        <td class="date-col">
+          <strong>Aug 12, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">04:50 AM</span>
+        </td>
+        <td class="client-col"><strong>noreply-apps-scripts-notifications</strong><br><span style="color:#64748b;">Grain Market Branch Faisalabad</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">WAPDA</span></td>
+        <td class="sender-col">Muhammad Nadeem Iqbal &lt;mnadeem.iqbal@jsbl.com&gt;</td>
+        <td class="subject-col">
+          <strong>Re: FESCO Notice for extension of load; Approval Required for the Expense of &quot;Rs. 160,000/-&quot; in favor of M/s FAST Engineering Solutions for load extension.</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">2858</td>
+        <td class="date-col">
+          <strong>Aug 12, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">06:47 AM</span>
+        </td>
+        <td class="client-col"><strong>Oracle Notification &lt;oracle.notification</strong><br><span style="color:#64748b;">Ghazi Abad Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">WAPDA</span></td>
+        <td class="sender-col">Muhammad Irfan Akbar &lt;irfan.akbar@ubl.com.pk&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Transformer &amp; Three Phase Meter Approval Required Ghaziabad Branch</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3330</td>
+        <td class="date-col">
+          <strong>Aug 17, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">04:57 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-Central</strong><br><span style="color:#64748b;">Montgumery Road Branch Lahore</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170126</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3379</td>
+        <td class="date-col">
+          <strong>Aug 17, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">07:45 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-Central</strong><br><span style="color:#64748b;">Carefour Anwer Industries Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: [External] Re: Branch Down 0676 Carrefour Anwar Industries due to electricity breakage</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3377</td>
+        <td class="date-col">
+          <strong>Aug 17, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">08:28 AM</span>
+        </td>
+        <td class="client-col"><strong>Mazhar Iqbal - 44180 &lt;mazhar.iqbal</strong><br><span style="color:#64748b;">IBG Chung Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: [External] Re: 5361 | IBD Chuhng Branch | Short Circuit issue [1489251] : Network Down of IBG Chung 5536</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3388</td>
+        <td class="date-col">
+          <strong>Aug 17, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">09:40 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-Central</strong><br><span style="color:#64748b;">IBG Sharakpur Sharif Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Muhammad Asif - 2109 &lt;masif2@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: [External] Re: Electricity phase issue</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3380</td>
+        <td class="date-col">
+          <strong>Aug 17, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">11:11 AM</span>
+        </td>
+        <td class="client-col"><strong>Mazhar Iqbal - 44180 &lt;mazhar.iqbal</strong><br><span style="color:#64748b;">IBG Chung Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: [External] Re: DATA AND POWER CABBLE CONNECTION REQUIRED FOR NEWLY INSTALLED Q-MATIC</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3400</td>
+        <td class="date-col">
+          <strong>Aug 18, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">04:42 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-South</strong><br><span style="color:#64748b;">IBG Mumtazabad Branch Multan</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Arsalan Farooq - BAF0886 &lt;a.farooq@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: [External] Re: Branch down due to electricity and UPS issue &gt; IBG Mumtazabad Branch 5558</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3410</td>
+        <td class="date-col">
+          <strong>Aug 18, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:43 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-Central</strong><br><span style="color:#64748b;">IBG Chung Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Pending Shahdara Branch 0095 Electrical Work</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3411</td>
+        <td class="date-col">
+          <strong>Aug 18, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:46 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-Central</strong><br><span style="color:#64748b;">IBG Chung Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Muhammad Moeed Shahid - 51515 &lt;moeed.shahid@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Invoice# FES-BAL-1672 Manga Mandi Branch Pls Process for Payment</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3431</td>
+        <td class="date-col">
+          <strong>Aug 19, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">04:14 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL_CENTRAL</strong><br><span style="color:#64748b;">Rail Bazar</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170460</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3477</td>
+        <td class="date-col">
+          <strong>Aug 21, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">04:21 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-South</strong><br><span style="color:#64748b;">M.A Jinnah Road Branch Okara</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170841</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3475</td>
+        <td class="date-col">
+          <strong>Aug 21, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">04:27 AM</span>
+        </td>
+        <td class="client-col"><strong>UBL-South</strong><br><span style="color:#64748b;">Bangla Manthar Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">HERE4U &lt;here4u.svc@ubl.com.pk&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :120345</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3474</td>
+        <td class="date-col">
+          <strong>Aug 21, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:07 AM</span>
+        </td>
+        <td class="client-col"><strong>SBL-Central</strong><br><span style="color:#64748b;">Khurrianwala Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Muhammad Arslan Ismail &lt;arslan.ismail@soneribank.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Camera - Khurrianwala Branch (0245)</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3478</td>
+        <td class="date-col">
+          <strong>Aug 21, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">07:48 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-South</strong><br><span style="color:#64748b;">Quaid-e-Azam Road Branch </span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">MAINTENANCE</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :170956</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3562</td>
+        <td class="date-col">
+          <strong>Aug 27, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">05:28 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-Central</strong><br><span style="color:#64748b;">Chuburji Branch Lahore</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Sumreen Hafeez - BF1012 &lt;sumreen.hafeez@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Ticket No :171421</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3560</td>
+        <td class="date-col">
+          <strong>Aug 27, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">06:10 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-Central</strong><br><span style="color:#64748b;">Kamkoki Branch Gujranwala</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :171449</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3581</td>
+        <td class="date-col">
+          <strong>Aug 27, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">09:19 AM</span>
+        </td>
+        <td class="client-col"><strong>BAL-Central</strong><br><span style="color:#64748b;">IB Main Branch Lahore</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">MAINTENANCE</span></td>
+        <td class="sender-col">&lt;here4u@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>Ticket No :171511</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+      <tr>
+        <td class="serial-col">3588</td>
+        <td class="date-col">
+          <strong>Aug 27, 2026</strong><br>
+          <span style="color: #64748b; font-size: 7pt;">12:43 PM</span>
+        </td>
+        <td class="client-col"><strong>BAL-Central</strong><br><span style="color:#64748b;">Fruit Market Branch Lahore</span><br><span style="color:#0284c7; font-size: 7pt; font-weight:600;">ELECTRICAL</span></td>
+        <td class="sender-col">Mazhar Iqbal - 44180 &lt;mazhar.iqbal@bankalfalah.com&gt;</td>
+        <td class="subject-col">
+          <strong>RE: Electricity Sparking / failure in Fruit market ||0291</strong>
+        </td>
+        <td class="status-col"><span class="badge badge-green">✓ Intake Done</span></td>
+      </tr>
+    
+    </tbody>
+  </table>
+</body>
+</html>

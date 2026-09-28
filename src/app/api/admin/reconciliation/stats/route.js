@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, withDbRetry } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,17 +32,62 @@ export async function GET(req) {
       }
     }
 
-    // 1. Fetch expenses
-    const expenses = await prisma.expense.findMany({
-      where: expenseWhere,
-      select: {
-        id: true,
-        amount: true,
-        adjustedAmount: true,
-        remainingAmount: true,
-        status: true,
-        category: true,
-      },
+    const otherExpenseWhere = {};
+    if (month) {
+      const start = new Date(`${month}-01T00:00:00.000Z`);
+      const [year, m] = month.split('-').map(Number);
+      const nextMonth = m === 12 ? `${year + 1}-01` : `${year}-${String(m + 1).padStart(2, '0')}`;
+      const end = new Date(`${nextMonth}-01T00:00:00.000Z`);
+      otherExpenseWhere.expenseDate = { gte: start, lt: end };
+    } else if (startDate || endDate) {
+      otherExpenseWhere.expenseDate = {};
+      if (startDate) otherExpenseWhere.expenseDate.gte = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        otherExpenseWhere.expenseDate.lte = end;
+      }
+    }
+
+    const { expenses, otherExpenses, statementsCount, totalBankDebitsResult, recentAudits } = await withDbRetry(async () => {
+      const exp = await prisma.expense.findMany({
+        where: expenseWhere,
+        select: {
+          id: true,
+          amount: true,
+          adjustedAmount: true,
+          remainingAmount: true,
+          status: true,
+          category: true,
+        },
+      });
+
+      const oExp = await prisma.otherExpense.findMany({
+        where: otherExpenseWhere,
+        select: { amount: true },
+      });
+
+      const stCount = await prisma.bankStatement.count();
+      const bDebits = await prisma.bankTransaction.aggregate({
+        _sum: { debit: true },
+      });
+
+      const audits = await prisma.reconciliationAudit.findMany({
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          expense: { select: { id: true, amount: true, summaryNotes: true } },
+          transaction: { select: { id: true, description: true, debit: true } },
+        },
+      });
+
+      return {
+        expenses: exp,
+        otherExpenses: oExp,
+        statementsCount: stCount,
+        totalBankDebitsResult: bDebits,
+        recentAudits: audits,
+      };
     });
 
     let totalClaimed = 0;
@@ -74,46 +119,7 @@ export async function GET(req) {
       }
     });
 
-    // 2. Fetch Other Expenses
-    const otherExpenseWhere = {};
-    if (month) {
-      const start = new Date(`${month}-01T00:00:00.000Z`);
-      const [year, m] = month.split('-').map(Number);
-      const nextMonth = m === 12 ? `${year + 1}-01` : `${year}-${String(m + 1).padStart(2, '0')}`;
-      const end = new Date(`${nextMonth}-01T00:00:00.000Z`);
-      otherExpenseWhere.expenseDate = { gte: start, lt: end };
-    } else if (startDate || endDate) {
-      otherExpenseWhere.expenseDate = {};
-      if (startDate) otherExpenseWhere.expenseDate.gte = new Date(startDate);
-      if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        otherExpenseWhere.expenseDate.lte = end;
-      }
-    }
-
-    const otherExpenses = await prisma.otherExpense.findMany({
-      where: otherExpenseWhere,
-      select: { amount: true },
-    });
-
     const totalOtherExpenses = otherExpenses.reduce((sum, o) => sum + (o.amount || 0), 0);
-
-    // 3. Statements Summary
-    const statementsCount = await prisma.bankStatement.count();
-    const totalBankDebitsResult = await prisma.bankTransaction.aggregate({
-      _sum: { debit: true },
-    });
-
-    // 4. Recent Audits
-    const recentAudits = await prisma.reconciliationAudit.findMany({
-      take: 10,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        expense: { select: { id: true, amount: true, summaryNotes: true } },
-        transaction: { select: { id: true, description: true, debit: true } },
-      },
-    });
 
     return NextResponse.json({
       success: true,

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, withDbRetry } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,13 +22,15 @@ export async function GET(req) {
       where.matchStatus = matchStatus;
     }
 
-    const transactions = await prisma.bankTransaction.findMany({
-      where,
-      include: {
-        statement: { select: { id: true, bankName: true, fileName: true, statementPeriod: true } },
-      },
-      orderBy: { transactionDate: 'desc' },
-      take: 200,
+    const transactions = await withDbRetry(async () => {
+      return await prisma.bankTransaction.findMany({
+        where,
+        include: {
+          statement: { select: { id: true, bankName: true, fileName: true, statementPeriod: true } },
+        },
+        orderBy: { transactionDate: 'desc' },
+        take: 200,
+      });
     });
 
     let filtered = transactions;

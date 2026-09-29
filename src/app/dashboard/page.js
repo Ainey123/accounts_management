@@ -179,6 +179,7 @@ export default function EmployeeRealTimeDashboard() {
   const [expensePersonName, setExpensePersonName] = useState('');
   const [expenseCategory, setExpenseCategory] = useState('Site Expense');
   const [expenseAmount, setExpenseAmount] = useState('');
+  const [expensePaidBy, setExpensePaidBy] = useState('FES');
   const [expenseNotes, setExpenseNotes] = useState('');
   const [expenseImg, setExpenseImg] = useState('');
   const [capturedImg, setCapturedImg] = useState(null);
@@ -641,6 +642,7 @@ export default function EmployeeRealTimeDashboard() {
         billNumber: nextBillNo,
         accountName: expenseAccountName,
         personName: expensePersonName,
+        paidBy: expensePaidBy,
       };
     } else if (expenseMode === 'bank_receipt') {
       const activeCaptured = capturedBankReceiptImg || bankReceiptImg || capturedImg || expenseImg;
@@ -655,6 +657,7 @@ export default function EmployeeRealTimeDashboard() {
         category: 'Bank Receipt',
         bankReceiptId: String(nextBankReceiptId),
         personName: user?.employeeName || 'Staff',
+        paidBy: expensePaidBy,
       };
     } else if (expenseMode === 'attach_bill') {
       const activeCaptured = capturedBillImg || billImg || capturedImg || expenseImg;
@@ -670,6 +673,7 @@ export default function EmployeeRealTimeDashboard() {
         billId: `ID ${nextBillNo}`,
         billNumber: nextBillNo,
         personName: user?.employeeName || 'Staff',
+        paidBy: expensePaidBy,
       };
     }
 
@@ -2130,7 +2134,23 @@ export default function EmployeeRealTimeDashboard() {
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 1fr', gap: 22 }}>
                               {/* Left Form Column */}
-                              <div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                
+                                {/* Paid By Selection */}
+                                <div style={{ background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
+                                  <label className="field-label" style={{ marginBottom: 8, color: '#e2e8f0', display: 'block' }}>Payment Source / Paid By</label>
+                                  <div style={{ display: 'flex', gap: 12 }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1', cursor: 'pointer' }}>
+                                      <input type="radio" name="expensePaidBy" value="FES" checked={expensePaidBy === 'FES'} onChange={(e) => setExpensePaidBy(e.target.value)} style={{ accentColor: '#10b981' }} />
+                                      Paid by FES
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#cbd5e1', cursor: 'pointer' }}>
+                                      <input type="radio" name="expensePaidBy" value="EMPLOYEE" checked={expensePaidBy === 'EMPLOYEE'} onChange={(e) => setExpensePaidBy(e.target.value)} style={{ accentColor: '#10b981' }} />
+                                      Paid by Employee
+                                    </label>
+                                  </div>
+                                </div>
+
                                 {/* OPTION 1: Manually Attached */}
                                 {expenseMode === 'manual' && (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -2557,7 +2577,8 @@ export default function EmployeeRealTimeDashboard() {
                                               <span style={{ color: '#94a3b8', fontSize: 10 }}>
                                                 · {exp.expenseDate ? new Date(exp.expenseDate).toLocaleDateString() : '—'}
                                               </span>
-                                            </div>
+                                            {exp.paidBy && (<span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: exp.paidBy === 'FES' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(234, 179, 8, 0.2)', color: exp.paidBy === 'FES' ? '#60a5fa' : '#facc15', border: '1px solid ' + (exp.paidBy === 'FES' ? '#3b82f6' : '#eab308') }}>Paid by {exp.paidBy}</span>)}
+</div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                               {exp.amount > 0 && (
                                                 <span style={{ fontWeight: 800, color: '#f8fafc', fontSize: 11 }}>
@@ -2675,7 +2696,7 @@ export default function EmployeeRealTimeDashboard() {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                             {job.expenses.map((e, index) => (
                               <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', background: 'rgba(0,0,0,0.1)', borderRadius: 6, fontSize: 13 }}>
-                                <span>{e.summaryNotes}</span>
+                                <span>{e.summaryNotes}</span>{e.paidBy && <span style={{ marginLeft: 8, fontSize: 10, background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: 4, color: '#cbd5e1' }}>Paid by {e.paidBy}</span>}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                   {e.imageUrl && (
                                     <a href={e.imageUrl} target="_blank" rel="noreferrer" style={{ color: '#00f2fe', fontSize: 11, textDecoration: 'none' }}>📷 Receipt</a>
@@ -2931,3 +2952,6 @@ export default function EmployeeRealTimeDashboard() {
     </div>
   );
 }
+
+
+

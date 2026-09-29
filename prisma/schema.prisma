@@ -143,6 +143,7 @@ model Expense {
   bankTransactionId  Int?
   bankTransaction    BankTransaction?   @relation(fields: [bankTransactionId], references: [id], onDelete: SetNull)
   reconciliationAudits ReconciliationAudit[]
+  paidBy             String             @default("FES") // "FES" or "EMPLOYEE"
   createdAt          DateTime           @default(now())
 }
 

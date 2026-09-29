@@ -56,6 +56,7 @@ export async function POST(request) {
       bankName,
       accountName,
       personName,
+      paidBy = 'FES',
     } = body;
 
     const authCookie = request.headers.get('x-user-id') || request.cookies.get('nexus_user')?.value;
@@ -121,6 +122,7 @@ export async function POST(request) {
           category: category || 'Site Expense',
           expenseDate: parsedDate,
           createdById: userId,
+          paidBy,
         },
         include: {
           createdBy: { select: { id: true, employeeName: true, email: true } },

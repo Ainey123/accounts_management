@@ -41,7 +41,7 @@ export async function GET(request) {
           assignedEmployee: { select: { id: true, employeeName: true, email: true } },
           surveyReport: { select: { id: true, reportText: true, imageUrl: true, createdAt: true, createdBy: { select: { id: true, employeeName: true } } } },
           quotationInvoices: { select: { id: true, documentType: true, status: true, lineItems: true, poNumber: true, imageUrl: true, createdAt: true, createdBy: { select: { id: true, employeeName: true } } } },
-          expenses: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true } },
+          expenses: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true, paidBy: true, expenseDate: true } },
           payments: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true } },
           workCompletion: { select: { id: true, status: true, amount: true, imageUrl: true, notes: true, createdAt: true, updatedAt: true } },
           bankApproval: { select: { id: true, bankName: true, accountNumber: true, amount: true, status: true, imageUrl: true, notes: true, createdAt: true } },
@@ -60,7 +60,7 @@ export async function GET(request) {
             assignedEmployee: { select: { id: true, employeeName: true, email: true } },
             surveyReport: { select: { id: true, reportText: true, imageUrl: true, createdAt: true } },
             quotationInvoices: { select: { id: true, documentType: true, status: true, lineItems: true, poNumber: true, imageUrl: true, createdAt: true } },
-            expenses: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true } },
+            expenses: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true, paidBy: true, expenseDate: true } },
             payments: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true } },
           },
         });
@@ -157,3 +157,4 @@ export async function POST(request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

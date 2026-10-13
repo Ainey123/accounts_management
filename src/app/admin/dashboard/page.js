@@ -8,7 +8,7 @@ import {
   TrendingUp, TrendingDown, Check, ClipboardCopy,
   CheckCircle, AlertCircle, XCircle, MessageSquare, Clock, Send,
   Award, Calendar, Download, Printer, Edit3, BarChart3,
-  FileSpreadsheet, Receipt, ArrowRight
+  FileSpreadsheet, Receipt, ArrowRight, ArrowUpRight
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import ReconciliationModule from '@/components/ReconciliationModule';
@@ -528,6 +528,7 @@ export default function AdminCommandCenter() {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Activity },
+    { id: 'pending-payments', label: 'Pending Payments', icon: Clock, href: '/pending-payments' },
     { id: 'reconciliation', label: 'Expense Reconciliation', icon: FileSpreadsheet },
     { id: 'employees', label: 'Employees', icon: Users },
     { id: 'progress', label: 'Monthly Progress & PDF', icon: Award },
@@ -557,7 +558,13 @@ export default function AdminCommandCenter() {
                 key={tab.id}
                 type="button"
                 className={`nav-panel ${activeTab === tab.id ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  if (tab.href) {
+                    window.location.href = tab.href;
+                  } else {
+                    setActiveTab(tab.id);
+                  }
+                }}
                 style={{ fontSize: 13 }}
               >
                 <Icon size={16} />

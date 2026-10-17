@@ -11,7 +11,7 @@ import { useAuth } from '@/components/AuthProvider';
 
 const NAV_ITEMS = [
   { name: 'Operations Feed', href: '/dashboard', icon: BarChart2 },
-  { name: 'Monthly Progress & PDF', href: '/admin/dashboard?tab=progress', icon: Award, adminOnly: true },
+  { name: 'Staff Progress & WhatsApp', href: '/progress', icon: Award },
   { name: 'Expense Reconciliation', href: '/admin/dashboard?tab=reconciliation', icon: Receipt, adminOnly: true },
   { name: 'Pending Payments', href: '/pending-payments', icon: Clock },
   { name: 'All Tickets', href: '/tickets', icon: FileText },
@@ -36,9 +36,9 @@ export default function Sidebar() {
 
   const visibleItems = user?.role === 'ADMIN' ? [
     { name: 'Admin Dashboard', href: '/admin/dashboard', icon: Settings },
+    { name: 'Staff Progress & WhatsApp', href: '/progress', icon: Award },
     { name: 'Pending Payments', href: '/pending-payments', icon: Clock },
     { name: 'Expense Reconciliation', href: '/admin/dashboard?tab=reconciliation', icon: Receipt },
-    { name: 'Monthly Progress & PDF', href: '/admin/dashboard?tab=progress', icon: Award },
     { name: 'Employee Monitor', href: '/admin/dashboard?tab=employees', icon: Users },
     { name: 'All Tickets Inbox', href: '/admin/dashboard?tab=tickets', icon: Mail },
     { name: 'Financial Overview', href: '/ledger', icon: DollarSign },

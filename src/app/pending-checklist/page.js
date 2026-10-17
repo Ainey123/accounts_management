@@ -1,59 +1,48 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  FileText, Download, CheckSquare, Square, Search, Filter,
-  Calendar, Users, AlertTriangle, Clock, DollarSign, RefreshCw,
-  FileSpreadsheet, HelpCircle, Save, CheckCircle2, ChevronRight,
-  ExternalLink, Printer, ShieldAlert, Award
+  FileText, Download, Filter, Calendar, AlertTriangle, Clock,
+  DollarSign, RefreshCw, FileSpreadsheet, HelpCircle, Save,
+  CheckCircle2, ChevronRight, ShieldAlert, Layers, ArrowUpRight,
+  Printer
 } from 'lucide-react';
-import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 
-export default function PendingChecklistPage() {
+export default function PendingChecklistCardsPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Filters
-  const [selectedMonth, setSelectedMonth] = useState('all');
-  const [selectedEmployee, setSelectedEmployee] = useState('all');
-  const [selectedPendingType, setSelectedPendingType] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  // Tenure & Batch Search Filters
+  const [selectedTenure, setSelectedTenure] = useState('all');
+  const [selectedBatch, setSelectedBatch] = useState('all');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
-  // Interactive Checklist checked items (saved in localStorage)
-  const [checkedItems, setCheckedItems] = useState({});
-  // Officer Audit Inquiries notes (saved in localStorage)
-  const [officerNotes, setOfficerNotes] = useState({});
-  const [activeTab, setActiveTab] = useState('checklist'); // 'checklist', 'inquiry', 'summary'
+  // Justification notes for each batch (persisted in localStorage)
+  const [batchNotes, setBatchNotes] = useState({});
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
 
-  // Load localStorage on mount
   useEffect(() => {
     try {
-      const savedChecks = localStorage.getItem('nexus_pending_checked_items');
-      if (savedChecks) setCheckedItems(JSON.parse(savedChecks));
-
-      const savedNotes = localStorage.getItem('nexus_pending_officer_notes');
-      if (savedNotes) setOfficerNotes(JSON.parse(savedNotes));
-    } catch (e) {
-      console.warn('LocalStorage error:', e);
-    }
+      const saved = localStorage.getItem('nexus_pending_batch_notes');
+      if (saved) setBatchNotes(JSON.parse(saved));
+    } catch (e) {}
   }, []);
 
-  // Fetch checklist data
-  const fetchData = useCallback(async () => {
+  const fetchCardsData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
-      if (selectedMonth && selectedMonth !== 'all') params.set('month', selectedMonth);
-      if (selectedEmployee && selectedEmployee !== 'all') params.set('employee', selectedEmployee);
-      if (selectedPendingType && selectedPendingType !== 'all') params.set('pendingType', selectedPendingType);
-      if (searchQuery) params.set('search', searchQuery);
+      if (selectedTenure && selectedTenure !== 'all') params.set('tenure', selectedTenure);
+      if (selectedBatch && selectedBatch !== 'all') params.set('batch', selectedBatch);
+      if (fromDate) params.set('fromDate', fromDate);
+      if (toDate) params.set('toDate', toDate);
 
       const json = await apiFetch(`/api/pending-checklist?${params.toString()}`);
-      if (!json.success) throw new Error(json.error || 'Failed to load checklist');
+      if (!json.success) throw new Error(json.error || 'Failed to load cards summary');
       setData(json);
     } catch (err) {
       console.error(err);
@@ -61,116 +50,71 @@ export default function PendingChecklistPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedMonth, selectedEmployee, selectedPendingType, searchQuery]);
+  }, [selectedTenure, selectedBatch, fromDate, toDate]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchCardsData();
+  }, [fetchCardsData]);
 
-  // Toggle checklist item
-  const toggleCheck = (serialNo) => {
-    setCheckedItems(prev => {
-      const updated = { ...prev, [serialNo]: !prev[serialNo] };
+  const handleSaveNote = (batchName, text) => {
+    const key = `${selectedTenure}_${batchName}`;
+    setBatchNotes(prev => {
+      const updated = { ...prev, [key]: text };
       try {
-        localStorage.setItem('nexus_pending_checked_items', JSON.stringify(updated));
+        localStorage.setItem('nexus_pending_batch_notes', JSON.stringify(updated));
       } catch (e) {}
       return updated;
     });
-  };
-
-  // Save officer audit note
-  const handleSaveNote = (monthKey, empName, field, value) => {
-    const key = `${monthKey}_${empName}`;
-    setOfficerNotes(prev => {
-      const current = prev[key] || {};
-      const updated = { ...prev, [key]: { ...current, [field]: value } };
-      try {
-        localStorage.setItem('nexus_pending_officer_notes', JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
-    setSaveSuccessMsg(`Justification saved for ${empName} (${monthKey})`);
+    setSaveSuccessMsg(`Justification saved for ${batchName}!`);
     setTimeout(() => setSaveSuccessMsg(''), 3000);
   };
 
-  // Monthly summary stats for active view
-  const currentSummary = useMemo(() => {
-    if (!data) return null;
-    if (selectedMonth === 'all') return data.globalSummary;
-    return data.monthlySummaries?.[selectedMonth] || data.globalSummary;
-  }, [data, selectedMonth]);
+  const overall = data?.overallCards || {
+    totalJobs: 0,
+    invoicesSent: { count: 0, amount: 0 },
+    invoicesPending: { count: 0, amount: 0 },
+    paymentsSent: { count: 0, amount: 0 },
+    paymentsPending: { count: 0, amount: 0 },
+    recoveryRate: '0.0%'
+  };
 
-  // Employee breakdown for End-of-Month Audit Section
-  const currentEmployees = useMemo(() => {
-    if (!data?.monthlySummaries) return [];
-    if (selectedMonth !== 'all') {
-      const ms = data.monthlySummaries[selectedMonth];
-      return ms ? Object.values(ms.employeeMap) : [];
-    }
-    // Aggregate across all months
-    const aggregated = {};
-    Object.values(data.monthlySummaries).forEach(ms => {
-      Object.values(ms.employeeMap).forEach(emp => {
-        if (!aggregated[emp.name]) {
-          aggregated[emp.name] = {
-            name: emp.name,
-            jobsCount: 0,
-            invoicesPending: 0,
-            paymentsPending: 0,
-            totalOutstanding: 0,
-            sampleSerials: []
-          };
-        }
-        const a = aggregated[emp.name];
-        a.jobsCount += emp.jobsCount;
-        a.invoicesPending += emp.invoicesPending;
-        a.paymentsPending += emp.paymentsPending;
-        a.totalOutstanding += emp.totalOutstanding;
-        emp.sampleSerials.forEach(s => {
-          if (!a.sampleSerials.includes(s) && a.sampleSerials.length < 6) a.sampleSerials.push(s);
-        });
-      });
-    });
-    return Object.values(aggregated);
-  }, [data, selectedMonth]);
-
-  const items = data?.items || [];
+  const batches = data?.batchCards || [];
+  const tenureCards = data?.tenureCards || [];
 
   return (
-    <div style={{ maxWidth: 1440, margin: '0 auto', padding: '16px 20px 48px', color: '#f8fafc' }}>
+    <div style={{ maxWidth: 1380, margin: '0 auto', padding: '16px 20px 48px', color: '#f8fafc' }}>
       
       {/* HEADER SECTION */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, marginBottom: 20 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <span style={{ fontSize: 11, fontWeight: 700, background: '#4f46e5', color: '#fff', padding: '2px 8px', borderRadius: 4, letterSpacing: '0.05em' }}>
-              MONTHLY AUDIT & RECOVERY PORTAL
+              EXECUTIVE AUDIT CARDS
             </span>
             <span style={{ fontSize: 11, color: '#94a3b8' }}>
-              All Months: January 2026 – October 2026
+              Tenure-Wise Search &bull; Grouped by Batch Names
             </span>
           </div>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', margin: 0 }}>
-            Pending Payments &amp; Invoices Audit Checklist
+            Pending Invoices &amp; Payments Cards Summary
           </h1>
           <p style={{ fontSize: 13, color: '#94a3b8', marginTop: 4, marginBottom: 0 }}>
-            Track unissued invoices, uncollected balances, and conduct end-of-month officer inquiry reviews.
+            Executive cards showing total invoices sent, total pendings, total payments sent, and total pendings across tenures.
           </p>
         </div>
 
-        {/* ONE-CLICK DOWNLOAD BUTTONS */}
+        {/* ONE-CLICK DOWNLOAD BUTTONS (CARDS ONLY FORMAT) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <a
-            href="/reports/All_Months_Pending_Payments_and_Invoices_Checklist.pdf"
+            href="/reports/Cards_Summary_Pending_Audit.pdf"
             download
-            className="download-btn-pdf"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
               background: '#dc2626',
               color: '#fff',
-              padding: '8px 14px',
+              padding: '9px 15px',
               borderRadius: 8,
               fontSize: 12,
               fontWeight: 700,
@@ -178,11 +122,11 @@ export default function PendingChecklistPage() {
               boxShadow: '0 4px 14px rgba(220, 38, 38, 0.3)'
             }}
           >
-            <Download size={14} /> Download PDF Checklist
+            <Download size={14} /> Download Cards PDF
           </a>
 
           <a
-            href="/reports/All_Months_Pending_Payments_and_Invoices_Checklist.xlsx"
+            href="/reports/Cards_Summary_Pending_Audit.xlsx"
             download
             style={{
               display: 'inline-flex',
@@ -190,7 +134,7 @@ export default function PendingChecklistPage() {
               gap: 6,
               background: '#16a34a',
               color: '#fff',
-              padding: '8px 14px',
+              padding: '9px 15px',
               borderRadius: 8,
               fontSize: 12,
               fontWeight: 700,
@@ -198,11 +142,11 @@ export default function PendingChecklistPage() {
               boxShadow: '0 4px 14px rgba(22, 163, 74, 0.3)'
             }}
           >
-            <FileSpreadsheet size={14} /> Excel Workbook (.xlsx)
+            <FileSpreadsheet size={14} /> Download Cards Excel
           </a>
 
           <a
-            href="/reports/All_Months_Pending_Payments_and_Invoices_Checklist.csv"
+            href="/reports/Cards_Summary_Pending_Audit.csv"
             download
             style={{
               display: 'inline-flex',
@@ -210,7 +154,7 @@ export default function PendingChecklistPage() {
               gap: 6,
               background: '#0284c7',
               color: '#fff',
-              padding: '8px 14px',
+              padding: '9px 15px',
               borderRadius: 8,
               fontSize: 12,
               fontWeight: 700,
@@ -218,11 +162,11 @@ export default function PendingChecklistPage() {
               boxShadow: '0 4px 14px rgba(2, 132, 199, 0.3)'
             }}
           >
-            <FileText size={14} /> CSV Format
+            <FileText size={14} /> Download Cards CSV
           </a>
 
           <button
-            onClick={fetchData}
+            onClick={fetchCardsData}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -230,7 +174,7 @@ export default function PendingChecklistPage() {
               background: 'rgba(255,255,255,0.08)',
               color: '#cbd5e1',
               border: '1px solid rgba(255,255,255,0.12)',
-              padding: '8px 12px',
+              padding: '9px 13px',
               borderRadius: 8,
               fontSize: 12,
               cursor: 'pointer'
@@ -247,495 +191,486 @@ export default function PendingChecklistPage() {
         </div>
       )}
 
-      {/* KPI METRIC CARDS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
-        <div style={{ background: 'rgba(15, 23, 42, 0.7)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 16px', borderTop: '3px solid #6366f1' }}>
-          <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>Total Complaints</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginTop: 4 }}>
-            {currentSummary?.totalJobs || 0}
-          </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-            {selectedMonth === 'all' ? 'All 10 Months' : selectedMonth}
-          </div>
-        </div>
-
-        <div style={{ background: 'rgba(15, 23, 42, 0.7)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 16px', borderTop: '3px solid #f59e0b' }}>
-          <div style={{ fontSize: 11, color: '#fbbf24', fontWeight: 600, textTransform: 'uppercase' }}>Invoices Pending</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#f59e0b', marginTop: 4 }}>
-            {currentSummary?.invoicesPendingCount || 0}
-          </div>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Missing or unapproved</div>
-        </div>
-
-        <div style={{ background: 'rgba(15, 23, 42, 0.7)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 16px', borderTop: '3px solid #ef4444' }}>
-          <div style={{ fontSize: 11, color: '#f87171', fontWeight: 600, textTransform: 'uppercase' }}>Payments Pending</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#ef4444', marginTop: 4 }}>
-            {currentSummary?.paymentsPendingCount || 0}
-          </div>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Awaiting client funds</div>
-        </div>
-
-        <div style={{ background: 'rgba(15, 23, 42, 0.7)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 16px', borderTop: '3px solid #06b6d4' }}>
-          <div style={{ fontSize: 11, color: '#22d3ee', fontWeight: 600, textTransform: 'uppercase' }}>Total Invoiced</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginTop: 4 }}>
-            Rs. {Math.round(currentSummary?.totalInvoiced || 0).toLocaleString()}
-          </div>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Billed across sites</div>
-        </div>
-
-        <div style={{ background: 'rgba(15, 23, 42, 0.7)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 16px', borderTop: '3px solid #10b981' }}>
-          <div style={{ fontSize: 11, color: '#34d399', fontWeight: 600, textTransform: 'uppercase' }}>Total Recovered</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: '#10b981', marginTop: 4 }}>
-            Rs. {Math.round((currentSummary?.totalReceived || 0) + (currentSummary?.totalTaxDeducted || 0)).toLocaleString()}
-          </div>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Cash received + Tax</div>
-        </div>
-
-        <div style={{ background: 'rgba(15, 23, 42, 0.7)', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: 10, padding: '12px 16px', borderTop: '3px solid #dc2626' }}>
-          <div style={{ fontSize: 11, color: '#fca5a5', fontWeight: 600, textTransform: 'uppercase' }}>Total Outstanding Due</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: '#ef4444', marginTop: 4 }}>
-            Rs. {Math.round(currentSummary?.totalOutstanding || 0).toLocaleString()}
-          </div>
-          <div style={{ fontSize: 11, color: '#f87171', marginTop: 2 }}>Needs urgent recovery</div>
-        </div>
-      </div>
-
-      {/* FILTER CONTROLS BAR */}
-      <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '14px 16px', marginBottom: 20 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+      {/* TENURE-WISE SEARCH & FILTER CONTROL BAR */}
+      <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '16px 18px', marginBottom: 24 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'flex-end' }}>
           
-          {/* Month Selector */}
-          <div style={{ minWidth: 160 }}>
-            <label style={{ display: 'block', fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Month</label>
+          {/* Tenure Dropdown */}
+          <div style={{ minWidth: 200 }}>
+            <label style={{ display: 'block', fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, marginBottom: 6 }}>
+              📅 Tenure Selection
+            </label>
             <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
+              value={selectedTenure}
+              onChange={(e) => {
+                setSelectedTenure(e.target.value);
+                setFromDate('');
+                setToDate('');
+              }}
               style={{
                 width: '100%',
                 background: '#090a0f',
                 color: '#fff',
                 border: '1px solid rgba(255,255,255,0.15)',
-                padding: '7px 10px',
-                borderRadius: 6,
-                fontSize: 12
+                padding: '9px 12px',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600
               }}
             >
-              <option value="all">📅 All Months Combined</option>
-              {data?.monthsList?.map(m => (
-                <option key={m} value={m}>{data.monthlySummaries?.[m]?.monthName || m}</option>
+              <option value="all">🌐 All Tenures (Full 2026)</option>
+              {data?.tenureOptions?.map(t => (
+                <option key={t.key} value={t.key}>{t.name}</option>
               ))}
             </select>
           </div>
 
-          {/* Pending Status Filter */}
-          <div style={{ minWidth: 160 }}>
-            <label style={{ display: 'block', fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Pending Type</label>
+          {/* Batch Filter (BATCH NAMES ONLY - NO EMPLOYEE NAMES) */}
+          <div style={{ minWidth: 200 }}>
+            <label style={{ display: 'block', fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, marginBottom: 6 }}>
+              👥 Batch Name Selection
+            </label>
             <select
-              value={selectedPendingType}
-              onChange={(e) => setSelectedPendingType(e.target.value)}
+              value={selectedBatch}
+              onChange={(e) => setSelectedBatch(e.target.value)}
               style={{
                 width: '100%',
                 background: '#090a0f',
                 color: '#fff',
                 border: '1px solid rgba(255,255,255,0.15)',
-                padding: '7px 10px',
-                borderRadius: 6,
-                fontSize: 12
+                padding: '9px 12px',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600
               }}
             >
-              <option value="all">🔍 All Pending Categories</option>
-              <option value="BOTH_PENDING">🔴 Both Pending (Inv &amp; Pay)</option>
-              <option value="INVOICE_PENDING">⚠️ Invoice Pending Only</option>
-              <option value="PAYMENT_PENDING">⏳ Payment Pending Only</option>
-              <option value="CLEARED">✅ Cleared</option>
-            </select>
-          </div>
-
-          {/* Assigned Officer Filter */}
-          <div style={{ minWidth: 180 }}>
-            <label style={{ display: 'block', fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Assigned Officer</label>
-            <select
-              value={selectedEmployee}
-              onChange={(e) => setSelectedEmployee(e.target.value)}
-              style={{
-                width: '100%',
-                background: '#090a0f',
-                color: '#fff',
-                border: '1px solid rgba(255,255,255,0.15)',
-                padding: '7px 10px',
-                borderRadius: 6,
-                fontSize: 12
-              }}
-            >
-              <option value="all">👥 All Officers / Teams</option>
-              {data?.employeeList?.map(emp => (
-                <option key={emp} value={emp}>{emp}</option>
+              <option value="all">🏢 All Batches</option>
+              {data?.batchOptions?.map(b => (
+                <option key={b} value={b}>{b}</option>
               ))}
             </select>
           </div>
 
-          {/* Search Box */}
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <label style={{ display: 'block', fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Search Complaint</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type="text"
-                placeholder="Search Serial, Client, Branch, Nature, Officer..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  width: '100%',
-                  background: '#090a0f',
-                  color: '#fff',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  padding: '7px 10px 7px 32px',
-                  borderRadius: 6,
-                  fontSize: 12
-                }}
-              />
-              <Search size={14} style={{ position: 'absolute', left: 10, top: 10, color: '#64748b' }} />
-            </div>
+          {/* Custom Date Range from Date */}
+          <div style={{ minWidth: 150 }}>
+            <label style={{ display: 'block', fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, marginBottom: 6 }}>
+              From Date (Optional)
+            </label>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => {
+                setFromDate(e.target.value);
+                setSelectedTenure('custom');
+              }}
+              style={{
+                width: '100%',
+                background: '#090a0f',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.15)',
+                padding: '8px 12px',
+                borderRadius: 8,
+                fontSize: 13
+              }}
+            />
           </div>
+
+          {/* Custom Date Range to Date */}
+          <div style={{ minWidth: 150 }}>
+            <label style={{ display: 'block', fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, marginBottom: 6 }}>
+              To Date (Optional)
+            </label>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => {
+                setToDate(e.target.value);
+                setSelectedTenure('custom');
+              }}
+              style={{
+                width: '100%',
+                background: '#090a0f',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.15)',
+                padding: '8px 12px',
+                borderRadius: 8,
+                fontSize: 13
+              }}
+            />
+          </div>
+
+          {/* Reset button */}
+          {(selectedTenure !== 'all' || selectedBatch !== 'all' || fromDate || toDate) && (
+            <button
+              onClick={() => {
+                setSelectedTenure('all');
+                setSelectedBatch('all');
+                setFromDate('');
+                setToDate('');
+              }}
+              style={{
+                padding: '9px 14px',
+                background: 'rgba(239, 68, 68, 0.15)',
+                color: '#f87171',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: 8,
+                fontSize: 12,
+                cursor: 'pointer'
+              }}
+            >
+              Reset Filters
+            </button>
+          )}
 
         </div>
 
-        {/* View Toggle Tabs */}
-        <div style={{ display: 'flex', gap: 8, marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <button
-            onClick={() => setActiveTab('checklist')}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: 'pointer',
-              background: activeTab === 'checklist' ? '#4f46e5' : 'rgba(255,255,255,0.05)',
-              color: activeTab === 'checklist' ? '#fff' : '#94a3b8',
-              border: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6
-            }}
-          >
-            <CheckSquare size={14} /> Itemized Checklist ({items.length})
-          </button>
-
-          <button
-            onClick={() => setActiveTab('inquiry')}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: 'pointer',
-              background: activeTab === 'inquiry' ? '#b45309' : 'rgba(255,255,255,0.05)',
-              color: activeTab === 'inquiry' ? '#fff' : '#f59e0b',
-              border: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6
-            }}
-          >
-            <HelpCircle size={14} /> End-of-Month Officer Inquiries ("Why Are These Pendings?")
-          </button>
+        {/* Quick Month Pills */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <span style={{ fontSize: 11, color: '#94a3b8', alignSelf: 'center', marginRight: 4, fontWeight: 600 }}>Quick Tenures:</span>
+          {['all', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10'].map(tKey => {
+            const label = tKey === 'all' ? 'All Months' : (data?.tenureOptions?.find(o => o.key === tKey)?.name?.replace(' 2026', '') || tKey);
+            const isActive = selectedTenure === tKey;
+            return (
+              <button
+                key={tKey}
+                onClick={() => {
+                  setSelectedTenure(tKey);
+                  setFromDate('');
+                  setToDate('');
+                }}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: 6,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  border: isActive ? '1px solid #4f46e5' : '1px solid rgba(255,255,255,0.1)',
+                  background: isActive ? '#4f46e5' : 'rgba(255,255,255,0.04)',
+                  color: isActive ? '#fff' : '#cbd5e1'
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* ERROR MESSAGE */}
       {error && (
         <div style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', color: '#fca5a5', padding: '12px 16px', borderRadius: 8, marginBottom: 20 }}>
           ⚠️ {error}
         </div>
       )}
 
-      {/* ------------------------------------------------------------- */}
-      {/* TAB 1: ITEMIZED CHECKLIST TABLE */}
-      {/* ------------------------------------------------------------- */}
-      {activeTab === 'checklist' && (
-        <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, overflow: 'hidden' }}>
-          
-          <div style={{ padding: '12px 16px', background: 'rgba(15, 23, 42, 0.9)', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#f8fafc' }}>
-              Showing {items.length} Complaints ({Object.keys(checkedItems).filter(k => checkedItems[k]).length} marked as reviewed)
-            </div>
-            <div style={{ fontSize: 11, color: '#94a3b8' }}>
-              Click checkbox to toggle review state
-            </div>
-          </div>
-
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
-              <thead>
-                <tr style={{ background: '#0a0d16', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', fontSize: 11, textTransform: 'uppercase' }}>
-                  <th style={{ padding: '10px 12px', width: 36, textAlign: 'center' }}>✓</th>
-                  <th style={{ padding: '10px 12px', width: 90 }}>Serial #</th>
-                  <th style={{ padding: '10px 12px', width: 85 }}>Date</th>
-                  <th style={{ padding: '10px 12px' }}>Client &amp; Branch</th>
-                  <th style={{ padding: '10px 12px', width: 100 }}>Nature</th>
-                  <th style={{ padding: '10px 12px', width: 140 }}>Assigned Officer</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'right', width: 95 }}>Quotation</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'right', width: 95 }}>Invoice</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'right', width: 95 }}>Recovered</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'right', width: 105 }}>Outstanding</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'center', width: 110 }}>Issue Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={11} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
-                      <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 8px' }} />
-                      Loading checklist items...
-                    </td>
-                  </tr>
-                ) : items.length === 0 ? (
-                  <tr>
-                    <td colSpan={11} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
-                      No matching records found.
-                    </td>
-                  </tr>
-                ) : (
-                  items.map((item) => {
-                    const isChecked = !!checkedItems[item.serialNo];
-                    const isBoth = item.pendingCategory === 'BOTH_PENDING';
-                    const isInv = item.pendingCategory === 'INVOICE_PENDING';
-                    const isPay = item.pendingCategory === 'PAYMENT_PENDING';
-
-                    let badgeBg = '#065f46';
-                    let badgeColor = '#6ee7b7';
-                    if (isBoth) { badgeBg = 'rgba(239, 68, 68, 0.2)'; badgeColor = '#f87171'; }
-                    else if (isInv) { badgeBg = 'rgba(245, 158, 11, 0.2)'; badgeColor = '#fbbf24'; }
-                    else if (isPay) { badgeBg = 'rgba(59, 130, 246, 0.2)'; badgeColor = '#60a5fa'; }
-
-                    return (
-                      <tr
-                        key={item.id}
-                        style={{
-                          borderBottom: '1px solid rgba(255,255,255,0.04)',
-                          background: isChecked ? 'rgba(16, 185, 129, 0.05)' : isBoth ? 'rgba(239, 68, 68, 0.03)' : 'transparent',
-                          opacity: isChecked ? 0.65 : 1
-                        }}
-                      >
-                        <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                          <button
-                            onClick={() => toggleCheck(item.serialNo)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: isChecked ? '#10b981' : '#64748b', padding: 0 }}
-                          >
-                            {isChecked ? <CheckSquare size={16} /> : <Square size={16} />}
-                          </button>
-                        </td>
-                        <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#38bdf8' }}>
-                          {item.serialNo}
-                        </td>
-                        <td style={{ padding: '8px 12px', color: '#94a3b8', fontSize: 11 }}>
-                          {item.exactDate}
-                        </td>
-                        <td style={{ padding: '8px 12px' }}>
-                          <div style={{ fontWeight: 600, color: '#f1f5f9' }}>{item.clientName}</div>
-                          <div style={{ fontSize: 11, color: '#64748b' }}>{item.branchName}</div>
-                        </td>
-                        <td style={{ padding: '8px 12px', fontSize: 11, color: '#cbd5e1' }}>
-                          {item.workNature}
-                        </td>
-                        <td style={{ padding: '8px 12px', color: '#e2e8f0', fontWeight: 500 }}>
-                          {item.assignedTo}
-                        </td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'monospace', color: '#cbd5e1' }}>
-                          {item.quotationAmount > 0 ? `Rs. ${item.quotationAmount.toLocaleString()}` : '—'}
-                        </td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'monospace', color: item.invoiceAmount > 0 ? '#fff' : '#64748b' }}>
-                          {item.invoiceAmount > 0 ? `Rs. ${item.invoiceAmount.toLocaleString()}` : 'Not Issued'}
-                        </td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'monospace', color: '#34d399' }}>
-                          {item.grossReceived > 0 ? `Rs. ${item.grossReceived.toLocaleString()}` : 'Rs. 0'}
-                        </td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: item.outstandingBalance > 0 ? '#ef4444' : '#10b981' }}>
-                          Rs. {item.outstandingBalance.toLocaleString()}
-                        </td>
-                        <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, background: badgeBg, color: badgeColor, padding: '3px 7px', borderRadius: 4 }}>
-                            {item.pendingLabel}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+      {/* ============================================================= */}
+      {/* SECTION 1: THE 4 MAIN EXECUTIVE OVERVIEW CARDS */}
+      {/* ============================================================= */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
+          🎯 Executive Overview Cards &bull; {selectedTenure === 'all' ? 'Full Tenure (Jan – Oct 2026)' : selectedTenure} &bull; {selectedBatch === 'all' ? 'All Batches' : selectedBatch}
         </div>
-      )}
 
-      {/* ------------------------------------------------------------- */}
-      {/* TAB 2: END-OF-MONTH OFFICER INQUIRIES ("Why Are These Pendings?") */}
-      {/* ------------------------------------------------------------- */}
-      {activeTab === 'inquiry' && (
-        <div style={{ background: '#0e111a', border: '2px solid #b45309', borderRadius: 12, padding: '20px 24px', marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <AlertTriangle size={22} color="#f59e0b" />
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#f59e0b', margin: 0, textTransform: 'uppercase' }}>
-              Monthly Audit Inquiry Protocol &bull; "Why Are These Pendings?"
+          {/* CARD 1: TOTAL INVOICES SENT */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.15), rgba(15, 23, 42, 0.9))',
+            border: '1.5px solid rgba(2, 132, 199, 0.4)',
+            borderRadius: 14,
+            padding: '20px 22px',
+            borderTop: '4px solid #0284c7',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#7dd3fc', letterSpacing: '0.05em' }}>
+                Total Invoices Sent
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 700, background: 'rgba(2, 132, 199, 0.25)', color: '#38bdf8', padding: '3px 8px', borderRadius: 6 }}>
+                Dispatched
+              </span>
+            </div>
+            <div style={{ fontSize: 32, fontWeight: 800, color: '#fff', fontFamily: 'monospace', lineHeight: 1.1 }}>
+              {overall.invoicesSent.count} <span style={{ fontSize: 16, fontWeight: 600, color: '#7dd3fc' }}>Invoices</span>
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#38bdf8', marginTop: 8 }}>
+              Rs. {overall.invoicesSent.amount.toLocaleString()}
+            </div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+              Total billed volume dispatched to clients
+            </div>
+          </div>
+
+          {/* CARD 2: TOTAL INVOICES PENDING */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(15, 23, 42, 0.9))',
+            border: '1.5px solid rgba(245, 158, 11, 0.4)',
+            borderRadius: 14,
+            padding: '20px 22px',
+            borderTop: '4px solid #f59e0b',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#fde68a', letterSpacing: '0.05em' }}>
+                Total Invoices Pending
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 700, background: 'rgba(245, 158, 11, 0.25)', color: '#fbbf24', padding: '3px 8px', borderRadius: 6 }}>
+                Action Required
+              </span>
+            </div>
+            <div style={{ fontSize: 32, fontWeight: 800, color: '#f59e0b', fontFamily: 'monospace', lineHeight: 1.1 }}>
+              {overall.invoicesPending.count} <span style={{ fontSize: 16, fontWeight: 600, color: '#fde68a' }}>Complaints</span>
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#fbbf24', marginTop: 8 }}>
+              Awaiting Invoice Creation / Approval
+            </div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+              Completed sites missing signed bill submissions
+            </div>
+          </div>
+
+          {/* CARD 3: TOTAL PAYMENTS SENT / RECEIVED */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(15, 23, 42, 0.9))',
+            border: '1.5px solid rgba(16, 185, 129, 0.4)',
+            borderRadius: 14,
+            padding: '20px 22px',
+            borderTop: '4px solid #10b981',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#a7f3d0', letterSpacing: '0.05em' }}>
+                Total Payments Received
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 700, background: 'rgba(16, 185, 129, 0.25)', color: '#34d399', padding: '3px 8px', borderRadius: 6 }}>
+                Collected ({overall.recoveryRate})
+              </span>
+            </div>
+            <div style={{ fontSize: 30, fontWeight: 800, color: '#10b981', fontFamily: 'monospace', lineHeight: 1.1 }}>
+              Rs. {overall.paymentsSent.amount.toLocaleString()}
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#6ee7b7', marginTop: 8 }}>
+              {overall.paymentsSent.count} Successful Collections
+            </div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+              Net bank credits + withholding tax certificates
+            </div>
+          </div>
+
+          {/* CARD 4: TOTAL PAYMENTS PENDING */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.18), rgba(15, 23, 42, 0.95))',
+            border: '1.5px solid rgba(239, 68, 68, 0.5)',
+            borderRadius: 14,
+            padding: '20px 22px',
+            borderTop: '4px solid #dc2626',
+            boxShadow: '0 8px 24px rgba(220, 38, 38, 0.2)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#fca5a5', letterSpacing: '0.05em' }}>
+                Total Payments Pending
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 700, background: 'rgba(239, 68, 68, 0.25)', color: '#f87171', padding: '3px 8px', borderRadius: 6 }}>
+                Overdue Due
+              </span>
+            </div>
+            <div style={{ fontSize: 30, fontWeight: 800, color: '#ef4444', fontFamily: 'monospace', lineHeight: 1.1 }}>
+              Rs. {overall.paymentsPending.amount.toLocaleString()}
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#fca5a5', marginTop: 8 }}>
+              {overall.paymentsPending.count} Complaints Pending Recovery
+            </div>
+            <div style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>
+              Uncollected funds awaiting client finance release
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* ============================================================= */}
+      {/* SECTION 2: BATCH CARDS (BATCH NAMES ONLY) */}
+      {/* ============================================================= */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+              👥 Batch Cards (Strictly Batch Names)
             </h2>
+            <p style={{ fontSize: 12, color: '#94a3b8', margin: '3px 0 0' }}>
+              Performance metrics and end-of-month audit inquiry questions grouped strictly by Batch.
+            </p>
           </div>
-          
-          <p style={{ fontSize: 13, color: '#fde68a', lineHeight: 1.5, marginBottom: 20 }}>
-            Mandatory interrogation framework for unresolved jobs in <strong>{selectedMonth === 'all' ? 'All Months' : (data?.monthlySummaries?.[selectedMonth]?.monthName || selectedMonth)}</strong>. 
-            Cross-examine assigned officers on missing invoices, client payment bottlenecks, and record commitments directly into the system.
-          </p>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: 16 }}>
-            {currentEmployees.map(emp => {
-              const noteKey = `${selectedMonth}_${emp.name}`;
-              const noteData = officerNotes[noteKey] || {};
-
-              return (
-                <div key={emp.name} style={{ background: '#141824', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: 10, padding: 18 }}>
-                  
-                  {/* Officer Header */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{emp.name}</div>
-                      <div style={{ fontSize: 11, color: '#94a3b8' }}>Total Complaints: <strong>{emp.jobsCount}</strong></div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: '#ef4444' }}>
-                        Rs. {Math.round(emp.totalOutstanding).toLocaleString()} Due
-                      </div>
-                      <div style={{ fontSize: 10, color: '#94a3b8' }}>Outstanding Exposure</div>
-                    </div>
-                  </div>
-
-                  {/* Pending Metric Badges */}
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', padding: '3px 8px', borderRadius: 4 }}>
-                      ⚠️ {emp.invoicesPending} Invoices Pending
-                    </span>
-                    <span style={{ fontSize: 11, fontWeight: 700, background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', padding: '3px 8px', borderRadius: 4 }}>
-                      ⏳ {emp.paymentsPending} Payments Pending
-                    </span>
-                  </div>
-
-                  {/* Mandatory Questions */}
-                  <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: 6, padding: '10px 12px', marginBottom: 14, fontSize: 12, color: '#fef3c7' }}>
-                    <div style={{ fontWeight: 700, marginBottom: 4, color: '#f59e0b' }}>Mandatory Audit Questions for {emp.name}:</div>
-                    <ol style={{ paddingLeft: 18, margin: 0, lineHeight: 1.5 }}>
-                      <li>Why are {emp.invoicesPending} invoices not generated/approved for completed works?</li>
-                      <li>Why has client finance not cleared Rs. {Math.round(emp.totalOutstanding).toLocaleString()}? Did the branch manager dispute rates or completion?</li>
-                      <li>When was the last written or physical follow-up with the bank?</li>
-                    </ol>
-                    {emp.sampleSerials.length > 0 && (
-                      <div style={{ fontSize: 10, color: '#cbd5e1', marginTop: 6 }}>
-                        Sample Complaints: {emp.sampleSerials.join(', ')}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Interactive Justification Input Form */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>
-                        Officer Justification &amp; Operational Obstacle
-                      </label>
-                      <textarea
-                        rows={2}
-                        placeholder="e.g. Work completed; branch manager stamp delayed; sent revised line items..."
-                        value={noteData.reason || ''}
-                        onChange={(e) => handleSaveNote(selectedMonth, emp.name, 'reason', e.target.value)}
-                        style={{
-                          width: '100%',
-                          background: '#090a0f',
-                          color: '#fff',
-                          border: '1px solid rgba(255,255,255,0.15)',
-                          padding: '6px 8px',
-                          borderRadius: 6,
-                          fontSize: 12,
-                          resize: 'vertical'
-                        }}
-                      />
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>
-                          Client Contact &amp; Follow-up
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. Spoke with Tariq (Branch Mgr)"
-                          value={noteData.clientContact || ''}
-                          onChange={(e) => handleSaveNote(selectedMonth, emp.name, 'clientContact', e.target.value)}
-                          style={{
-                            width: '100%',
-                            background: '#090a0f',
-                            color: '#fff',
-                            border: '1px solid rgba(255,255,255,0.15)',
-                            padding: '6px 8px',
-                            borderRadius: 6,
-                            fontSize: 12
-                          }}
-                        />
-                      </div>
-
-                      <div>
-                        <label style={{ display: 'block', fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>
-                          Committed Clearance Date
-                        </label>
-                        <input
-                          type="date"
-                          value={noteData.committedDate || ''}
-                          onChange={(e) => handleSaveNote(selectedMonth, emp.name, 'committedDate', e.target.value)}
-                          style={{
-                            width: '100%',
-                            background: '#090a0f',
-                            color: '#fff',
-                            border: '1px solid rgba(255,255,255,0.15)',
-                            padding: '6px 8px',
-                            borderRadius: 6,
-                            fontSize: 12
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
-                      <span style={{ fontSize: 11, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <CheckCircle2 size={12} /> Auto-saved
-                      </span>
-                    </div>
-
-                  </div>
-
-                </div>
-              );
-            })}
-          </div>
-
-          {/* 6-Point Management Recovery Verification Checklist */}
-          <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid rgba(245, 158, 11, 0.3)' }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#f59e0b', marginBottom: 10 }}>
-              Management Recovery Verification Steps:
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 10 }}>
-              {[
-                '1. Verify signed work completion certificates for completed sites.',
-                '2. Dispatch missing tax invoices to client zonal offices within 48 hours.',
-                '3. Issue formal written payment demand notices for balances older than 30 days.',
-                '4. Collect CPR withholding tax certificates from client accounts.',
-                '5. Escalate line-item or rate disputes to GM Operations / Lead Engineer.',
-                '6. Internal Auditor & Managing Director final sign-off.'
-              ].map((step, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#141824', padding: '8px 12px', borderRadius: 6, fontSize: 12, color: '#f1f5f9' }}>
-                  <CheckSquare size={16} color="#10b981" />
-                  <span>{step}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
         </div>
-      )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 16 }}>
+          {batches.map(b => {
+            const noteKey = `${selectedTenure}_${b.batchName}`;
+            const noteText = batchNotes[noteKey] || '';
+            const borderCol = b.batchName === 'Batch 1' ? '#38bdf8' : b.batchName === 'Batch 2' ? '#34d399' : b.batchName === 'Batch 3' ? '#fbbf24' : b.batchName === 'Batch 4' ? '#a78bfa' : '#94a3b8';
+
+            return (
+              <div
+                key={b.batchName}
+                style={{
+                  background: '#0d111b',
+                  border: '1.5px solid rgba(255,255,255,0.1)',
+                  borderRadius: 12,
+                  padding: '18px 20px',
+                  borderTop: `4px solid ${borderCol}`,
+                  boxShadow: '0 6px 18px rgba(0,0,0,0.4)'
+                }}
+              >
+                {/* Batch Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 10 }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: borderCol }}>
+                    {b.batchName}
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: 6 }}>
+                    {b.totalJobs} Complaints
+                  </div>
+                </div>
+
+                {/* 4 Mini Cards for the Batch */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+                  
+                  {/* Batch Invoices Sent */}
+                  <div style={{ background: 'rgba(2, 132, 199, 0.08)', border: '1px solid rgba(2, 132, 199, 0.2)', borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#7dd3fc', textTransform: 'uppercase' }}>Invoices Sent</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', fontFamily: 'monospace', marginTop: 2 }}>
+                      {b.invoicesSent.count}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#38bdf8', fontWeight: 600, marginTop: 2 }}>
+                      Rs. {b.invoicesSent.amount.toLocaleString()}
+                    </div>
+                  </div>
+
+                  {/* Batch Invoices Pending */}
+                  <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#fde68a', textTransform: 'uppercase' }}>Invoices Pending</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#f59e0b', fontFamily: 'monospace', marginTop: 2 }}>
+                      {b.invoicesPending.count}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                      Awaiting Bill
+                    </div>
+                  </div>
+
+                  {/* Batch Payments Sent / Received */}
+                  <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#a7f3d0', textTransform: 'uppercase' }}>Payments Received</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: '#10b981', fontFamily: 'monospace', marginTop: 2 }}>
+                      Rs. {b.paymentsSent.amount.toLocaleString()}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                      {b.paymentsSent.count} Collections
+                    </div>
+                  </div>
+
+                  {/* Batch Payments Pending */}
+                  <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#fca5a5', textTransform: 'uppercase' }}>Payments Pending</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: '#ef4444', fontFamily: 'monospace', marginTop: 2 }}>
+                      Rs. {b.paymentsPending.amount.toLocaleString()}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#f87171', fontWeight: 600, marginTop: 2 }}>
+                      {b.paymentsPending.count} Overdue
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* END-OF-MONTH AUDIT INQUIRY QUESTION */}
+                <div style={{ background: '#171c2a', border: '1px dashed #f59e0b', borderRadius: 8, padding: '12px 14px' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#f59e0b', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <HelpCircle size={14} /> End-of-Tenure Audit Inquiry:
+                  </div>
+                  <div style={{ fontSize: 12, color: '#fef3c7', lineHeight: 1.4, marginBottom: 8 }}>
+                    <strong>Why are {b.invoicesPending.count} invoices and Rs. {b.paymentsPending.amount.toLocaleString()} payment pending for {b.batchName}?</strong>
+                  </div>
+
+                  <textarea
+                    rows={2}
+                    placeholder={`Type ${b.batchName} explanation / client reason here...`}
+                    value={noteText}
+                    onChange={(e) => handleSaveNote(b.batchName, e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: '#090a0f',
+                      color: '#fff',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      padding: '6px 8px',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      resize: 'vertical'
+                    }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+                    <span style={{ fontSize: 10, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <CheckCircle2 size={11} /> Auto-saves to system
+                    </span>
+                  </div>
+                </div>
+
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ============================================================= */}
+      {/* SECTION 3: TENURE-WISE TIMELINE CARDS MATRIX */}
+      {/* ============================================================= */}
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
+          📅 Tenure-by-Tenure Performance Cards (All Months)
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+          {tenureCards.map(tc => {
+            const isSelected = selectedTenure === tc.tenureKey;
+            return (
+              <div
+                key={tc.tenureKey}
+                onClick={() => setSelectedTenure(tc.tenureKey)}
+                style={{
+                  background: isSelected ? 'rgba(79, 70, 229, 0.15)' : '#0d111b',
+                  border: isSelected ? '2px solid #4f46e5' : '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 10,
+                  padding: '14px 16px',
+                  cursor: 'pointer',
+                  transition: 'transform 0.15s, border-color 0.15s'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{tc.tenureName}</div>
+                  <span style={{ fontSize: 10, color: '#94a3b8', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: 4 }}>
+                    {tc.totalJobs} Jobs
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11 }}>
+                  <div>
+                    <span style={{ color: '#64748b', fontSize: 10 }}>Invoices Sent:</span>
+                    <div style={{ color: '#38bdf8', fontWeight: 700, fontFamily: 'monospace' }}>{tc.invoicesSent.count} (Rs. {tc.invoicesSent.amount.toLocaleString()})</div>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748b', fontSize: 10 }}>Invoices Pending:</span>
+                    <div style={{ color: '#f59e0b', fontWeight: 700, fontFamily: 'monospace' }}>{tc.invoicesPending.count} Pending</div>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748b', fontSize: 10 }}>Payments Received:</span>
+                    <div style={{ color: '#10b981', fontWeight: 700, fontFamily: 'monospace' }}>Rs. {tc.paymentsSent.amount.toLocaleString()}</div>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748b', fontSize: 10 }}>Payments Pending:</span>
+                    <div style={{ color: '#ef4444', fontWeight: 700, fontFamily: 'monospace' }}>Rs. {tc.paymentsPending.amount.toLocaleString()}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
     </div>
   );

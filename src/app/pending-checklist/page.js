@@ -8,6 +8,7 @@ import {
   ExternalLink, Printer, ShieldAlert, Award
 } from 'lucide-react';
 import Link from 'next/link';
+import { apiFetch } from '@/lib/api';
 
 export default function PendingChecklistPage() {
   const [data, setData] = useState(null);
@@ -51,8 +52,7 @@ export default function PendingChecklistPage() {
       if (selectedPendingType && selectedPendingType !== 'all') params.set('pendingType', selectedPendingType);
       if (searchQuery) params.set('search', searchQuery);
 
-      const res = await fetch(`/api/pending-checklist?${params.toString()}`);
-      const json = await res.json();
+      const json = await apiFetch(`/api/pending-checklist?${params.toString()}`);
       if (!json.success) throw new Error(json.error || 'Failed to load checklist');
       setData(json);
     } catch (err) {

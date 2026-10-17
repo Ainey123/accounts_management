@@ -12,6 +12,7 @@ import { useAuth } from '@/components/AuthProvider';
 const NAV_ITEMS = [
   { name: 'Operations Feed', href: '/dashboard', icon: BarChart2 },
   { name: 'Staff Progress & WhatsApp', href: '/progress', icon: Award },
+  { name: 'Pending Audit Checklist', href: '/pending-checklist', icon: ClipboardList },
   { name: 'Expense Reconciliation', href: '/admin/dashboard?tab=reconciliation', icon: Receipt, adminOnly: true },
   { name: 'Pending Payments', href: '/pending-payments', icon: Clock },
   { name: 'All Tickets', href: '/tickets', icon: FileText },
@@ -36,6 +37,7 @@ export default function Sidebar() {
 
   const visibleItems = user?.role === 'ADMIN' ? [
     { name: 'Admin Dashboard', href: '/admin/dashboard', icon: Settings },
+    { name: 'Pending Audit Checklist', href: '/pending-checklist', icon: ClipboardList },
     { name: 'Staff Progress & WhatsApp', href: '/progress', icon: Award },
     { name: 'Pending Payments', href: '/pending-payments', icon: Clock },
     { name: 'Expense Reconciliation', href: '/admin/dashboard?tab=reconciliation', icon: Receipt },

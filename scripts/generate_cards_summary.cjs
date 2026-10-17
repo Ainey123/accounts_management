@@ -13,13 +13,13 @@ const prisma = new PrismaClient({
 });
 
 function mapToBatchName(name) {
-  if (!name) return 'Unassigned / Office';
+  if (!name) return 'Unassigned';
   const l = name.toLowerCase().trim();
-  if (l.includes('rizwan') || l.includes('ali shehzad') || l.includes('ali shezad') || l.includes('batch 1')) return 'Batch 1';
-  if (l.includes('ibrahim') || l.includes('batch 2')) return 'Batch 2';
-  if (l.includes('shahzaib') || l.includes('shah zaib') || l.includes('batch 3')) return 'Batch 3';
-  if (l.includes('sermad') || l.includes('sarmad') || l.includes('batch 4')) return 'Batch 4';
-  return 'Unassigned / Office';
+  if (l.includes('rizwan') || l.includes('ali shehzad') || l.includes('ali shezad') || l.includes('batch 1')) return 'Batch No. 01';
+  if (l.includes('ibrahim') || l.includes('batch 2')) return 'Batch No. 02';
+  if (l.includes('shahzaib') || l.includes('shah zaib') || l.includes('batch 3')) return 'Batch No. 03';
+  if (l.includes('sermad') || l.includes('sarmad') || l.includes('batch 4')) return 'Batch No. 04';
+  return 'Unassigned';
 }
 
 function parseLineItemsTotal(lineItems) {
@@ -31,11 +31,6 @@ function parseLineItemsTotal(lineItems) {
     }
   } catch {}
   return 0;
-}
-
-function formatMoney(num) {
-  if (!num && num !== 0) return 'Rs. 0';
-  return 'Rs. ' + Math.round(num).toLocaleString('en-US');
 }
 
 const MONTH_NAMES = {
@@ -52,76 +47,49 @@ const MONTH_NAMES = {
 };
 
 async function main() {
-  console.log('Fetching database records for card summary report...');
+  console.log('Fetching database records for Domain Overview cards...');
   const jobs = await prisma.jobMetadata.findMany({
-    select: {
-      id: true,
-      manualEnteredBy: true,
-      createdAt: true,
-      paymentStatus: true,
-      paymentProgress: true,
-      ticket: {
-        select: {
-          id: true,
-          serialNo: true,
-          exactDate: true,
-          statusLastChangedBy: true,
-        }
-      },
-      assignedEmployee: { select: { employeeName: true } },
-      createdBy: { select: { employeeName: true } },
-      quotationInvoices: {
-        select: {
-          id: true,
-          documentType: true,
-          status: true,
-          lineItems: true,
-        }
-      },
-      payments: {
-        select: {
-          id: true,
-          amount: true,
-          taxDeducted: true,
-        }
-      }
+    include: {
+      ticket: true,
+      assignedEmployee: true,
+      createdBy: true,
+      quotationInvoices: true,
+      payments: true,
+      workCompletion: true,
+      bankApproval: true,
     },
     orderBy: { createdAt: 'asc' }
   });
 
-  console.log(`Fetched ${jobs.length} jobs. Aggregating by tenure and batch...`);
+  console.log(`Fetched ${jobs.length} jobs.`);
 
-  // Global cards
-  const globalCards = {
-    totalInvoicesSentCount: 0,
-    totalInvoicesSentAmount: 0,
-    totalInvoicesPendingCount: 0,
-    totalPaymentsSentCount: 0,
-    totalPaymentsSentAmount: 0,
-    totalPaymentsPendingCount: 0,
-    totalPaymentsPendingAmount: 0,
-    totalJobs: jobs.length,
+  const batchNames = ['Batch No. 01', 'Batch No. 02', 'Batch No. 03', 'Batch No. 04', 'Unassigned'];
+
+  // Global / Domain Overview Card
+  const domainOverview = {
+    totalComplaints: 0,
+    paymentReceived: 0,
+    paymentPending: 0,
+    poPending: 0,
+    inprocess: 0,
+    cancel: 0,
   };
 
-  // Batches
-  const batchNames = ['Batch 1', 'Batch 2', 'Batch 3', 'Batch 4', 'Unassigned / Office'];
+  // Batches Cards Map
   const batchCards = {};
   batchNames.forEach(b => {
     batchCards[b] = {
       batchName: b,
-      totalJobs: 0,
-      invoicesSentCount: 0,
-      invoicesSentAmount: 0,
-      invoicesPendingCount: 0,
-      paymentsSentCount: 0,
-      paymentsSentAmount: 0,
-      paymentsPendingCount: 0,
-      paymentsPendingAmount: 0,
-      sampleSerials: [],
+      totalComplaints: 0,
+      paymentReceived: 0,
+      paymentPending: 0,
+      poPending: 0,
+      inprocess: 0,
+      cancel: 0,
     };
   });
 
-  // Tenure breakdown
+  // Monthly / Tenure Cards Map
   const monthlyCards = {};
 
   for (const j of jobs) {
@@ -132,42 +100,48 @@ async function main() {
       monthlyCards[mKey] = {
         monthKey: mKey,
         monthName: MONTH_NAMES[mKey] || mKey,
-        totalJobs: 0,
-        invoicesSentCount: 0,
-        invoicesSentAmount: 0,
-        invoicesPendingCount: 0,
-        paymentsSentCount: 0,
-        paymentsSentAmount: 0,
-        paymentsPendingCount: 0,
-        paymentsPendingAmount: 0,
+        totalComplaints: 0,
+        paymentReceived: 0,
+        paymentPending: 0,
+        poPending: 0,
+        inprocess: 0,
+        cancel: 0,
         batches: {},
       };
       batchNames.forEach(b => {
         monthlyCards[mKey].batches[b] = {
           batchName: b,
-          totalJobs: 0,
-          invoicesSentCount: 0,
-          invoicesSentAmount: 0,
-          invoicesPendingCount: 0,
-          paymentsSentCount: 0,
-          paymentsSentAmount: 0,
-          paymentsPendingCount: 0,
-          paymentsPendingAmount: 0,
+          totalComplaints: 0,
+          paymentReceived: 0,
+          paymentPending: 0,
+          poPending: 0,
+          inprocess: 0,
+          cancel: 0,
         };
       });
     }
 
     const mc = monthlyCards[mKey];
-
-    // Determine batch
     const rawEmp = j.ticket?.statusLastChangedBy || j.assignedEmployee?.employeeName || j.manualEnteredBy || j.createdBy?.employeeName;
     const bName = mapToBatchName(rawEmp);
-    const bc = batchCards[bName];
-    const mbc = mc.batches[bName];
+    const bc = batchCards[bName] || batchCards['Unassigned'];
+    const mbc = mc.batches[bName] || mc.batches['Unassigned'];
 
-    bc.totalJobs++;
-    mbc.totalJobs++;
-    mc.totalJobs++;
+    // Increment Total
+    domainOverview.totalComplaints++;
+    bc.totalComplaints++;
+    mbc.totalComplaints++;
+    mc.totalComplaints++;
+
+    // 1. Cancel Check
+    const isCancel = j.ticket?.status === 'CANCELLED' || j.workCompletion?.status === 'CANCELLED';
+    if (isCancel) {
+      domainOverview.cancel++;
+      bc.cancel++;
+      mbc.cancel++;
+      mc.cancel++;
+      continue;
+    }
 
     const invoices = (j.quotationInvoices || []).filter(q => q.documentType === 'INVOICE');
     const quotations = (j.quotationInvoices || []).filter(q => q.documentType === 'QUOTATION');
@@ -181,172 +155,176 @@ async function main() {
     const baseAmount = totalInvoice > 0 ? totalInvoice : totalQuotation;
     const balanceDue = Math.max(0, baseAmount - grossPayment);
 
-    // 1. Invoices Sent
-    if (invoices.length > 0) {
-      globalCards.totalInvoicesSentCount += invoices.length;
-      globalCards.totalInvoicesSentAmount += totalInvoice;
-      bc.invoicesSentCount += invoices.length;
-      bc.invoicesSentAmount += totalInvoice;
-      mbc.invoicesSentCount += invoices.length;
-      mbc.invoicesSentAmount += totalInvoice;
-      mc.invoicesSentCount += invoices.length;
-      mc.invoicesSentAmount += totalInvoice;
-    }
+    const isPaymentCleared = (j.paymentStatus === 'PAID' || j.paymentStatus === 'CLEARED' || (j.paymentProgress || 0) >= 100) || (baseAmount > 0 && balanceDue <= 0 && grossPayment > 0);
+    const hasPO = invoices.some(i => i.poNumber && i.poNumber.trim()) || quotations.some(q => q.poNumber && q.poNumber.trim());
 
-    // 2. Invoices Pending
-    const hasApprovedInvoice = invoices.some(i => i.status === 'APPROVED' || i.status === 'PAID');
-    const isInvoicePending = invoices.length === 0 || !hasApprovedInvoice;
-    if (isInvoicePending) {
-      globalCards.totalInvoicesPendingCount++;
-      bc.invoicesPendingCount++;
-      mbc.invoicesPendingCount++;
-      mc.invoicesPendingCount++;
-    }
-
-    // 3. Payments Sent / Received
-    if (grossPayment > 0) {
-      const payCount = (j.payments || []).length || 1;
-      globalCards.totalPaymentsSentCount += payCount;
-      globalCards.totalPaymentsSentAmount += grossPayment;
-      bc.paymentsSentCount += payCount;
-      bc.paymentsSentAmount += grossPayment;
-      mbc.paymentsSentCount += payCount;
-      mbc.paymentsSentAmount += grossPayment;
-      mc.paymentsSentCount += payCount;
-      mc.paymentsSentAmount += grossPayment;
-    }
-
-    // 4. Payments Pending
-    const isPaymentPending = (j.paymentStatus !== 'PAID') || balanceDue > 0;
-    if (isPaymentPending) {
-      globalCards.totalPaymentsPendingCount++;
-      globalCards.totalPaymentsPendingAmount += balanceDue;
-      bc.paymentsPendingCount++;
-      bc.paymentsPendingAmount += balanceDue;
-      mbc.paymentsPendingCount++;
-      mbc.paymentsPendingAmount += balanceDue;
-      mc.paymentsPendingCount++;
-      mc.paymentsPendingAmount += balanceDue;
-    }
-
-    if (bc.sampleSerials.length < 5 && j.ticket?.serialNo) {
-      bc.sampleSerials.push(j.ticket.serialNo);
+    if (isPaymentCleared) {
+      domainOverview.paymentReceived++;
+      bc.paymentReceived++;
+      mbc.paymentReceived++;
+      mc.paymentReceived++;
+    } else if (invoices.length > 0 || (j.payments || []).length > 0 || j.paymentStatus === 'PARTIAL') {
+      domainOverview.paymentPending++;
+      bc.paymentPending++;
+      mbc.paymentPending++;
+      mc.paymentPending++;
+    } else if (!hasPO && quotations.length > 0) {
+      domainOverview.poPending++;
+      bc.poPending++;
+      mbc.poPending++;
+      mc.poPending++;
+    } else {
+      domainOverview.inprocess++;
+      bc.inprocess++;
+      mbc.inprocess++;
+      mc.inprocess++;
     }
   }
 
   const sortedMonthKeys = Object.keys(monthlyCards).sort();
 
   // -------------------------------------------------------------
-  // 1. GENERATE CARDS SUMMARY EXCEL WORKBOOK (.XLSX)
+  // 1. GENERATE EXCEL WITH EXACT CARD FORMAT (.XLSX)
   // -------------------------------------------------------------
-  console.log('Building Cards Summary Excel...');
+  console.log('Generating Excel Domain Overview Cards...');
   const wb = XLSX.utils.book_new();
 
-  // 1A. Overall Cards Sheet
-  const overallRows = [
-    ['NEXUS OPERATIONS — EXECUTIVE AUDIT CARDS SUMMARY'],
-    ['Generated Date:', new Date().toLocaleString()],
-    ['Scope:', 'Tenure Wise Cards Summary (No individual line-item clutter)'],
+  const excelRows = [
+    ['Domain Overview'],
+    ['Overall All Batches'],
+    ['Total no of Complaints', domainOverview.totalComplaints],
+    ['Total no of Payment Received Cases', domainOverview.paymentReceived],
+    ['Total no of Payment Pending Cases', domainOverview.paymentPending],
+    ['Total no of PO Pending Cases', domainOverview.poPending],
+    ['Total no of Inprocess Cases', domainOverview.inprocess],
+    ['Total no of Cancel Cases', domainOverview.cancel],
     [],
-    ['EXECUTIVE OVERVIEW CARDS (FULL TENURE: JAN 2026 – OCT 2026)'],
-    ['Card Metric', 'Count / Quantity', 'Financial Value (PKR)', 'Status & Definition'],
-    ['TOTAL INVOICES SENT', globalCards.totalInvoicesSentCount, globalCards.totalInvoicesSentAmount, 'Tax invoices generated & dispatched'],
-    ['TOTAL INVOICES PENDING', globalCards.totalInvoicesPendingCount, '—', 'Complaints awaiting invoice creation or approval'],
-    ['TOTAL PAYMENTS SENT / RECEIVED', globalCards.totalPaymentsSentCount, globalCards.totalPaymentsSentAmount, 'Cash payments collected + Tax credits'],
-    ['TOTAL PAYMENTS PENDING', globalCards.totalPaymentsPendingCount, globalCards.totalPaymentsPendingAmount, 'Uncollected balance awaiting recovery from client accounts'],
-    [],
-    ['BATCH AUDIT CARDS SUMMARY (BY BATCH NAME)'],
-    ['Batch Name', 'Total Complaints', 'Invoices Sent (Count)', 'Invoices Sent (PKR)', 'Invoices Pending (Count)', 'Payments Received (PKR)', 'Payments Pending (Count)', 'Payments Pending (PKR Due)', 'End-of-Month Audit Inquiry: Why are these pendings?'],
   ];
 
   batchNames.forEach(b => {
-    const card = batchCards[b];
-    overallRows.push([
-      card.batchName,
-      card.totalJobs,
-      card.invoicesSentCount,
-      card.invoicesSentAmount,
-      card.invoicesPendingCount,
-      card.paymentsSentAmount,
-      card.paymentsPendingCount,
-      card.paymentsPendingAmount,
-      `Inquire ${card.batchName} on why ${card.invoicesPendingCount} invoices are pending and Rs. ${Math.round(card.paymentsPendingAmount).toLocaleString()} payment is uncollected.`
-    ]);
+    const bc = batchCards[b];
+    excelRows.push(
+      ['Domain Overview'],
+      [bc.batchName],
+      ['Total no of Complaints', bc.totalComplaints],
+      ['Total no of Payment Received Cases', bc.paymentReceived],
+      ['Total no of Payment Pending Cases', bc.paymentPending],
+      ['Total no of PO Pending Cases', bc.poPending],
+      ['Total no of Inprocess Cases', bc.inprocess],
+      ['Total no of Cancel Cases', bc.cancel],
+      []
+    );
   });
 
-  const wsOverall = XLSX.utils.aoa_to_sheet(overallRows);
-  XLSX.utils.book_append_sheet(wb, wsOverall, 'Executive_Cards');
+  const wsDomain = XLSX.utils.aoa_to_sheet(excelRows);
+  XLSX.utils.book_append_sheet(wb, wsDomain, 'Domain_Overview_Cards');
 
-  // 1B. Monthly Cards Matrix Sheet
-  const monthlyRows = [
-    ['TENURE-WISE MONTHLY CARDS MATRIX (JANUARY 2026 – OCTOBER 2026)'],
-    [],
-    ['Tenure Month', 'Total Complaints', 'Invoices Sent (Count)', 'Invoices Sent (PKR)', 'Invoices Pending (Count)', 'Payments Received (PKR)', 'Payments Pending (Count)', 'Payments Pending (PKR Due)', 'Batch 1 Balance', 'Batch 2 Balance', 'Batch 3 Balance', 'Batch 4 Balance', 'Office/Unassigned Balance']
+  // Tenure-wise cards sheet
+  const tenureExcelRows = [
+    ['Domain Overview — Tenure Wise Cards'],
+    []
   ];
 
   sortedMonthKeys.forEach(mKey => {
     const mc = monthlyCards[mKey];
-    monthlyRows.push([
-      mc.monthName,
-      mc.totalJobs,
-      mc.invoicesSentCount,
-      mc.invoicesSentAmount,
-      mc.invoicesPendingCount,
-      mc.paymentsSentAmount,
-      mc.paymentsPendingCount,
-      mc.paymentsPendingAmount,
-      mc.batches['Batch 1'].paymentsPendingAmount,
-      mc.batches['Batch 2'].paymentsPendingAmount,
-      mc.batches['Batch 3'].paymentsPendingAmount,
-      mc.batches['Batch 4'].paymentsPendingAmount,
-      mc.batches['Unassigned / Office'].paymentsPendingAmount,
-    ]);
+    tenureExcelRows.push(
+      ['Domain Overview'],
+      [`Tenure: ${mc.monthName}`],
+      ['Total no of Complaints', mc.totalComplaints],
+      ['Total no of Payment Received Cases', mc.paymentReceived],
+      ['Total no of Payment Pending Cases', mc.paymentPending],
+      ['Total no of PO Pending Cases', mc.poPending],
+      ['Total no of Inprocess Cases', mc.inprocess],
+      ['Total no of Cancel Cases', mc.cancel],
+      []
+    );
   });
 
-  const wsMonthly = XLSX.utils.aoa_to_sheet(monthlyRows);
-  XLSX.utils.book_append_sheet(wb, wsMonthly, 'Tenure_Cards_Matrix');
+  const wsTenure = XLSX.utils.aoa_to_sheet(tenureExcelRows);
+  XLSX.utils.book_append_sheet(wb, wsTenure, 'Tenure_Cards');
 
   const xlsxPath = path.join(__dirname, '../public/reports/Cards_Summary_Pending_Audit.xlsx');
   XLSX.writeFile(wb, xlsxPath);
-  console.log(`✓ Excel Cards Summary generated: ${xlsxPath}`);
+  console.log(`✓ Excel Cards generated: ${xlsxPath}`);
 
   // -------------------------------------------------------------
-  // 2. GENERATE CARDS SUMMARY CSV (.CSV)
+  // 2. GENERATE CSV WITH EXACT CARD FORMAT (.CSV)
   // -------------------------------------------------------------
-  console.log('Building Cards Summary CSV...');
+  console.log('Generating CSV Domain Overview Cards...');
   const csvLines = [
-    'Section,Batch / Tenure,Complaints Count,Invoices Sent Count,Invoices Sent PKR,Invoices Pending Count,Payments Received PKR,Payments Pending Count,Payments Pending PKR Due,Audit Inquiry Question'
+    'Card Title,Batch / Tenure,Metric Name,Value'
   ];
 
-  batchNames.forEach(b => {
-    const card = batchCards[b];
-    csvLines.push(`"Batch Card","${card.batchName}",${card.totalJobs},${card.invoicesSentCount},${card.invoicesSentAmount},${card.invoicesPendingCount},${card.paymentsSentAmount},${card.paymentsPendingCount},${card.paymentsPendingAmount},"Why are ${card.invoicesPendingCount} invoices pending and Rs. ${Math.round(card.paymentsPendingAmount)} uncollected for ${card.batchName}?"`);
-  });
+  const addCsvCard = (title, batch, obj) => {
+    csvLines.push(`"${title}","${batch}","Total no of Complaints",${obj.totalComplaints}`);
+    csvLines.push(`"${title}","${batch}","Total no of Payment Received Cases",${obj.paymentReceived}`);
+    csvLines.push(`"${title}","${batch}","Total no of Payment Pending Cases",${obj.paymentPending}`);
+    csvLines.push(`"${title}","${batch}","Total no of PO Pending Cases",${obj.poPending}`);
+    csvLines.push(`"${title}","${batch}","Total no of Inprocess Cases",${obj.inprocess}`);
+    csvLines.push(`"${title}","${batch}","Total no of Cancel Cases",${obj.cancel}`);
+  };
 
-  sortedMonthKeys.forEach(mKey => {
-    const mc = monthlyCards[mKey];
-    csvLines.push(`"Tenure Card","${mc.monthName}",${mc.totalJobs},${mc.invoicesSentCount},${mc.invoicesSentAmount},${mc.invoicesPendingCount},${mc.paymentsSentAmount},${mc.paymentsPendingCount},${mc.paymentsPendingAmount},"Why are ${mc.invoicesPendingCount} invoices pending and Rs. ${Math.round(mc.paymentsPendingAmount)} uncollected for tenure ${mc.monthName}?"`);
-  });
+  addCsvCard('Domain Overview', 'All Batches', domainOverview);
+  batchNames.forEach(b => addCsvCard('Domain Overview', b, batchCards[b]));
+  sortedMonthKeys.forEach(mKey => addCsvCard('Domain Overview', monthlyCards[mKey].monthName, monthlyCards[mKey]));
 
   const csvPath = path.join(__dirname, '../public/reports/Cards_Summary_Pending_Audit.csv');
   fs.writeFileSync(csvPath, csvLines.join('\n'), 'utf8');
-  console.log(`✓ CSV Cards Summary generated: ${csvPath}`);
+  console.log(`✓ CSV Cards generated: ${csvPath}`);
 
   // -------------------------------------------------------------
-  // 3. GENERATE CARDS-ONLY EXECUTIVE PDF (.PDF)
+  // 3. GENERATE HIGH-RES PDF WITH EXACT CARD FORMAT (.PDF)
   // -------------------------------------------------------------
-  console.log('Building Cards-Only Executive PDF HTML...');
+  console.log('Building PDF with exact Domain Overview Card format...');
+
+  function renderDomainCardHtml(batchTitle, dataObj) {
+    return `
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">${batchTitle}</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">${dataObj.totalComplaints}</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">${dataObj.paymentReceived}</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">${dataObj.paymentPending}</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">${dataObj.poPending}</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">${dataObj.inprocess}</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">${dataObj.cancel}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Executive Pending Audit Cards Summary</title>
+  <title>Domain Overview Cards Summary</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;800&display=swap');
-    
+
     @page {
       size: A4 portrait;
-      margin: 12mm 12mm 14mm 12mm;
+      margin: 12mm 14mm 14mm 14mm;
       @bottom-right {
         content: "Page " counter(page) " of " counter(pages);
         font-family: 'Inter', sans-serif;
@@ -354,7 +332,7 @@ async function main() {
         color: #94a3b8;
       }
       @bottom-left {
-        content: "NEXUS OPERATIONS — Executive Cards Summary (Tenure & Batch Wise)";
+        content: "NEXUS OPERATIONS — Domain Overview Cards Summary";
         font-family: 'Inter', sans-serif;
         font-size: 8pt;
         color: #94a3b8;
@@ -363,409 +341,138 @@ async function main() {
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Inter', sans-serif;
-      font-size: 8.5pt;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 10pt;
       line-height: 1.4;
-      color: #0f172a;
+      color: #000000;
       background: #ffffff;
-      padding: 4px;
-    }
-
-    .report-header {
-      border-bottom: 2.5px solid #0f172a;
-      padding-bottom: 12px;
-      margin-bottom: 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
+      padding: 6px;
     }
 
     .report-title {
-      font-size: 18pt;
+      font-size: 16pt;
       font-weight: 800;
-      color: #0f172a;
-      letter-spacing: -0.5px;
+      color: #000000;
+      text-align: center;
+      margin-bottom: 4px;
+      letter-spacing: -0.3px;
     }
 
     .report-subtitle {
       font-size: 9pt;
-      color: #64748b;
-      margin-top: 3px;
+      color: #4b5563;
+      text-align: center;
+      margin-bottom: 24px;
     }
 
-    .section-title {
-      font-size: 11pt;
-      font-weight: 800;
-      color: #0f172a;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 12px;
+    .cards-container {
       display: flex;
+      flex-direction: column;
+      gap: 24px;
       align-items: center;
-      gap: 8px;
     }
 
-    /* 4 BIG METRIC CARDS */
-    .metric-grid {
+    .cards-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 14px;
-      margin-bottom: 24px;
+      gap: 20px;
+      width: 100%;
       page-break-inside: avoid;
     }
 
-    .metric-card {
-      background: #f8fafc;
-      border: 1.5px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 16px 18px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.03);
-    }
-
-    .card-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-
-    .card-badge {
-      font-size: 7.5pt;
-      font-weight: 700;
-      padding: 3px 8px;
-      border-radius: 4px;
-      text-transform: uppercase;
-    }
-
-    .card-label {
-      font-size: 8.5pt;
-      font-weight: 700;
-      color: #475569;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .card-primary-val {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 22pt;
-      font-weight: 800;
-      line-height: 1.1;
-      margin-bottom: 4px;
-    }
-
-    .card-secondary-val {
-      font-size: 9pt;
-      color: #64748b;
-      font-weight: 500;
-    }
-
-    /* BATCH CARDS */
-    .batch-cards-container {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 14px;
-      margin-bottom: 24px;
-      page-break-inside: avoid;
-    }
-
-    .batch-card {
+    /* EXACT CARD FORMAT FROM USER SCREENSHOT */
+    .domain-card {
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      border: 1.8px solid #000000;
       background: #ffffff;
-      border: 1.5px solid #cbd5e1;
-      border-radius: 10px;
-      padding: 14px 16px;
-      border-top: 4px solid #4f46e5;
+      page-break-inside: avoid;
     }
 
-    .batch-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-      border-bottom: 1px solid #f1f5f9;
-      padding-bottom: 8px;
-    }
-
-    .batch-title {
-      font-size: 12pt;
-      font-weight: 800;
-      color: #0f172a;
-    }
-
-    .batch-complaints {
-      font-size: 8pt;
-      font-weight: 600;
-      color: #64748b;
-    }
-
-    .batch-stats-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .mini-stat {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      padding: 8px 10px;
-    }
-
-    .mini-label {
-      font-size: 7pt;
+    .domain-card-header {
+      font-size: 15pt;
       font-weight: 700;
-      text-transform: uppercase;
-      color: #64748b;
-      margin-bottom: 2px;
+      text-align: center;
+      padding: 6px 10px;
+      border-bottom: 1.8px solid #000000;
+      color: #000000;
+      font-family: 'Times New Roman', Times, serif, 'Inter', sans-serif;
+      letter-spacing: 0.3px;
     }
 
-    .mini-val {
-      font-family: 'JetBrains Mono', monospace;
+    .domain-card-batch {
       font-size: 11pt;
       font-weight: 800;
-      color: #0f172a;
+      padding: 4px 10px;
+      border-bottom: 1.8px solid #000000;
+      color: #000000;
+      font-family: 'Times New Roman', Times, serif, 'Inter', sans-serif;
     }
 
-    .mini-sub {
-      font-size: 7pt;
-      color: #94a3b8;
-    }
-
-    .batch-inquiry-box {
-      background: #fffbeb;
-      border: 1px dashed #f59e0b;
-      border-radius: 6px;
-      padding: 8px 10px;
-      font-size: 7.5pt;
-      color: #78350f;
-    }
-
-    /* TENURE MATRIX */
-    .tenure-table {
+    .domain-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 10px;
-      page-break-inside: avoid;
     }
 
-    .tenure-table th {
-      background: #0f172a;
-      color: #ffffff;
-      font-size: 7pt;
-      font-weight: 600;
-      text-transform: uppercase;
-      padding: 6px 8px;
-      text-align: left;
+    .domain-table tr {
+      border-bottom: 1.5px solid #000000;
     }
 
-    .tenure-table td {
-      border: 1px solid #e2e8f0;
-      padding: 6px 8px;
-      font-size: 7.5pt;
+    .domain-table tr:last-child {
+      border-bottom: none;
     }
 
-    .tenure-table tr:nth-child(even) td {
-      background: #f8fafc;
+    .domain-label {
+      padding: 5px 12px;
+      font-size: 9.5pt;
+      text-align: center;
+      border-right: 1.8px solid #000000;
+      width: 68%;
+      color: #000000;
+      font-family: 'Times New Roman', Times, serif, 'Inter', sans-serif;
     }
 
-    .mono { font-family: 'JetBrains Mono', monospace; }
-    .text-right { text-align: right; }
-    .text-center { text-align: center; }
+    .domain-value {
+      padding: 5px 12px;
+      font-size: 10.5pt;
+      font-weight: 500;
+      text-align: center;
+      width: 32%;
+      color: #000000;
+      font-family: 'Times New Roman', Times, serif, 'Inter', sans-serif;
+    }
 
     .page-break { page-break-before: always; }
   </style>
 </head>
 <body>
 
-  <!-- HEADER -->
-  <div class="report-header">
-    <div>
-      <div style="font-size: 8pt; color: #4f46e5; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">
-        NEXUS OPERATIONS &bull; EXECUTIVE AUDIT CARDS
-      </div>
-      <div class="report-title">
-        Pending Invoices &amp; Payments Cards Summary
-      </div>
-      <div class="report-subtitle">
-        Tenure: <strong>All Months (January 2026 – October 2026)</strong> &bull; Grouped Strictly by <strong>Batch Names</strong>
-      </div>
-    </div>
-    <div style="text-align: right;">
-      <div style="font-size: 13pt; font-weight: 800; color: #dc2626;">${formatMoney(globalCards.totalPaymentsPendingAmount)} Due</div>
-      <div style="font-size: 7.5pt; color: #64748b;">Generated on ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-    </div>
+  <div class="report-title">NEXUS OPERATIONS &bull; DOMAIN OVERVIEW</div>
+  <div class="report-subtitle">Tenure: Full Year 2026 &bull; Performance &amp; Case Audit by Batch</div>
+
+  <!-- OVERALL DOMAIN OVERVIEW CARD -->
+  <div style="margin-bottom: 24px;">
+    ${renderDomainCardHtml('Overall Domain Overview (All Batches)', domainOverview)}
   </div>
 
-  <!-- SECTION 1: 4 EXECUTIVE OVERVIEW CARDS -->
-  <div class="section-title">📊 Executive Metric Cards (Full Tenure)</div>
-  <div class="metric-grid">
-    
-    <!-- CARD 1: INVOICES SENT -->
-    <div class="metric-card" style="border-left: 5px solid #0284c7;">
-      <div class="card-top">
-        <span class="card-label">Total Invoices Sent</span>
-        <span class="card-badge" style="background: #e0f2fe; color: #0369a1;">Dispatched</span>
-      </div>
-      <div class="card-primary-val" style="color: #0284c7;">
-        ${globalCards.totalInvoicesSentCount} <span style="font-size: 13pt; font-weight: 600;">Invoices</span>
-      </div>
-      <div class="card-secondary-val">
-        Total Billed Volume: <strong>${formatMoney(globalCards.totalInvoicesSentAmount)}</strong>
-      </div>
-    </div>
-
-    <!-- CARD 2: INVOICES PENDING -->
-    <div class="metric-card" style="border-left: 5px solid #f59e0b;">
-      <div class="card-top">
-        <span class="card-label">Total Invoices Pending</span>
-        <span class="card-badge" style="background: #fef3c7; color: #b45309;">Awaiting Billing</span>
-      </div>
-      <div class="card-primary-val" style="color: #d97706;">
-        ${globalCards.totalInvoicesPendingCount} <span style="font-size: 13pt; font-weight: 600;">Complaints</span>
-      </div>
-      <div class="card-secondary-val">
-        Sites completed but missing tax invoices / customer sign-offs
-      </div>
-    </div>
-
-    <!-- CARD 3: PAYMENTS SENT / RECEIVED -->
-    <div class="metric-card" style="border-left: 5px solid #10b981;">
-      <div class="card-top">
-        <span class="card-label">Total Payments Sent / Received</span>
-        <span class="card-badge" style="background: #dcfce7; color: #15803d;">Collected</span>
-      </div>
-      <div class="card-primary-val" style="color: #10b981;">
-        ${formatMoney(globalCards.totalPaymentsSentAmount)}
-      </div>
-      <div class="card-secondary-val">
-        Recovered via <strong>${globalCards.totalPaymentsSentCount} Transactions</strong> (Cash &amp; Tax Deductions)
-      </div>
-    </div>
-
-    <!-- CARD 4: PAYMENTS PENDING -->
-    <div class="metric-card" style="border-left: 5px solid #dc2626;">
-      <div class="card-top">
-        <span class="card-label">Total Payments Pending</span>
-        <span class="card-badge" style="background: #fee2e2; color: #991b1b;">Overdue Balance</span>
-      </div>
-      <div class="card-primary-val" style="color: #dc2626;">
-        ${formatMoney(globalCards.totalPaymentsPendingAmount)}
-      </div>
-      <div class="card-secondary-val">
-        Outstanding across <strong>${globalCards.totalPaymentsPendingCount} Complaints</strong> awaiting recovery
-      </div>
-    </div>
-
-  </div>
-
-  <!-- SECTION 2: BATCH CARDS (BATCH NAMES ONLY) -->
-  <div class="section-title">👥 Batch Performance &amp; Pending Cards</div>
-  <div class="batch-cards-container">
-    
-    ${batchNames.map(b => {
-      const c = batchCards[b];
-      const borderColor = b === 'Batch 1' ? '#3b82f6' : b === 'Batch 2' ? '#10b981' : b === 'Batch 3' ? '#f59e0b' : b === 'Batch 4' ? '#8b5cf6' : '#64748b';
-      return `
-      <div class="batch-card" style="border-top-color: ${borderColor};">
-        <div class="batch-header">
-          <div class="batch-title" style="color: ${borderColor};">${c.batchName}</div>
-          <div class="batch-complaints">${c.totalJobs} Total Complaints</div>
-        </div>
-
-        <div class="batch-stats-grid">
-          <div class="mini-stat">
-            <div class="mini-label">Invoices Sent</div>
-            <div class="mini-val" style="color: #0284c7;">${c.invoicesSentCount}</div>
-            <div class="mini-sub">${formatMoney(c.invoicesSentAmount)}</div>
-          </div>
-
-          <div class="mini-stat">
-            <div class="mini-label">Invoices Pending</div>
-            <div class="mini-val" style="color: #d97706;">${c.invoicesPendingCount}</div>
-            <div class="mini-sub">Needs Invoice</div>
-          </div>
-
-          <div class="mini-stat">
-            <div class="mini-label">Payments Received</div>
-            <div class="mini-val" style="color: #10b981;">${formatMoney(c.paymentsSentAmount)}</div>
-            <div class="mini-sub">${c.paymentsSentCount} Transactions</div>
-          </div>
-
-          <div class="mini-stat">
-            <div class="mini-label">Payments Pending</div>
-            <div class="mini-val" style="color: #dc2626;">${formatMoney(c.paymentsPendingAmount)}</div>
-            <div class="mini-sub">${c.paymentsPendingCount} Pending</div>
-          </div>
-        </div>
-
-        <div class="batch-inquiry-box">
-          <strong>Mandatory Audit Inquiry:</strong> Why does ${c.batchName} have <strong>${c.invoicesPendingCount} invoices pending</strong> and <strong>${formatMoney(c.paymentsPendingAmount)} uncollected payments</strong>?
-          <div style="margin-top: 4px; border-bottom: 1px dashed #cbd5e1; height: 12px;"></div>
-        </div>
-      </div>
-      `;
-    }).join('')}
-
+  <!-- INDIVIDUAL BATCH CARDS (2-COLUMN GRID) -->
+  <div class="cards-grid">
+    ${renderDomainCardHtml('Batch No. 01', batchCards['Batch No. 01'])}
+    ${renderDomainCardHtml('Batch No. 02', batchCards['Batch No. 02'])}
+    ${renderDomainCardHtml('Batch No. 03', batchCards['Batch No. 03'])}
+    ${renderDomainCardHtml('Batch No. 04', batchCards['Batch No. 04'])}
   </div>
 
   <div class="page-break"></div>
 
-  <!-- SECTION 3: TENURE-WISE MONTHLY CARDS MATRIX -->
-  <div class="section-title">📅 Tenure-Wise Monthly Cards Matrix (All Months)</div>
-  <table class="tenure-table">
-    <thead>
-      <tr>
-        <th>Tenure Month</th>
-        <th class="text-center">Total</th>
-        <th class="text-center">Invoices Sent</th>
-        <th class="text-right">Invoiced (PKR)</th>
-        <th class="text-center">Invoices Pending</th>
-        <th class="text-right">Recovered (PKR)</th>
-        <th class="text-center">Payments Pending</th>
-        <th class="text-right">Pending Balance (PKR)</th>
-        <th class="text-right">Batch 1 Due</th>
-        <th class="text-right">Batch 2 Due</th>
-        <th class="text-right">Batch 3 Due</th>
-        <th class="text-right">Batch 4 Due</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${sortedMonthKeys.map(mKey => {
-        const mc = monthlyCards[mKey];
-        return `
-        <tr>
-          <td style="font-weight: 700;">${mc.monthName}</td>
-          <td class="text-center mono">${mc.totalJobs}</td>
-          <td class="text-center mono" style="color: #0284c7;">${mc.invoicesSentCount}</td>
-          <td class="text-right mono">${formatMoney(mc.invoicesSentAmount)}</td>
-          <td class="text-center mono" style="color: #d97706; font-weight: 700;">${mc.invoicesPendingCount}</td>
-          <td class="text-right mono" style="color: #10b981;">${formatMoney(mc.paymentsSentAmount)}</td>
-          <td class="text-center mono" style="color: #dc2626; font-weight: 700;">${mc.paymentsPendingCount}</td>
-          <td class="text-right mono" style="font-weight: 800; color: #dc2626;">${formatMoney(mc.paymentsPendingAmount)}</td>
-          <td class="text-right mono">${formatMoney(mc.batches['Batch 1'].paymentsPendingAmount)}</td>
-          <td class="text-right mono">${formatMoney(mc.batches['Batch 2'].paymentsPendingAmount)}</td>
-          <td class="text-right mono">${formatMoney(mc.batches['Batch 3'].paymentsPendingAmount)}</td>
-          <td class="text-right mono">${formatMoney(mc.batches['Batch 4'].paymentsPendingAmount)}</td>
-        </tr>
-        `;
-      }).join('')}
-    </tbody>
-  </table>
+  <div class="report-title" style="margin-top: 10px;">TENURE-WISE DOMAIN OVERVIEW CARDS</div>
+  <div class="report-subtitle">Month-by-Month Case Status Breakdown</div>
 
-  <!-- SIGNATURE BLOCKS -->
-  <div style="display: flex; justify-content: space-between; margin-top: 36px; padding-top: 12px; border-top: 1.5px dashed #cbd5e1;">
-    <div style="width: 30%; font-size: 8pt; color: #475569;">
-      <div>Recovery Operations Sign-Off:</div>
-      <div style="border-bottom: 1px solid #475569; height: 24px; margin-top: 6px;"></div>
-    </div>
-    <div style="width: 30%; font-size: 8pt; color: #475569;">
-      <div>Internal Audit &amp; Reconciliation:</div>
-      <div style="border-bottom: 1px solid #475569; height: 24px; margin-top: 6px;"></div>
-    </div>
-    <div style="width: 30%; font-size: 8pt; color: #475569;">
-      <div>Managing Director Sign-Off:</div>
-      <div style="border-bottom: 1px solid #475569; height: 24px; margin-top: 6px;"></div>
-    </div>
+  <div class="cards-grid">
+    ${sortedMonthKeys.map(mKey => {
+      return renderDomainCardHtml(`Tenure: ${monthlyCards[mKey].monthName}`, monthlyCards[mKey]);
+    }).join('')}
   </div>
 
 </body>
@@ -775,17 +482,17 @@ async function main() {
   const pdfPath = path.join(__dirname, '../public/reports/Cards_Summary_Pending_Audit.pdf');
 
   fs.writeFileSync(htmlPath, html, 'utf8');
-  console.log(`✓ Cards HTML generated: ${htmlPath}`);
+  console.log(`✓ HTML generated: ${htmlPath}`);
 
   // Convert to PDF via headless browser
-  console.log('Converting Cards HTML to Portrait PDF...');
+  console.log('Converting HTML to PDF...');
   const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
   const edgePath = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
   const browserBin = fs.existsSync(chromePath) ? chromePath : edgePath;
   const fileUrl = `file:///${htmlPath.replace(/\\/g, '/')}`;
   const cmd = `"${browserBin}" --headless --disable-gpu --no-pdf-header-footer --print-to-pdf="${pdfPath}" "${fileUrl}"`;
   execSync(cmd, { stdio: 'inherit' });
-  console.log(`✓ Cards-Only PDF generated: ${pdfPath}`);
+  console.log(`✓ PDF generated: ${pdfPath}`);
 
   await prisma.$disconnect();
 }

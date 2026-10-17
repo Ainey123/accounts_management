@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Executive Pending Audit Cards Summary</title>
+  <title>Domain Overview Cards Summary</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;800&display=swap');
-    
+
     @page {
       size: A4 portrait;
-      margin: 12mm 12mm 14mm 12mm;
+      margin: 12mm 14mm 14mm 14mm;
       @bottom-right {
         content: "Page " counter(page) " of " counter(pages);
         font-family: 'Inter', sans-serif;
@@ -16,7 +16,7 @@
         color: #94a3b8;
       }
       @bottom-left {
-        content: "NEXUS OPERATIONS — Executive Cards Summary (Tenure & Batch Wise)";
+        content: "NEXUS OPERATIONS — Domain Overview Cards Summary";
         font-family: 'Inter', sans-serif;
         font-size: 8pt;
         color: #94a3b8;
@@ -25,689 +25,631 @@
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Inter', sans-serif;
-      font-size: 8.5pt;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 10pt;
       line-height: 1.4;
-      color: #0f172a;
+      color: #000000;
       background: #ffffff;
-      padding: 4px;
-    }
-
-    .report-header {
-      border-bottom: 2.5px solid #0f172a;
-      padding-bottom: 12px;
-      margin-bottom: 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
+      padding: 6px;
     }
 
     .report-title {
-      font-size: 18pt;
+      font-size: 16pt;
       font-weight: 800;
-      color: #0f172a;
-      letter-spacing: -0.5px;
+      color: #000000;
+      text-align: center;
+      margin-bottom: 4px;
+      letter-spacing: -0.3px;
     }
 
     .report-subtitle {
       font-size: 9pt;
-      color: #64748b;
-      margin-top: 3px;
+      color: #4b5563;
+      text-align: center;
+      margin-bottom: 24px;
     }
 
-    .section-title {
-      font-size: 11pt;
-      font-weight: 800;
-      color: #0f172a;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 12px;
+    .cards-container {
       display: flex;
+      flex-direction: column;
+      gap: 24px;
       align-items: center;
-      gap: 8px;
     }
 
-    /* 4 BIG METRIC CARDS */
-    .metric-grid {
+    .cards-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 14px;
-      margin-bottom: 24px;
+      gap: 20px;
+      width: 100%;
       page-break-inside: avoid;
     }
 
-    .metric-card {
-      background: #f8fafc;
-      border: 1.5px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 16px 18px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.03);
-    }
-
-    .card-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-
-    .card-badge {
-      font-size: 7.5pt;
-      font-weight: 700;
-      padding: 3px 8px;
-      border-radius: 4px;
-      text-transform: uppercase;
-    }
-
-    .card-label {
-      font-size: 8.5pt;
-      font-weight: 700;
-      color: #475569;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .card-primary-val {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 22pt;
-      font-weight: 800;
-      line-height: 1.1;
-      margin-bottom: 4px;
-    }
-
-    .card-secondary-val {
-      font-size: 9pt;
-      color: #64748b;
-      font-weight: 500;
-    }
-
-    /* BATCH CARDS */
-    .batch-cards-container {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 14px;
-      margin-bottom: 24px;
-      page-break-inside: avoid;
-    }
-
-    .batch-card {
+    /* EXACT CARD FORMAT FROM USER SCREENSHOT */
+    .domain-card {
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      border: 1.8px solid #000000;
       background: #ffffff;
-      border: 1.5px solid #cbd5e1;
-      border-radius: 10px;
-      padding: 14px 16px;
-      border-top: 4px solid #4f46e5;
+      page-break-inside: avoid;
     }
 
-    .batch-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-      border-bottom: 1px solid #f1f5f9;
-      padding-bottom: 8px;
-    }
-
-    .batch-title {
-      font-size: 12pt;
-      font-weight: 800;
-      color: #0f172a;
-    }
-
-    .batch-complaints {
-      font-size: 8pt;
-      font-weight: 600;
-      color: #64748b;
-    }
-
-    .batch-stats-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .mini-stat {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      padding: 8px 10px;
-    }
-
-    .mini-label {
-      font-size: 7pt;
+    .domain-card-header {
+      font-size: 15pt;
       font-weight: 700;
-      text-transform: uppercase;
-      color: #64748b;
-      margin-bottom: 2px;
+      text-align: center;
+      padding: 6px 10px;
+      border-bottom: 1.8px solid #000000;
+      color: #000000;
+      font-family: 'Times New Roman', Times, serif, 'Inter', sans-serif;
+      letter-spacing: 0.3px;
     }
 
-    .mini-val {
-      font-family: 'JetBrains Mono', monospace;
+    .domain-card-batch {
       font-size: 11pt;
       font-weight: 800;
-      color: #0f172a;
+      padding: 4px 10px;
+      border-bottom: 1.8px solid #000000;
+      color: #000000;
+      font-family: 'Times New Roman', Times, serif, 'Inter', sans-serif;
     }
 
-    .mini-sub {
-      font-size: 7pt;
-      color: #94a3b8;
-    }
-
-    .batch-inquiry-box {
-      background: #fffbeb;
-      border: 1px dashed #f59e0b;
-      border-radius: 6px;
-      padding: 8px 10px;
-      font-size: 7.5pt;
-      color: #78350f;
-    }
-
-    /* TENURE MATRIX */
-    .tenure-table {
+    .domain-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 10px;
-      page-break-inside: avoid;
     }
 
-    .tenure-table th {
-      background: #0f172a;
-      color: #ffffff;
-      font-size: 7pt;
-      font-weight: 600;
-      text-transform: uppercase;
-      padding: 6px 8px;
-      text-align: left;
+    .domain-table tr {
+      border-bottom: 1.5px solid #000000;
     }
 
-    .tenure-table td {
-      border: 1px solid #e2e8f0;
-      padding: 6px 8px;
-      font-size: 7.5pt;
+    .domain-table tr:last-child {
+      border-bottom: none;
     }
 
-    .tenure-table tr:nth-child(even) td {
-      background: #f8fafc;
+    .domain-label {
+      padding: 5px 12px;
+      font-size: 9.5pt;
+      text-align: center;
+      border-right: 1.8px solid #000000;
+      width: 68%;
+      color: #000000;
+      font-family: 'Times New Roman', Times, serif, 'Inter', sans-serif;
     }
 
-    .mono { font-family: 'JetBrains Mono', monospace; }
-    .text-right { text-align: right; }
-    .text-center { text-align: center; }
+    .domain-value {
+      padding: 5px 12px;
+      font-size: 10.5pt;
+      font-weight: 500;
+      text-align: center;
+      width: 32%;
+      color: #000000;
+      font-family: 'Times New Roman', Times, serif, 'Inter', sans-serif;
+    }
 
     .page-break { page-break-before: always; }
   </style>
 </head>
 <body>
 
-  <!-- HEADER -->
-  <div class="report-header">
-    <div>
-      <div style="font-size: 8pt; color: #4f46e5; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">
-        NEXUS OPERATIONS &bull; EXECUTIVE AUDIT CARDS
+  <div class="report-title">NEXUS OPERATIONS &bull; DOMAIN OVERVIEW</div>
+  <div class="report-subtitle">Tenure: Full Year 2026 &bull; Performance &amp; Case Audit by Batch</div>
+
+  <!-- OVERALL DOMAIN OVERVIEW CARD -->
+  <div style="margin-bottom: 24px;">
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Overall Domain Overview (All Batches)</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">904</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">69</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">274</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">307</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">118</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">136</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <div class="report-title">
-        Pending Invoices &amp; Payments Cards Summary
-      </div>
-      <div class="report-subtitle">
-        Tenure: <strong>All Months (January 2026 – October 2026)</strong> &bull; Grouped Strictly by <strong>Batch Names</strong>
-      </div>
-    </div>
-    <div style="text-align: right;">
-      <div style="font-size: 13pt; font-weight: 800; color: #dc2626;">Rs. 91,269,680 Due</div>
-      <div style="font-size: 7.5pt; color: #64748b;">Generated on Oct 17, 2026</div>
-    </div>
+    
   </div>
 
-  <!-- SECTION 1: 4 EXECUTIVE OVERVIEW CARDS -->
-  <div class="section-title">📊 Executive Metric Cards (Full Tenure)</div>
-  <div class="metric-grid">
+  <!-- INDIVIDUAL BATCH CARDS (2-COLUMN GRID) -->
+  <div class="cards-grid">
     
-    <!-- CARD 1: INVOICES SENT -->
-    <div class="metric-card" style="border-left: 5px solid #0284c7;">
-      <div class="card-top">
-        <span class="card-label">Total Invoices Sent</span>
-        <span class="card-badge" style="background: #e0f2fe; color: #0369a1;">Dispatched</span>
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Batch No. 01</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">346</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">34</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">125</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">118</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">23</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">46</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <div class="card-primary-val" style="color: #0284c7;">
-        347 <span style="font-size: 13pt; font-weight: 600;">Invoices</span>
-      </div>
-      <div class="card-secondary-val">
-        Total Billed Volume: <strong>Rs. 26,239,383</strong>
-      </div>
-    </div>
-
-    <!-- CARD 2: INVOICES PENDING -->
-    <div class="metric-card" style="border-left: 5px solid #f59e0b;">
-      <div class="card-top">
-        <span class="card-label">Total Invoices Pending</span>
-        <span class="card-badge" style="background: #fef3c7; color: #b45309;">Awaiting Billing</span>
-      </div>
-      <div class="card-primary-val" style="color: #d97706;">
-        904 <span style="font-size: 13pt; font-weight: 600;">Complaints</span>
-      </div>
-      <div class="card-secondary-val">
-        Sites completed but missing tax invoices / customer sign-offs
-      </div>
-    </div>
-
-    <!-- CARD 3: PAYMENTS SENT / RECEIVED -->
-    <div class="metric-card" style="border-left: 5px solid #10b981;">
-      <div class="card-top">
-        <span class="card-label">Total Payments Sent / Received</span>
-        <span class="card-badge" style="background: #dcfce7; color: #15803d;">Collected</span>
-      </div>
-      <div class="card-primary-val" style="color: #10b981;">
-        Rs. 9,531,350
-      </div>
-      <div class="card-secondary-val">
-        Recovered via <strong>86 Transactions</strong> (Cash &amp; Tax Deductions)
-      </div>
-    </div>
-
-    <!-- CARD 4: PAYMENTS PENDING -->
-    <div class="metric-card" style="border-left: 5px solid #dc2626;">
-      <div class="card-top">
-        <span class="card-label">Total Payments Pending</span>
-        <span class="card-badge" style="background: #fee2e2; color: #991b1b;">Overdue Balance</span>
-      </div>
-      <div class="card-primary-val" style="color: #dc2626;">
-        Rs. 91,269,680
-      </div>
-      <div class="card-secondary-val">
-        Outstanding across <strong>860 Complaints</strong> awaiting recovery
-      </div>
-    </div>
-
-  </div>
-
-  <!-- SECTION 2: BATCH CARDS (BATCH NAMES ONLY) -->
-  <div class="section-title">👥 Batch Performance &amp; Pending Cards</div>
-  <div class="batch-cards-container">
     
     
-      <div class="batch-card" style="border-top-color: #3b82f6;">
-        <div class="batch-header">
-          <div class="batch-title" style="color: #3b82f6;">Batch 1</div>
-          <div class="batch-complaints">346 Total Complaints</div>
-        </div>
-
-        <div class="batch-stats-grid">
-          <div class="mini-stat">
-            <div class="mini-label">Invoices Sent</div>
-            <div class="mini-val" style="color: #0284c7;">161</div>
-            <div class="mini-sub">Rs. 10,585,889</div>
-          </div>
-
-          <div class="mini-stat">
-            <div class="mini-label">Invoices Pending</div>
-            <div class="mini-val" style="color: #d97706;">346</div>
-            <div class="mini-sub">Needs Invoice</div>
-          </div>
-
-          <div class="mini-stat">
-            <div class="mini-label">Payments Received</div>
-            <div class="mini-val" style="color: #10b981;">Rs. 5,379,555</div>
-            <div class="mini-sub">39 Transactions</div>
-          </div>
-
-          <div class="mini-stat">
-            <div class="mini-label">Payments Pending</div>
-            <div class="mini-val" style="color: #dc2626;">Rs. 41,000,574</div>
-            <div class="mini-sub">327 Pending</div>
-          </div>
-        </div>
-
-        <div class="batch-inquiry-box">
-          <strong>Mandatory Audit Inquiry:</strong> Why does Batch 1 have <strong>346 invoices pending</strong> and <strong>Rs. 41,000,574 uncollected payments</strong>?
-          <div style="margin-top: 4px; border-bottom: 1px dashed #cbd5e1; height: 12px;"></div>
-        </div>
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Batch No. 02</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">296</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">20</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">74</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">106</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">41</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">55</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      
-      <div class="batch-card" style="border-top-color: #10b981;">
-        <div class="batch-header">
-          <div class="batch-title" style="color: #10b981;">Batch 2</div>
-          <div class="batch-complaints">296 Total Complaints</div>
-        </div>
-
-        <div class="batch-stats-grid">
-          <div class="mini-stat">
-            <div class="mini-label">Invoices Sent</div>
-            <div class="mini-val" style="color: #0284c7;">96</div>
-            <div class="mini-sub">Rs. 7,883,010</div>
-          </div>
-
-          <div class="mini-stat">
-            <div class="mini-label">Invoices Pending</div>
-            <div class="mini-val" style="color: #d97706;">296</div>
-            <div class="mini-sub">Needs Invoice</div>
-          </div>
-
-          <div class="mini-stat">
-            <div class="mini-label">Payments Received</div>
-            <div class="mini-val" style="color: #10b981;">Rs. 2,226,095</div>
-            <div class="mini-sub">27 Transactions</div>
-          </div>
-
-          <div class="mini-stat">
-            <div class="mini-label">Payments Pending</div>
-            <div class="mini-val" style="color: #dc2626;">Rs. 32,358,097</div>
-            <div class="mini-sub">283 Pending</div>
-          </div>
-        </div>
-
-        <div class="batch-inquiry-box">
-          <strong>Mandatory Audit Inquiry:</strong> Why does Batch 2 have <strong>296 invoices pending</strong> and <strong>Rs. 32,358,097 uncollected payments</strong>?
-          <div style="margin-top: 4px; border-bottom: 1px dashed #cbd5e1; height: 12px;"></div>
-        </div>
+    
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Batch No. 03</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">155</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">2</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">42</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">56</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">33</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">22</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      
-      <div class="batch-card" style="border-top-color: #f59e0b;">
-        <div class="batch-header">
-          <div class="batch-title" style="color: #f59e0b;">Batch 3</div>
-          <div class="batch-complaints">155 Total Complaints</div>
-        </div>
-
-        <div class="batch-stats-grid">
-          <div class="mini-stat">
-            <div class="mini-label">Invoices Sent</div>
-            <div class="mini-val" style="color: #0284c7;">44</div>
-            <div class="mini-sub">Rs. 2,800,994</div>
-          </div>
-
-          <div class="mini-stat">
-            <div class="mini-label">Invoices Pending</div>
-            <div class="mini-val" style="color: #d97706;">155</div>
-            <div class="mini-sub">Needs Invoice</div>
-          </div>
-
-          <div class="mini-stat">
-            <div class="mini-label">Payments Received</div>
-            <div class="mini-val" style="color: #10b981;">Rs. 611,925</div>
-            <div class="mini-sub">2 Transactions</div>
-          </div>
-
-          <div class="mini-stat">
-            <div class="mini-label">Payments Pending</div>
-            <div class="mini-val" style="color: #dc2626;">Rs. 12,135,354</div>
-            <div class="mini-sub">153 Pending</div>
-          </div>
-        </div>
-
-        <div class="batch-inquiry-box">
-          <strong>Mandatory Audit Inquiry:</strong> Why does Batch 3 have <strong>155 invoices pending</strong> and <strong>Rs. 12,135,354 uncollected payments</strong>?
-          <div style="margin-top: 4px; border-bottom: 1px dashed #cbd5e1; height: 12px;"></div>
-        </div>
+    
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Batch No. 04</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">99</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">13</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">31</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">25</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">17</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">13</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      
-      <div class="batch-card" style="border-top-color: #8b5cf6;">
-        <div class="batch-header">
-          <div class="batch-title" style="color: #8b5cf6;">Batch 4</div>
-          <div class="batch-complaints">99 Total Complaints</div>
-        </div>
-
-        <div class="batch-stats-grid">
-          <div class="mini-stat">
-            <div class="mini-label">Invoices Sent</div>
-            <div class="mini-val" style="color: #0284c7;">45</div>
-            <div class="mini-sub">Rs. 4,964,490</div>
-          </div>
-
-          <div class="mini-stat">
-            <div class="mini-label">Invoices Pending</div>
-            <div class="mini-val" style="color: #d97706;">99</div>
-            <div class="mini-sub">Needs Invoice</div>
-          </div>
-
-          <div class="mini-stat">
-            <div class="mini-label">Payments Received</div>
-            <div class="mini-val" style="color: #10b981;">Rs. 1,313,775</div>
-            <div class="mini-sub">18 Transactions</div>
-          </div>
-
-          <div class="mini-stat">
-            <div class="mini-label">Payments Pending</div>
-            <div class="mini-val" style="color: #dc2626;">Rs. 5,475,995</div>
-            <div class="mini-sub">89 Pending</div>
-          </div>
-        </div>
-
-        <div class="batch-inquiry-box">
-          <strong>Mandatory Audit Inquiry:</strong> Why does Batch 4 have <strong>99 invoices pending</strong> and <strong>Rs. 5,475,995 uncollected payments</strong>?
-          <div style="margin-top: 4px; border-bottom: 1px dashed #cbd5e1; height: 12px;"></div>
-        </div>
-      </div>
-      
-      <div class="batch-card" style="border-top-color: #64748b;">
-        <div class="batch-header">
-          <div class="batch-title" style="color: #64748b;">Unassigned / Office</div>
-          <div class="batch-complaints">8 Total Complaints</div>
-        </div>
-
-        <div class="batch-stats-grid">
-          <div class="mini-stat">
-            <div class="mini-label">Invoices Sent</div>
-            <div class="mini-val" style="color: #0284c7;">1</div>
-            <div class="mini-sub">Rs. 5,000</div>
-          </div>
-
-          <div class="mini-stat">
-            <div class="mini-label">Invoices Pending</div>
-            <div class="mini-val" style="color: #d97706;">8</div>
-            <div class="mini-sub">Needs Invoice</div>
-          </div>
-
-          <div class="mini-stat">
-            <div class="mini-label">Payments Received</div>
-            <div class="mini-val" style="color: #10b981;">Rs. 0</div>
-            <div class="mini-sub">0 Transactions</div>
-          </div>
-
-          <div class="mini-stat">
-            <div class="mini-label">Payments Pending</div>
-            <div class="mini-val" style="color: #dc2626;">Rs. 299,660</div>
-            <div class="mini-sub">8 Pending</div>
-          </div>
-        </div>
-
-        <div class="batch-inquiry-box">
-          <strong>Mandatory Audit Inquiry:</strong> Why does Unassigned / Office have <strong>8 invoices pending</strong> and <strong>Rs. 299,660 uncollected payments</strong>?
-          <div style="margin-top: 4px; border-bottom: 1px dashed #cbd5e1; height: 12px;"></div>
-        </div>
-      </div>
-      
-
+    
   </div>
 
   <div class="page-break"></div>
 
-  <!-- SECTION 3: TENURE-WISE MONTHLY CARDS MATRIX -->
-  <div class="section-title">📅 Tenure-Wise Monthly Cards Matrix (All Months)</div>
-  <table class="tenure-table">
-    <thead>
-      <tr>
-        <th>Tenure Month</th>
-        <th class="text-center">Total</th>
-        <th class="text-center">Invoices Sent</th>
-        <th class="text-right">Invoiced (PKR)</th>
-        <th class="text-center">Invoices Pending</th>
-        <th class="text-right">Recovered (PKR)</th>
-        <th class="text-center">Payments Pending</th>
-        <th class="text-right">Pending Balance (PKR)</th>
-        <th class="text-right">Batch 1 Due</th>
-        <th class="text-right">Batch 2 Due</th>
-        <th class="text-right">Batch 3 Due</th>
-        <th class="text-right">Batch 4 Due</th>
-      </tr>
-    </thead>
-    <tbody>
-      
-        <tr>
-          <td style="font-weight: 700;">January 2026</td>
-          <td class="text-center mono">102</td>
-          <td class="text-center mono" style="color: #0284c7;">49</td>
-          <td class="text-right mono">Rs. 4,146,535</td>
-          <td class="text-center mono" style="color: #d97706; font-weight: 700;">102</td>
-          <td class="text-right mono" style="color: #10b981;">Rs. 2,626,413</td>
-          <td class="text-center mono" style="color: #dc2626; font-weight: 700;">93</td>
-          <td class="text-right mono" style="font-weight: 800; color: #dc2626;">Rs. 12,453,724</td>
-          <td class="text-right mono">Rs. 5,567,353</td>
-          <td class="text-right mono">Rs. 4,978,720</td>
-          <td class="text-right mono">Rs. 1,478,531</td>
-          <td class="text-right mono">Rs. 429,120</td>
-        </tr>
-        
-        <tr>
-          <td style="font-weight: 700;">February 2026</td>
-          <td class="text-center mono">71</td>
-          <td class="text-center mono" style="color: #0284c7;">27</td>
-          <td class="text-right mono">Rs. 1,289,854</td>
-          <td class="text-center mono" style="color: #d97706; font-weight: 700;">71</td>
-          <td class="text-right mono" style="color: #10b981;">Rs. 200,185</td>
-          <td class="text-center mono" style="color: #dc2626; font-weight: 700;">69</td>
-          <td class="text-right mono" style="font-weight: 800; color: #dc2626;">Rs. 6,556,937</td>
-          <td class="text-right mono">Rs. 4,471,422</td>
-          <td class="text-right mono">Rs. 1,979,020</td>
-          <td class="text-right mono">Rs. 0</td>
-          <td class="text-right mono">Rs. 106,495</td>
-        </tr>
-        
-        <tr>
-          <td style="font-weight: 700;">March 2026</td>
-          <td class="text-center mono">74</td>
-          <td class="text-center mono" style="color: #0284c7;">47</td>
-          <td class="text-right mono">Rs. 2,412,373</td>
-          <td class="text-center mono" style="color: #d97706; font-weight: 700;">74</td>
-          <td class="text-right mono" style="color: #10b981;">Rs. 1,165,575</td>
-          <td class="text-center mono" style="color: #dc2626; font-weight: 700;">67</td>
-          <td class="text-right mono" style="font-weight: 800; color: #dc2626;">Rs. 3,204,953</td>
-          <td class="text-right mono">Rs. 2,561,543</td>
-          <td class="text-right mono">Rs. 140,090</td>
-          <td class="text-right mono">Rs. 0</td>
-          <td class="text-right mono">Rs. 503,320</td>
-        </tr>
-        
-        <tr>
-          <td style="font-weight: 700;">April 2026</td>
-          <td class="text-center mono">91</td>
-          <td class="text-center mono" style="color: #0284c7;">44</td>
-          <td class="text-right mono">Rs. 3,406,339</td>
-          <td class="text-center mono" style="color: #d97706; font-weight: 700;">91</td>
-          <td class="text-right mono" style="color: #10b981;">Rs. 65,890</td>
-          <td class="text-center mono" style="color: #dc2626; font-weight: 700;">89</td>
-          <td class="text-right mono" style="font-weight: 800; color: #dc2626;">Rs. 8,765,398</td>
-          <td class="text-right mono">Rs. 5,119,338</td>
-          <td class="text-right mono">Rs. 949,420</td>
-          <td class="text-right mono">Rs. 327,500</td>
-          <td class="text-right mono">Rs. 2,369,140</td>
-        </tr>
-        
-        <tr>
-          <td style="font-weight: 700;">May 2026</td>
-          <td class="text-center mono">63</td>
-          <td class="text-center mono" style="color: #0284c7;">28</td>
-          <td class="text-right mono">Rs. 3,699,990</td>
-          <td class="text-center mono" style="color: #d97706; font-weight: 700;">63</td>
-          <td class="text-right mono" style="color: #10b981;">Rs. 3,199,604</td>
-          <td class="text-center mono" style="color: #dc2626; font-weight: 700;">59</td>
-          <td class="text-right mono" style="font-weight: 800; color: #dc2626;">Rs. 5,317,160</td>
-          <td class="text-right mono">Rs. 1,720,116</td>
-          <td class="text-right mono">Rs. 1,090,760</td>
-          <td class="text-right mono">Rs. 2,175,434</td>
-          <td class="text-right mono">Rs. 325,850</td>
-        </tr>
-        
-        <tr>
-          <td style="font-weight: 700;">June 2026</td>
-          <td class="text-center mono">147</td>
-          <td class="text-center mono" style="color: #0284c7;">60</td>
-          <td class="text-right mono">Rs. 4,329,353</td>
-          <td class="text-center mono" style="color: #d97706; font-weight: 700;">147</td>
-          <td class="text-right mono" style="color: #10b981;">Rs. 380,530</td>
-          <td class="text-center mono" style="color: #dc2626; font-weight: 700;">146</td>
-          <td class="text-right mono" style="font-weight: 800; color: #dc2626;">Rs. 14,825,918</td>
-          <td class="text-right mono">Rs. 64,090</td>
-          <td class="text-right mono">Rs. 12,211,858</td>
-          <td class="text-right mono">Rs. 2,536,970</td>
-          <td class="text-right mono">Rs. 0</td>
-        </tr>
-        
-        <tr>
-          <td style="font-weight: 700;">July 2026</td>
-          <td class="text-center mono">193</td>
-          <td class="text-center mono" style="color: #0284c7;">80</td>
-          <td class="text-right mono">Rs. 5,544,331</td>
-          <td class="text-center mono" style="color: #d97706; font-weight: 700;">193</td>
-          <td class="text-right mono" style="color: #10b981;">Rs. 1,893,153</td>
-          <td class="text-center mono" style="color: #dc2626; font-weight: 700;">174</td>
-          <td class="text-right mono" style="font-weight: 800; color: #dc2626;">Rs. 28,408,378</td>
-          <td class="text-right mono">Rs. 13,890,630</td>
-          <td class="text-right mono">Rs. 8,876,504</td>
-          <td class="text-right mono">Rs. 4,882,294</td>
-          <td class="text-right mono">Rs. 477,290</td>
-        </tr>
-        
-        <tr>
-          <td style="font-weight: 700;">August 2026</td>
-          <td class="text-center mono">63</td>
-          <td class="text-center mono" style="color: #0284c7;">11</td>
-          <td class="text-right mono">Rs. 1,332,688</td>
-          <td class="text-center mono" style="color: #d97706; font-weight: 700;">63</td>
-          <td class="text-right mono" style="color: #10b981;">Rs. 0</td>
-          <td class="text-center mono" style="color: #dc2626; font-weight: 700;">63</td>
-          <td class="text-right mono" style="font-weight: 800; color: #dc2626;">Rs. 4,094,553</td>
-          <td class="text-right mono">Rs. 2,102,820</td>
-          <td class="text-right mono">Rs. 878,558</td>
-          <td class="text-right mono">Rs. 340,655</td>
-          <td class="text-right mono">Rs. 772,520</td>
-        </tr>
-        
-        <tr>
-          <td style="font-weight: 700;">September 2026</td>
-          <td class="text-center mono">66</td>
-          <td class="text-center mono" style="color: #0284c7;">1</td>
-          <td class="text-right mono">Rs. 77,920</td>
-          <td class="text-center mono" style="color: #d97706; font-weight: 700;">66</td>
-          <td class="text-right mono" style="color: #10b981;">Rs. 0</td>
-          <td class="text-center mono" style="color: #dc2626; font-weight: 700;">66</td>
-          <td class="text-right mono" style="font-weight: 800; color: #dc2626;">Rs. 7,038,517</td>
-          <td class="text-right mono">Rs. 5,149,152</td>
-          <td class="text-right mono">Rs. 1,035,635</td>
-          <td class="text-right mono">Rs. 393,970</td>
-          <td class="text-right mono">Rs. 459,760</td>
-        </tr>
-        
-        <tr>
-          <td style="font-weight: 700;">October 2026</td>
-          <td class="text-center mono">34</td>
-          <td class="text-center mono" style="color: #0284c7;">0</td>
-          <td class="text-right mono">Rs. 0</td>
-          <td class="text-center mono" style="color: #d97706; font-weight: 700;">34</td>
-          <td class="text-right mono" style="color: #10b981;">Rs. 0</td>
-          <td class="text-center mono" style="color: #dc2626; font-weight: 700;">34</td>
-          <td class="text-right mono" style="font-weight: 800; color: #dc2626;">Rs. 604,142</td>
-          <td class="text-right mono">Rs. 354,110</td>
-          <td class="text-right mono">Rs. 217,532</td>
-          <td class="text-right mono">Rs. 0</td>
-          <td class="text-right mono">Rs. 32,500</td>
-        </tr>
-        
-    </tbody>
-  </table>
+  <div class="report-title" style="margin-top: 10px;">TENURE-WISE DOMAIN OVERVIEW CARDS</div>
+  <div class="report-subtitle">Month-by-Month Case Status Breakdown</div>
 
-  <!-- SIGNATURE BLOCKS -->
-  <div style="display: flex; justify-content: space-between; margin-top: 36px; padding-top: 12px; border-top: 1.5px dashed #cbd5e1;">
-    <div style="width: 30%; font-size: 8pt; color: #475569;">
-      <div>Recovery Operations Sign-Off:</div>
-      <div style="border-bottom: 1px solid #475569; height: 24px; margin-top: 6px;"></div>
-    </div>
-    <div style="width: 30%; font-size: 8pt; color: #475569;">
-      <div>Internal Audit &amp; Reconciliation:</div>
-      <div style="border-bottom: 1px solid #475569; height: 24px; margin-top: 6px;"></div>
-    </div>
-    <div style="width: 30%; font-size: 8pt; color: #475569;">
-      <div>Managing Director Sign-Off:</div>
-      <div style="border-bottom: 1px solid #475569; height: 24px; margin-top: 6px;"></div>
-    </div>
+  <div class="cards-grid">
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: January 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">102</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">22</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">27</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">31</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">15</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">7</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: February 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">71</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">4</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">22</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">26</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">4</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">15</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: March 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">74</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">8</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">37</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">18</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">3</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">8</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: April 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">91</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">2</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">42</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">22</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">5</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">20</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: May 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">63</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">6</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">22</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">20</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">7</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">8</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: June 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">147</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">2</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">57</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">35</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">23</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">30</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: July 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">193</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">25</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">55</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">47</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">28</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">38</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: August 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">63</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">0</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">11</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">42</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">6</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">4</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: September 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">66</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">0</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">1</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">49</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">13</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">3</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: October 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">34</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">0</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">0</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">17</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">14</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">3</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
   </div>
 
 </body>

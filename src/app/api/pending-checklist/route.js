@@ -17,13 +17,13 @@ const MONTH_NAMES = {
 };
 
 function mapToBatchName(name) {
-  if (!name) return 'Unassigned / Office';
+  if (!name) return 'Unassigned';
   const l = name.toLowerCase().trim();
-  if (l.includes('rizwan') || l.includes('ali shehzad') || l.includes('ali shezad') || l.includes('batch 1')) return 'Batch 1';
-  if (l.includes('ibrahim') || l.includes('batch 2')) return 'Batch 2';
-  if (l.includes('shahzaib') || l.includes('shah zaib') || l.includes('batch 3')) return 'Batch 3';
-  if (l.includes('sermad') || l.includes('sarmad') || l.includes('batch 4')) return 'Batch 4';
-  return 'Unassigned / Office';
+  if (l.includes('rizwan') || l.includes('ali shehzad') || l.includes('ali shezad') || l.includes('batch 1')) return 'Batch No. 01';
+  if (l.includes('ibrahim') || l.includes('batch 2')) return 'Batch No. 02';
+  if (l.includes('shahzaib') || l.includes('shah zaib') || l.includes('batch 3')) return 'Batch No. 03';
+  if (l.includes('sermad') || l.includes('sarmad') || l.includes('batch 4')) return 'Batch No. 04';
+  return 'Unassigned';
 }
 
 function parseLineItemsTotal(lineItems) {
@@ -40,72 +40,59 @@ function parseLineItemsTotal(lineItems) {
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const tenureFilter = searchParams.get('tenure') || searchParams.get('month') || 'all'; // 'all' or '2026-01', etc.
+    const tenureFilter = searchParams.get('tenure') || searchParams.get('month') || 'all';
     const batchFilter = searchParams.get('batch') || 'all';
     const fromDateParam = searchParams.get('fromDate');
     const toDateParam = searchParams.get('toDate');
 
     const jobs = await withDbRetry(async () => {
       return await prisma.jobMetadata.findMany({
-        select: {
-          id: true,
-          manualEnteredBy: true,
-          createdAt: true,
-          paymentProgress: true,
-          paymentStatus: true,
-          ticket: {
-            select: {
-              id: true,
-              serialNo: true,
-              exactDate: true,
-              statusLastChangedBy: true,
-            }
-          },
-          assignedEmployee: { select: { employeeName: true } },
-          createdBy: { select: { employeeName: true } },
-          quotationInvoices: {
-            select: {
-              id: true,
-              documentType: true,
-              status: true,
-              lineItems: true,
-            }
-          },
-          payments: {
-            select: {
-              id: true,
-              amount: true,
-              taxDeducted: true,
-            }
-          }
+        include: {
+          ticket: true,
+          assignedEmployee: true,
+          createdBy: true,
+          quotationInvoices: true,
+          payments: true,
+          workCompletion: true,
+          bankApproval: true,
         },
         orderBy: { createdAt: 'asc' }
       });
     });
 
-    const batchNames = ['Batch 1', 'Batch 2', 'Batch 3', 'Batch 4', 'Unassigned / Office'];
-    
-    // Overall Cards Container
-    const overallCards = {
-      totalJobs: 0,
-      invoicesSent: { count: 0, amount: 0 },
-      invoicesPending: { count: 0, amount: 0 },
-      paymentsSent: { count: 0, amount: 0 },
-      paymentsPending: { count: 0, amount: 0 },
-      recoveryRate: '0.0'
+    const batchNames = ['Batch No. 01', 'Batch No. 02', 'Batch No. 03', 'Batch No. 04', 'Unassigned'];
+
+    // Overall Domain Overview Card
+    const domainOverview = {
+      cardTitle: 'Domain Overview',
+      batchName: 'Overall (All Batches)',
+      totalComplaints: 0,
+      paymentReceivedCases: 0,
+      paymentPendingCases: 0,
+      poPendingCases: 0,
+      inprocessCases: 0,
+      cancelCases: 0,
+      totalInvoicesSent: { count: 0, amount: 0 },
+      totalPaymentsReceived: { count: 0, amount: 0 },
+      totalPendingBalance: 0,
     };
 
     // Batch Cards Map
     const batchCardsMap = {};
     batchNames.forEach(b => {
       batchCardsMap[b] = {
+        cardTitle: 'Domain Overview',
         batchName: b,
-        totalJobs: 0,
-        invoicesSent: { count: 0, amount: 0 },
-        invoicesPending: { count: 0, amount: 0 },
-        paymentsSent: { count: 0, amount: 0 },
-        paymentsPending: { count: 0, amount: 0 },
-        sampleSerials: []
+        totalComplaints: 0,
+        paymentReceivedCases: 0,
+        paymentPendingCases: 0,
+        poPendingCases: 0,
+        inprocessCases: 0,
+        cancelCases: 0,
+        totalInvoicesSent: { count: 0, amount: 0 },
+        totalPaymentsReceived: { count: 0, amount: 0 },
+        totalPendingBalance: 0,
+        inquiryQuestion: `Why are payment pending, PO pending, or inprocess cases delayed for ${b}?`
       };
     });
 
@@ -121,11 +108,17 @@ export async function GET(request) {
         tenureCardsMap[mKey] = {
           tenureKey: mKey,
           tenureName: MONTH_NAMES[mKey] || mKey,
-          totalJobs: 0,
-          invoicesSent: { count: 0, amount: 0 },
-          invoicesPending: { count: 0, amount: 0 },
-          paymentsSent: { count: 0, amount: 0 },
-          paymentsPending: { count: 0, amount: 0 },
+          cardTitle: 'Domain Overview',
+          batchName: `Tenure: ${MONTH_NAMES[mKey] || mKey}`,
+          totalComplaints: 0,
+          paymentReceivedCases: 0,
+          paymentPendingCases: 0,
+          poPendingCases: 0,
+          inprocessCases: 0,
+          cancelCases: 0,
+          totalInvoicesSent: { count: 0, amount: 0 },
+          totalPaymentsReceived: { count: 0, amount: 0 },
+          totalPendingBalance: 0,
         };
       }
 
@@ -143,7 +136,7 @@ export async function GET(request) {
         if (dateObj > new Date(toDateParam + 'T23:59:59.999Z')) matchesTenure = false;
       }
 
-      // Check batch mapping
+      // Check batch
       const rawEmp = j.ticket?.statusLastChangedBy || j.assignedEmployee?.employeeName || j.manualEnteredBy || j.createdBy?.employeeName;
       const bName = mapToBatchName(rawEmp);
 
@@ -164,103 +157,89 @@ export async function GET(request) {
       const baseAmount = totalInvoice > 0 ? totalInvoice : totalQuotation;
       const balanceDue = Math.max(0, baseAmount - grossPayment);
 
-      const hasApprovedInvoice = invoices.some(i => i.status === 'APPROVED' || i.status === 'PAID');
-      const isInvoicePending = invoices.length === 0 || !hasApprovedInvoice;
-      const isPaymentPending = (j.paymentStatus !== 'PAID') || balanceDue > 0;
+      const isCancel = j.ticket?.status === 'CANCELLED' || j.workCompletion?.status === 'CANCELLED';
+      const isPaymentCleared = (j.paymentStatus === 'PAID' || j.paymentStatus === 'CLEARED' || (j.paymentProgress || 0) >= 100) || (baseAmount > 0 && balanceDue <= 0 && grossPayment > 0);
+      const hasPO = invoices.some(i => i.poNumber && i.poNumber.trim()) || quotations.some(q => q.poNumber && q.poNumber.trim());
 
-      // Always populate monthly overview cards
-      tc.totalJobs++;
+      // Update Tenure Overview Card
+      tc.totalComplaints++;
       if (invoices.length > 0) {
-        tc.invoicesSent.count += invoices.length;
-        tc.invoicesSent.amount += totalInvoice;
-      }
-      if (isInvoicePending) {
-        tc.invoicesPending.count++;
-        tc.invoicesPending.amount += (totalInvoice === 0 ? totalQuotation : 0);
+        tc.totalInvoicesSent.count += invoices.length;
+        tc.totalInvoicesSent.amount += totalInvoice;
       }
       if (grossPayment > 0) {
-        tc.paymentsSent.count += (j.payments || []).length || 1;
-        tc.paymentsSent.amount += grossPayment;
+        tc.totalPaymentsReceived.count += (j.payments || []).length || 1;
+        tc.totalPaymentsReceived.amount += grossPayment;
       }
-      if (isPaymentPending) {
-        tc.paymentsPending.count++;
-        tc.paymentsPending.amount += balanceDue;
+      tc.totalPendingBalance += balanceDue;
+
+      if (isCancel) {
+        tc.cancelCases++;
+      } else if (isPaymentCleared) {
+        tc.paymentReceivedCases++;
+      } else if (invoices.length > 0 || (j.payments || []).length > 0 || j.paymentStatus === 'PARTIAL') {
+        tc.paymentPendingCases++;
+      } else if (!hasPO && quotations.length > 0) {
+        tc.poPendingCases++;
+      } else {
+        tc.inprocessCases++;
       }
 
-      // If matches active tenure & batch filter, aggregate into overallCards & batchCardsMap
+      // If matches active tenure filter, update batchCardsMap & domainOverview
       if (matchesTenure) {
-        const bc = batchCardsMap[bName];
-        bc.totalJobs++;
-
+        const bc = batchCardsMap[bName] || batchCardsMap['Unassigned'];
+        bc.totalComplaints++;
         if (invoices.length > 0) {
-          bc.invoicesSent.count += invoices.length;
-          bc.invoicesSent.amount += totalInvoice;
-        }
-        if (isInvoicePending) {
-          bc.invoicesPending.count++;
-          bc.invoicesPending.amount += (totalInvoice === 0 ? totalQuotation : 0);
+          bc.totalInvoicesSent.count += invoices.length;
+          bc.totalInvoicesSent.amount += totalInvoice;
         }
         if (grossPayment > 0) {
-          bc.paymentsSent.count += (j.payments || []).length || 1;
-          bc.paymentsSent.amount += grossPayment;
+          bc.totalPaymentsReceived.count += (j.payments || []).length || 1;
+          bc.totalPaymentsReceived.amount += grossPayment;
         }
-        if (isPaymentPending) {
-          bc.paymentsPending.count++;
-          bc.paymentsPending.amount += balanceDue;
-        }
-        if (bc.sampleSerials.length < 5 && j.ticket?.serialNo) {
-          bc.sampleSerials.push(j.ticket.serialNo);
+        bc.totalPendingBalance += balanceDue;
+
+        if (isCancel) {
+          bc.cancelCases++;
+        } else if (isPaymentCleared) {
+          bc.paymentReceivedCases++;
+        } else if (invoices.length > 0 || (j.payments || []).length > 0 || j.paymentStatus === 'PARTIAL') {
+          bc.paymentPendingCases++;
+        } else if (!hasPO && quotations.length > 0) {
+          bc.poPendingCases++;
+        } else {
+          bc.inprocessCases++;
         }
 
         if (matchesBatch) {
-          overallCards.totalJobs++;
+          domainOverview.totalComplaints++;
           if (invoices.length > 0) {
-            overallCards.invoicesSent.count += invoices.length;
-            overallCards.invoicesSent.amount += totalInvoice;
-          }
-          if (isInvoicePending) {
-            overallCards.invoicesPending.count++;
-            overallCards.invoicesPending.amount += (totalInvoice === 0 ? totalQuotation : 0);
+            domainOverview.totalInvoicesSent.count += invoices.length;
+            domainOverview.totalInvoicesSent.amount += totalInvoice;
           }
           if (grossPayment > 0) {
-            overallCards.paymentsSent.count += (j.payments || []).length || 1;
-            overallCards.paymentsSent.amount += grossPayment;
+            domainOverview.totalPaymentsReceived.count += (j.payments || []).length || 1;
+            domainOverview.totalPaymentsReceived.amount += grossPayment;
           }
-          if (isPaymentPending) {
-            overallCards.paymentsPending.count++;
-            overallCards.paymentsPending.amount += balanceDue;
+          domainOverview.totalPendingBalance += balanceDue;
+
+          if (isCancel) {
+            domainOverview.cancelCases++;
+          } else if (isPaymentCleared) {
+            domainOverview.paymentReceivedCases++;
+          } else if (invoices.length > 0 || (j.payments || []).length > 0 || j.paymentStatus === 'PARTIAL') {
+            domainOverview.paymentPendingCases++;
+          } else if (!hasPO && quotations.length > 0) {
+            domainOverview.poPendingCases++;
+          } else {
+            domainOverview.inprocessCases++;
           }
         }
       }
     }
 
-    if (overallCards.invoicesSent.amount > 0) {
-      overallCards.recoveryRate = ((overallCards.paymentsSent.amount / overallCards.invoicesSent.amount) * 100).toFixed(1);
-    }
-
-    // Format Batch Cards Array with inquiry prompts
-    const batchCards = batchNames.map(b => {
-      const card = batchCardsMap[b];
-      return {
-        ...card,
-        invoicesSent: { count: card.invoicesSent.count, amount: Math.round(card.invoicesSent.amount) },
-        invoicesPending: { count: card.invoicesPending.count, amount: Math.round(card.invoicesPending.amount) },
-        paymentsSent: { count: card.paymentsSent.count, amount: Math.round(card.paymentsSent.amount) },
-        paymentsPending: { count: card.paymentsPending.count, amount: Math.round(card.paymentsPending.amount) },
-        inquiryQuestion: `Why does ${card.batchName} have ${card.invoicesPending.count} invoices pending and Rs. ${Math.round(card.paymentsPending.amount).toLocaleString()} payments uncollected for this tenure?`
-      };
-    });
-
-    const tenureCards = Object.keys(tenureCardsMap).sort().map(k => {
-      const tc = tenureCardsMap[k];
-      return {
-        ...tc,
-        invoicesSent: { count: tc.invoicesSent.count, amount: Math.round(tc.invoicesSent.amount) },
-        invoicesPending: { count: tc.invoicesPending.count, amount: Math.round(tc.invoicesPending.amount) },
-        paymentsSent: { count: tc.paymentsSent.count, amount: Math.round(tc.paymentsSent.amount) },
-        paymentsPending: { count: tc.paymentsPending.count, amount: Math.round(tc.paymentsPending.amount) },
-      };
-    });
+    const batchCards = batchNames.map(b => batchCardsMap[b]);
+    const tenureCards = Object.keys(tenureCardsMap).sort().map(k => tenureCardsMap[k]);
 
     return NextResponse.json({
       success: true,
@@ -268,28 +247,19 @@ export async function GET(request) {
       activeBatch: batchFilter,
       tenureOptions: Object.keys(tenureCardsMap).sort().map(k => ({ key: k, name: MONTH_NAMES[k] || k })),
       batchOptions: batchNames,
-      overallCards: {
-        totalJobs: overallCards.totalJobs,
-        invoicesSent: { count: overallCards.invoicesSent.count, amount: Math.round(overallCards.invoicesSent.amount) },
-        invoicesPending: { count: overallCards.invoicesPending.count, amount: Math.round(overallCards.invoicesPending.amount) },
-        paymentsSent: { count: overallCards.paymentsSent.count, amount: Math.round(overallCards.paymentsSent.amount) },
-        paymentsPending: { count: overallCards.paymentsPending.count, amount: Math.round(overallCards.paymentsPending.amount) },
-        recoveryRate: `${overallCards.recoveryRate}%`
-      },
+      domainOverview,
       batchCards,
       tenureCards,
       downloadUrls: {
         cardsPdf: '/reports/Cards_Summary_Pending_Audit.pdf',
         cardsXlsx: '/reports/Cards_Summary_Pending_Audit.xlsx',
         cardsCsv: '/reports/Cards_Summary_Pending_Audit.csv',
-        fullPdf: '/reports/All_Months_Pending_Payments_and_Invoices_Checklist.pdf',
-        fullXlsx: '/reports/All_Months_Pending_Payments_and_Invoices_Checklist.xlsx',
       }
     });
   } catch (error) {
-    console.error('Pending checklist cards API error:', error);
+    console.error('Pending checklist Domain Overview API error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch cards summary', details: error.message },
+      { success: false, error: 'Failed to fetch domain overview cards', details: error.message },
       { status: 500 }
     );
   }

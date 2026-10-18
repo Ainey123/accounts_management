@@ -249,8 +249,8 @@ export default function DomainOverviewCardsPage() {
         {/* DOWNLOAD BUTTONS */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <a
-            href="/reports/Cards_Summary_Pending_Audit.pdf"
-            download
+            href="/Cards_Summary_Pending_Audit.pdf"
+            download="Cards_Summary_Pending_Audit.pdf"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -269,8 +269,8 @@ export default function DomainOverviewCardsPage() {
           </a>
 
           <a
-            href="/reports/Cards_Summary_Pending_Audit.xlsx"
-            download
+            href="/api/pending-checklist/download?format=xlsx"
+            download="Cards_Summary_Pending_Audit.xlsx"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -289,8 +289,8 @@ export default function DomainOverviewCardsPage() {
           </a>
 
           <a
-            href="/reports/Cards_Summary_Pending_Audit.csv"
-            download
+            href="/api/pending-checklist/download?format=csv"
+            download="Cards_Summary_Pending_Audit.csv"
             style={{
               display: 'inline-flex',
               alignItems: 'center',

@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Domain Overview Cards Summary</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;800&display=swap');
+
+    @page {
+      size: A4 portrait;
+      margin: 12mm 14mm 14mm 14mm;
+      @bottom-right {
+        content: "Page " counter(page) " of " counter(pages);
+        font-family: 'Inter', sans-serif;
+        font-size: 8pt;
+        color: #94a3b8;
+      }
+      @bottom-left {
+        content: "NEXUS OPERATIONS — Domain Overview Cards Summary";
+        font-family: 'Inter', sans-serif;
+        font-size: 8pt;
+        color: #94a3b8;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 10pt;
+      line-height: 1.4;
+      color: #000000;
+      background: #ffffff;
+      padding: 6px;
+    }
+
+    .report-title {
+      font-size: 16pt;
+      font-weight: 800;
+      color: #000000;
+      text-align: center;
+      margin-bottom: 4px;
+      letter-spacing: -0.3px;
+    }
+
+    .report-subtitle {
+      font-size: 9pt;
+      color: #4b5563;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .cards-container {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      width: 100%;
+      page-break-inside: avoid;
+    }
+
+    /* EXACT CARD FORMAT FROM USER SCREENSHOT */
+    .domain-card {
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      border: 1.8px solid #000000;
+      background: #ffffff;
+      page-break-inside: avoid;
+    }
+
+    .domain-card-header {
+      font-size: 15pt;
+      font-weight: 700;
+      text-align: center;
+      padding: 6px 10px;
+      border-bottom: 1.8px solid #000000;
+      color: #000000;
+      font-family: 'Times New Roman', Times, serif, 'Inter', sans-serif;
+      letter-spacing: 0.3px;
+    }
+
+    .domain-card-batch {
+      font-size: 11pt;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-bottom: 1.8px solid #000000;
+      color: #000000;
+      font-family: 'Times New Roman', Times, serif, 'Inter', sans-serif;
+    }
+
+    .domain-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .domain-table tr {
+      border-bottom: 1.5px solid #000000;
+    }
+
+    .domain-table tr:last-child {
+      border-bottom: none;
+    }
+
+    .domain-label {
+      padding: 5px 12px;
+      font-size: 9.5pt;
+      text-align: center;
+      border-right: 1.8px solid #000000;
+      width: 68%;
+      color: #000000;
+      font-family: 'Times New Roman', Times, serif, 'Inter', sans-serif;
+    }
+
+    .domain-value {
+      padding: 5px 12px;
+      font-size: 10.5pt;
+      font-weight: 500;
+      text-align: center;
+      width: 32%;
+      color: #000000;
+      font-family: 'Times New Roman', Times, serif, 'Inter', sans-serif;
+    }
+
+    .page-break { page-break-before: always; }
+  </style>
+</head>
+<body>
+
+  <div class="report-title">NEXUS OPERATIONS &bull; DOMAIN OVERVIEW</div>
+  <div class="report-subtitle">Tenure: Full Year 2026 &bull; Performance &amp; Case Audit by Batch</div>
+
+  <!-- OVERALL DOMAIN OVERVIEW CARD -->
+  <div style="margin-bottom: 24px;">
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Overall Domain Overview (All Batches)</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">896</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">69</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">272</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">304</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">113</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">138</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+  </div>
+
+  <!-- INDIVIDUAL BATCH CARDS (2-COLUMN GRID) -->
+  <div class="cards-grid">
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Batch No. 01</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">346</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">34</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">125</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">117</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">22</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">48</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Batch No. 02</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">296</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">20</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">74</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">106</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">41</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">55</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Batch No. 03</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">155</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">2</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">42</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">56</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">33</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">22</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Batch No. 04</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">99</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">13</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">31</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">25</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">17</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">13</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+  </div>
+
+  <div class="page-break"></div>
+
+  <div class="report-title" style="margin-top: 10px;">TENURE-WISE DOMAIN OVERVIEW CARDS</div>
+  <div class="report-subtitle">Month-by-Month Case Status Breakdown</div>
+
+  <div class="cards-grid">
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: January 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">102</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">22</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">27</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">30</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">15</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">8</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: February 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">71</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">4</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">22</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">26</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">4</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">15</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: March 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">74</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">8</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">37</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">18</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">3</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">8</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: April 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">91</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">2</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">42</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">22</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">5</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">20</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: May 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">62</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">6</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">21</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">20</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">7</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">8</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: June 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">145</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">2</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">57</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">34</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">22</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">30</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: July 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">189</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">25</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">54</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">46</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">26</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">38</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: August 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">62</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">0</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">11</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">42</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">4</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">5</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: September 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">66</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">0</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">1</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">49</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">13</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">3</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+      <div class="domain-card">
+        <div class="domain-card-header">Domain Overview</div>
+        <div class="domain-card-batch">Tenure: October 2026</div>
+        <table class="domain-table">
+          <tbody>
+            <tr>
+              <td class="domain-label">Total no of Complaints</td>
+              <td class="domain-value">34</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Received Cases</td>
+              <td class="domain-value">0</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Payment Pending Cases</td>
+              <td class="domain-value">0</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of PO Pending Cases</td>
+              <td class="domain-value">17</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Inprocess Cases</td>
+              <td class="domain-value">14</td>
+            </tr>
+            <tr>
+              <td class="domain-label">Total no of Cancel Cases</td>
+              <td class="domain-value">3</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    
+  </div>
+
+</body>
+</html>

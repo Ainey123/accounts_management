@@ -63,7 +63,7 @@ async function main() {
 
   console.log(`Fetched ${jobs.length} jobs.`);
 
-  const batchNames = ['Batch No. 01', 'Batch No. 02', 'Batch No. 03', 'Batch No. 04', 'Unassigned'];
+  const batchNames = ['Batch No. 01', 'Batch No. 02', 'Batch No. 03', 'Batch No. 04'];
 
   // Global / Domain Overview Card
   const domainOverview = {
@@ -93,6 +93,14 @@ async function main() {
   const monthlyCards = {};
 
   for (const j of jobs) {
+    const rawEmp = j.ticket?.statusLastChangedBy || j.assignedEmployee?.employeeName || j.manualEnteredBy || j.createdBy?.employeeName;
+    const bName = mapToBatchName(rawEmp);
+
+    // Skip unassigned and admin complaints so they are not considered in the 4 operational batches audit
+    if (!batchNames.includes(bName)) {
+      continue;
+    }
+
     const rawDate = j.ticket?.exactDate || j.createdAt;
     const mKey = rawDate ? new Date(rawDate).toISOString().slice(0, 7) : '2026-01';
 
@@ -122,10 +130,8 @@ async function main() {
     }
 
     const mc = monthlyCards[mKey];
-    const rawEmp = j.ticket?.statusLastChangedBy || j.assignedEmployee?.employeeName || j.manualEnteredBy || j.createdBy?.employeeName;
-    const bName = mapToBatchName(rawEmp);
-    const bc = batchCards[bName] || batchCards['Unassigned'];
-    const mbc = mc.batches[bName] || mc.batches['Unassigned'];
+    const bc = batchCards[bName];
+    const mbc = mc.batches[bName];
 
     // Increment Total
     domainOverview.totalComplaints++;

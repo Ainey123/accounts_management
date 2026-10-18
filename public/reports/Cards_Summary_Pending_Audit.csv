@@ -1,16 +1,16 @@
 Card Title,Batch / Tenure,Metric Name,Value
-"Domain Overview","All Batches","Total no of Complaints",904
+"Domain Overview","All Batches","Total no of Complaints",896
 "Domain Overview","All Batches","Total no of Payment Received Cases",69
-"Domain Overview","All Batches","Total no of Payment Pending Cases",274
-"Domain Overview","All Batches","Total no of PO Pending Cases",307
-"Domain Overview","All Batches","Total no of Inprocess Cases",118
-"Domain Overview","All Batches","Total no of Cancel Cases",136
+"Domain Overview","All Batches","Total no of Payment Pending Cases",272
+"Domain Overview","All Batches","Total no of PO Pending Cases",304
+"Domain Overview","All Batches","Total no of Inprocess Cases",113
+"Domain Overview","All Batches","Total no of Cancel Cases",138
 "Domain Overview","Batch No. 01","Total no of Complaints",346
 "Domain Overview","Batch No. 01","Total no of Payment Received Cases",34
 "Domain Overview","Batch No. 01","Total no of Payment Pending Cases",125
-"Domain Overview","Batch No. 01","Total no of PO Pending Cases",118
-"Domain Overview","Batch No. 01","Total no of Inprocess Cases",23
-"Domain Overview","Batch No. 01","Total no of Cancel Cases",46
+"Domain Overview","Batch No. 01","Total no of PO Pending Cases",117
+"Domain Overview","Batch No. 01","Total no of Inprocess Cases",22
+"Domain Overview","Batch No. 01","Total no of Cancel Cases",48
 "Domain Overview","Batch No. 02","Total no of Complaints",296
 "Domain Overview","Batch No. 02","Total no of Payment Received Cases",20
 "Domain Overview","Batch No. 02","Total no of Payment Pending Cases",74
@@ -29,18 +29,12 @@ Card Title,Batch / Tenure,Metric Name,Value
 "Domain Overview","Batch No. 04","Total no of PO Pending Cases",25
 "Domain Overview","Batch No. 04","Total no of Inprocess Cases",17
 "Domain Overview","Batch No. 04","Total no of Cancel Cases",13
-"Domain Overview","Unassigned","Total no of Complaints",8
-"Domain Overview","Unassigned","Total no of Payment Received Cases",0
-"Domain Overview","Unassigned","Total no of Payment Pending Cases",2
-"Domain Overview","Unassigned","Total no of PO Pending Cases",2
-"Domain Overview","Unassigned","Total no of Inprocess Cases",4
-"Domain Overview","Unassigned","Total no of Cancel Cases",0
 "Domain Overview","January 2026","Total no of Complaints",102
 "Domain Overview","January 2026","Total no of Payment Received Cases",22
 "Domain Overview","January 2026","Total no of Payment Pending Cases",27
-"Domain Overview","January 2026","Total no of PO Pending Cases",31
+"Domain Overview","January 2026","Total no of PO Pending Cases",30
 "Domain Overview","January 2026","Total no of Inprocess Cases",15
-"Domain Overview","January 2026","Total no of Cancel Cases",7
+"Domain Overview","January 2026","Total no of Cancel Cases",8
 "Domain Overview","February 2026","Total no of Complaints",71
 "Domain Overview","February 2026","Total no of Payment Received Cases",4
 "Domain Overview","February 2026","Total no of Payment Pending Cases",22
@@ -59,30 +53,30 @@ Card Title,Batch / Tenure,Metric Name,Value
 "Domain Overview","April 2026","Total no of PO Pending Cases",22
 "Domain Overview","April 2026","Total no of Inprocess Cases",5
 "Domain Overview","April 2026","Total no of Cancel Cases",20
-"Domain Overview","May 2026","Total no of Complaints",63
+"Domain Overview","May 2026","Total no of Complaints",62
 "Domain Overview","May 2026","Total no of Payment Received Cases",6
-"Domain Overview","May 2026","Total no of Payment Pending Cases",22
+"Domain Overview","May 2026","Total no of Payment Pending Cases",21
 "Domain Overview","May 2026","Total no of PO Pending Cases",20
 "Domain Overview","May 2026","Total no of Inprocess Cases",7
 "Domain Overview","May 2026","Total no of Cancel Cases",8
-"Domain Overview","June 2026","Total no of Complaints",147
+"Domain Overview","June 2026","Total no of Complaints",145
 "Domain Overview","June 2026","Total no of Payment Received Cases",2
 "Domain Overview","June 2026","Total no of Payment Pending Cases",57
-"Domain Overview","June 2026","Total no of PO Pending Cases",35
-"Domain Overview","June 2026","Total no of Inprocess Cases",23
+"Domain Overview","June 2026","Total no of PO Pending Cases",34
+"Domain Overview","June 2026","Total no of Inprocess Cases",22
 "Domain Overview","June 2026","Total no of Cancel Cases",30
-"Domain Overview","July 2026","Total no of Complaints",193
+"Domain Overview","July 2026","Total no of Complaints",189
 "Domain Overview","July 2026","Total no of Payment Received Cases",25
-"Domain Overview","July 2026","Total no of Payment Pending Cases",55
-"Domain Overview","July 2026","Total no of PO Pending Cases",47
-"Domain Overview","July 2026","Total no of Inprocess Cases",28
+"Domain Overview","July 2026","Total no of Payment Pending Cases",54
+"Domain Overview","July 2026","Total no of PO Pending Cases",46
+"Domain Overview","July 2026","Total no of Inprocess Cases",26
 "Domain Overview","July 2026","Total no of Cancel Cases",38
-"Domain Overview","August 2026","Total no of Complaints",63
+"Domain Overview","August 2026","Total no of Complaints",62
 "Domain Overview","August 2026","Total no of Payment Received Cases",0
 "Domain Overview","August 2026","Total no of Payment Pending Cases",11
 "Domain Overview","August 2026","Total no of PO Pending Cases",42
-"Domain Overview","August 2026","Total no of Inprocess Cases",6
-"Domain Overview","August 2026","Total no of Cancel Cases",4
+"Domain Overview","August 2026","Total no of Inprocess Cases",4
+"Domain Overview","August 2026","Total no of Cancel Cases",5
 "Domain Overview","September 2026","Total no of Complaints",66
 "Domain Overview","September 2026","Total no of Payment Received Cases",0
 "Domain Overview","September 2026","Total no of Payment Pending Cases",1

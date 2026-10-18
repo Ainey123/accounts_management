@@ -60,7 +60,7 @@ export async function GET(request) {
       });
     });
 
-    const batchNames = ['Batch No. 01', 'Batch No. 02', 'Batch No. 03', 'Batch No. 04', 'Unassigned'];
+    const batchNames = ['Batch No. 01', 'Batch No. 02', 'Batch No. 03', 'Batch No. 04'];
 
     // Overall Domain Overview Card
     const domainOverview = {
@@ -100,6 +100,15 @@ export async function GET(request) {
     const tenureCardsMap = {};
 
     for (const j of jobs) {
+      // Check batch
+      const rawEmp = j.ticket?.statusLastChangedBy || j.assignedEmployee?.employeeName || j.manualEnteredBy || j.createdBy?.employeeName;
+      const bName = mapToBatchName(rawEmp);
+
+      // Do not consider unassigned or admin batch complaints in the operational audit
+      if (!batchNames.includes(bName)) {
+        continue;
+      }
+
       const rawDate = j.ticket?.exactDate || j.createdAt;
       const dateObj = rawDate ? new Date(rawDate) : null;
       const mKey = dateObj ? dateObj.toISOString().slice(0, 7) : '2026-01';
@@ -135,10 +144,6 @@ export async function GET(request) {
       if (toDateParam && dateObj) {
         if (dateObj > new Date(toDateParam + 'T23:59:59.999Z')) matchesTenure = false;
       }
-
-      // Check batch
-      const rawEmp = j.ticket?.statusLastChangedBy || j.assignedEmployee?.employeeName || j.manualEnteredBy || j.createdBy?.employeeName;
-      const bName = mapToBatchName(rawEmp);
 
       let matchesBatch = true;
       if (batchFilter && batchFilter !== 'all') {
@@ -187,7 +192,7 @@ export async function GET(request) {
 
       // If matches active tenure filter, update batchCardsMap & domainOverview
       if (matchesTenure) {
-        const bc = batchCardsMap[bName] || batchCardsMap['Unassigned'];
+        const bc = batchCardsMap[bName];
         bc.totalComplaints++;
         if (invoices.length > 0) {
           bc.totalInvoicesSent.count += invoices.length;

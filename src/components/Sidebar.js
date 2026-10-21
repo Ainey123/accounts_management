@@ -11,10 +11,10 @@ import { useAuth } from '@/components/AuthProvider';
 
 const NAV_ITEMS = [
   { name: 'Operations Feed', href: '/dashboard', icon: BarChart2 },
-  { name: 'Staff Progress & WhatsApp', href: '/progress', icon: Award },
-  { name: 'Pending Audit Checklist', href: '/pending-checklist', icon: ClipboardList },
+  { name: 'Staff Progress & WhatsApp', href: '/progress', icon: Award, adminOnly: true },
+  { name: 'Pending Audit Checklist', href: '/pending-checklist', icon: ClipboardList, adminOnly: true },
   { name: 'Expense Reconciliation', href: '/admin/dashboard?tab=reconciliation', icon: Receipt, adminOnly: true },
-  { name: 'Pending Payments', href: '/pending-payments', icon: Clock },
+  { name: 'Pending Payments', href: '/pending-payments', icon: Clock, adminOnly: true },
   { name: 'All Tickets', href: '/tickets', icon: FileText },
   { name: 'Gmail Connection', href: '/gmail', icon: Mail, adminOnly: true },
   { name: 'Job Intake Grid', href: '/intake', icon: FileEdit },

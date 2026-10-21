@@ -54,7 +54,17 @@ export default function AuthProvider({ children }) {
     if (!user && pathname !== '/') {
       router.push('/');
     } else if (user) {
-      if (user.role === 'EMPLOYEE' && pathname.startsWith('/admin')) {
+      const isRestrictedForEmployee =
+        user.role === 'EMPLOYEE' &&
+        (pathname.startsWith('/admin') ||
+          pathname === '/progress' ||
+          pathname.startsWith('/progress/') ||
+          pathname === '/pending-checklist' ||
+          pathname.startsWith('/pending-checklist/') ||
+          pathname === '/pending-payments' ||
+          pathname.startsWith('/pending-payments/'));
+
+      if (isRestrictedForEmployee) {
         router.push('/dashboard');
       } else if (pathname === '/') {
         router.push(user.role === 'ADMIN' ? '/admin/dashboard' : '/dashboard');

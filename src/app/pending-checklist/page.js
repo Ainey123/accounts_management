@@ -1,16 +1,27 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Download, FileSpreadsheet, FileText, RefreshCw, Calendar,
   Filter, HelpCircle, CheckCircle2, ChevronRight
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { useAuth } from '@/components/AuthProvider';
 
 export default function DomainOverviewCardsPage() {
+  const { user, isHydrated } = useAuth();
+  const router = useRouter();
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (isHydrated && user && user.role !== 'ADMIN') {
+      router.push('/dashboard');
+    }
+  }, [user, isHydrated, router]);
 
   // Filters
   const [selectedTenure, setSelectedTenure] = useState('all');
@@ -51,8 +62,10 @@ export default function DomainOverviewCardsPage() {
   }, [selectedTenure, selectedBatch, fromDate, toDate]);
 
   useEffect(() => {
-    fetchCardsData();
-  }, [fetchCardsData]);
+    if (user?.role === 'ADMIN') {
+      fetchCardsData();
+    }
+  }, [fetchCardsData, user]);
 
   const handleSaveNote = (batchName, text) => {
     const key = `${selectedTenure}_${batchName}`;
@@ -223,6 +236,10 @@ export default function DomainOverviewCardsPage() {
       </div>
     );
   };
+
+  if (!isHydrated || !user || user.role !== 'ADMIN') {
+    return null;
+  }
 
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '16px 20px 48px', color: '#f8fafc' }}>

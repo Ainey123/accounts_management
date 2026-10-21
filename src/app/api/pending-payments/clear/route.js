@@ -29,6 +29,9 @@ export async function POST(request) {
     } = body;
 
     const sessionUser = getUserFromCookie(request);
+    if (sessionUser && sessionUser.role === 'EMPLOYEE') {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Admin access required' }, { status: 403 });
+    }
     const userId = sessionUser?.id ? Number(sessionUser.id) : null;
 
     if (!invoiceId && !jobId) {

@@ -37,8 +37,24 @@ function parseLineItemsTotal(lineItems) {
   return 0;
 }
 
+function getUserFromCookie(request) {
+  const authCookie = request.headers.get('x-user-id') || request.cookies.get('nexus_user')?.value;
+  if (!authCookie) return null;
+  try {
+    const decoded = typeof authCookie === 'string' ? decodeURIComponent(authCookie) : authCookie;
+    return decoded.startsWith('{') ? JSON.parse(decoded) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request) {
   try {
+    const sessionUser = getUserFromCookie(request);
+    if (sessionUser && sessionUser.role === 'EMPLOYEE') {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Admin access required' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const tenureFilter = searchParams.get('tenure') || searchParams.get('month') || 'all';
     const batchFilter = searchParams.get('batch') || 'all';

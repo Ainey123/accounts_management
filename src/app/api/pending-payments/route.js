@@ -50,6 +50,10 @@ export async function GET(request) {
 
     const sessionUser = getUserFromCookie(request);
 
+    if (sessionUser && sessionUser.role === 'EMPLOYEE') {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Admin access required' }, { status: 403 });
+    }
+
     // Determine target month (default to current month, or August 2026 / current date)
     const now = new Date();
     const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;

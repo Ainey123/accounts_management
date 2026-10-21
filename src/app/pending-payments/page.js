@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 const MONTH_NAMES = [
@@ -17,8 +18,15 @@ const MONTH_NAMES = [
 ];
 
 export default function PendingPaymentsPage() {
-  const { user } = useAuth();
+  const { user, isHydrated } = useAuth();
+  const router = useRouter();
   const isAdmin = user?.role === 'ADMIN';
+
+  useEffect(() => {
+    if (isHydrated && user && user.role !== 'ADMIN') {
+      router.push('/dashboard');
+    }
+  }, [user, isHydrated, router]);
 
   // Current calendar month default
   const today = new Date();
@@ -73,8 +81,10 @@ export default function PendingPaymentsPage() {
   }, [selectedMonth, employeeFilter, searchQuery]);
 
   useEffect(() => {
-    loadPendingPayments(selectedMonth);
-  }, [selectedMonth, employeeFilter, loadPendingPayments]);
+    if (user?.role === 'ADMIN') {
+      loadPendingPayments(selectedMonth);
+    }
+  }, [selectedMonth, employeeFilter, loadPendingPayments, user]);
 
   // Synchronize year with selected month
   useEffect(() => {
@@ -209,6 +219,10 @@ export default function PendingPaymentsPage() {
   const currentStats = stats.currentMonth || {};
   const carryoverStats = stats.carryover || {};
   const hasStrictNotice = carryoverStats.hasStrictNotice && carryoverStats.totalOverdueInvoices > 0;
+
+  if (!isHydrated || !user || user.role !== 'ADMIN') {
+    return null;
+  }
 
   return (
     <div className="pending-payments-container">

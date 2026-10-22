@@ -19,7 +19,13 @@ export async function GET(request) {
     const user = getUserFromCookie(request);
     let whereClause = undefined;
 
-    if (user && user.role === 'EMPLOYEE') {
+    if (user && user.role === 'FIELD_EMPLOYEE') {
+      const empId = user.id ? Number(user.id) : null;
+      if (!empId) {
+        return NextResponse.json({ jobs: [] });
+      }
+      whereClause = { assignedEmployeeId: empId };
+    } else if (user && user.role === 'EMPLOYEE') {
       const empId = user.id ? Number(user.id) : null;
       if (empId && !isNaN(empId)) {
         whereClause = { assignedEmployeeId: empId };
@@ -45,6 +51,14 @@ export async function GET(request) {
           payments: { select: { id: true, amount: true, summaryNotes: true, imageUrl: true, createdAt: true } },
           workCompletion: { select: { id: true, status: true, amount: true, imageUrl: true, notes: true, createdAt: true, updatedAt: true } },
           bankApproval: { select: { id: true, bankName: true, accountNumber: true, amount: true, status: true, imageUrl: true, notes: true, createdAt: true } },
+          projectReports: {
+            orderBy: { createdAt: 'desc' },
+            include: {
+              employee: { select: { id: true, employeeName: true } },
+              reviewedBy: { select: { id: true, employeeName: true } },
+              audits: { orderBy: { createdAt: 'desc' } },
+            },
+          },
         },
       });
     } catch (fullErr) {

@@ -11,7 +11,8 @@ import { hashPin } from '@/lib/pinHash';
  */
 export async function POST(request) {
   try {
-    const { employeeName, pin } = await request.json();
+    const { employeeName, pin, role = 'EMPLOYEE' } = await request.json();
+    const targetRole = role === 'FIELD_EMPLOYEE' ? 'FIELD_EMPLOYEE' : 'EMPLOYEE';
 
     if (!employeeName || !pin) {
       return NextResponse.json({ error: 'Employee name and PIN are required' }, { status: 400 });
@@ -26,14 +27,14 @@ export async function POST(request) {
 
     // Check if an employee with this name already exists
     const existing = await prisma.user.findFirst({
-      where: { employeeName: { equals: name, mode: 'insensitive' }, role: 'EMPLOYEE' },
+      where: { employeeName: { equals: name, mode: 'insensitive' } },
     });
 
     if (existing) {
-      // Update their PIN (admin is resetting it)
+      // Update their PIN and optionally role (admin is resetting it)
       const updated = await prisma.user.update({
         where: { id: existing.id },
-        data: { password: pinStr },
+        data: { password: pinStr, role: targetRole },
         select: { id: true, employeeName: true, role: true, activeStatus: true, createdAt: true, password: true },
       });
       return NextResponse.json({ employee: updated, action: 'pin_updated' }, { status: 200 });
@@ -47,7 +48,7 @@ export async function POST(request) {
         employeeName: name,
         email: safeEmail,
         password: pinStr,
-        role: 'EMPLOYEE',
+        role: targetRole,
         activeStatus: true,
       },
       select: { id: true, employeeName: true, role: true, activeStatus: true, createdAt: true, password: true },

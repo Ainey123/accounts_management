@@ -79,5 +79,55 @@ export async function POST(request) {
     });
   }
 
+  // ── FIELD EMPLOYEE login ──────────────────────────────────────────────────
+  if (normalizedRole === 'FIELD_EMPLOYEE' || normalizedRole === 'FIELD') {
+    if (!employeeName) {
+      return NextResponse.json({ error: 'Please select your name' }, { status: 400 });
+    }
+
+    let employee = null;
+    try {
+      // Find employee by name - accept either FIELD_EMPLOYEE or EMPLOYEE
+      employee = await prisma.user.findFirst({
+        where: {
+          employeeName: { equals: employeeName.trim(), mode: 'insensitive' },
+          role: { in: ['FIELD_EMPLOYEE', 'EMPLOYEE'] },
+        },
+      });
+    } catch (err) {
+      console.error('Field employee lookup error:', err);
+      return NextResponse.json({ error: 'Database error during login' }, { status: 500 });
+    }
+
+    if (!employee) {
+      return NextResponse.json({ error: 'Field employee not found. Contact admin.' }, { status: 401 });
+    }
+
+    // Verify PIN
+    const hashedInput = hashPin(pinStr);
+    const storedPin = employee.password || '';
+    
+    let isMatch = storedPin === hashedInput || storedPin === pinStr;
+    if (!isMatch) {
+      try {
+        isMatch = verifyPassword(pinStr, storedPin);
+      } catch (e) {}
+    }
+
+    if (!isMatch) {
+      return NextResponse.json({ error: 'Incorrect PIN' }, { status: 401 });
+    }
+
+    return NextResponse.json({
+      user: {
+        id: employee.id,
+        email: employee.email,
+        employeeName: employee.employeeName,
+        role: 'FIELD_EMPLOYEE',
+        tempPassword: 'temp-user123',
+      },
+    });
+  }
+
   return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
 }

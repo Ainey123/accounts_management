@@ -49,7 +49,7 @@ export default function IntakeGridPage() {
         ]);
         if (cancelled) return;
         const tickets = ticketRes.tickets || [];
-        const employees = (userRes.users || []).filter((u) => u.role === 'EMPLOYEE');
+        const employees = (userRes.users || []).filter((u) => u.role === 'EMPLOYEE' || u.role === 'FIELD_EMPLOYEE');
         setTickets(tickets);
         setEmployees(employees);
         const firstPending = tickets.find((t) => !t.jobMetadata && t.status !== 'IRRELEVANT' && t.status !== 'CANCELLED');
@@ -308,7 +308,9 @@ export default function IntakeGridPage() {
             <select className="nexus-select" name="assignedEmployeeId" value={form.assignedEmployeeId} onChange={handleChange}>
               <option value="">Unassigned</option>
               {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>{emp.employeeName} ({emp.email})</option>
+                <option key={emp.id} value={emp.id}>
+                  {emp.role === 'FIELD_EMPLOYEE' ? `[Field Staff] ${emp.employeeName}` : emp.employeeName} ({emp.email})
+                </option>
               ))}
             </select>
           </div>

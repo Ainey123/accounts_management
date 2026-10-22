@@ -54,20 +54,27 @@ export default function AuthProvider({ children }) {
     if (!user && pathname !== '/') {
       router.push('/');
     } else if (user) {
-      const isRestrictedForEmployee =
-        user.role === 'EMPLOYEE' &&
-        (pathname.startsWith('/admin') ||
-          pathname === '/progress' ||
-          pathname.startsWith('/progress/') ||
-          pathname === '/pending-checklist' ||
-          pathname.startsWith('/pending-checklist/') ||
-          pathname === '/pending-payments' ||
-          pathname.startsWith('/pending-payments/'));
+      if (user.role === 'FIELD_EMPLOYEE') {
+        // Field employees are strictly confined to the Field Employee Portal
+        if (pathname !== '/field' && !pathname.startsWith('/field/')) {
+          router.push('/field');
+        }
+      } else {
+        const isRestrictedForEmployee =
+          user.role === 'EMPLOYEE' &&
+          (pathname.startsWith('/admin') ||
+            pathname === '/progress' ||
+            pathname.startsWith('/progress/') ||
+            pathname === '/pending-checklist' ||
+            pathname.startsWith('/pending-checklist/') ||
+            pathname === '/pending-payments' ||
+            pathname.startsWith('/pending-payments/'));
 
-      if (isRestrictedForEmployee) {
-        router.push('/dashboard');
-      } else if (pathname === '/') {
-        router.push(user.role === 'ADMIN' ? '/admin/dashboard' : '/dashboard');
+        if (isRestrictedForEmployee) {
+          router.push('/dashboard');
+        } else if (pathname === '/') {
+          router.push(user.role === 'ADMIN' ? '/admin/dashboard' : '/dashboard');
+        }
       }
     }
   }, [user, pathname, isHydrated, router]);
@@ -81,7 +88,8 @@ export default function AuthProvider({ children }) {
       setUser(authenticated);
       localStorage.setItem('nexus_user', JSON.stringify(authenticated));
       document.cookie = `nexus_user=${encodeURIComponent(JSON.stringify(authenticated))}; path=/; max-age=${7 * 24 * 60 * 60};`;
-      router.push(role === 'ADMIN' ? '/admin/dashboard' : '/dashboard');
+      const targetRoute = role === 'ADMIN' ? '/admin/dashboard' : role === 'FIELD_EMPLOYEE' ? '/field' : '/dashboard';
+      router.push(targetRoute);
       return authenticated;
     }
     const { user: authenticated } = await apiFetch('/api/auth/login', {
@@ -90,7 +98,8 @@ export default function AuthProvider({ children }) {
     });
     setUser(authenticated);
     localStorage.setItem('nexus_user', JSON.stringify(authenticated));
-    router.push(role === 'ADMIN' ? '/admin/dashboard' : '/dashboard');
+    const targetRoute = role === 'ADMIN' ? '/admin/dashboard' : role === 'FIELD_EMPLOYEE' ? '/field' : '/dashboard';
+    router.push(targetRoute);
     return authenticated;
   }, [router]);
 

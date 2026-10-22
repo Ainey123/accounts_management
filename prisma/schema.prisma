@@ -35,6 +35,8 @@ model User {
   uploadedStatements BankStatement[] @relation("UploadedStatements")
   createdOtherExpenses OtherExpense[] @relation("CreatedOtherExpenses")
   reconciliationAudits ReconciliationAudit[] @relation("AdminReconciliationAudits")
+  fieldReportSubmissions ProjectReportSubmission[] @relation("EmployeeProjectReports")
+  reviewedProjectReports ProjectReportSubmission[] @relation("ReviewedProjectReports")
 }
 
 /// Gmail OAuth connection and sync tracking.
@@ -97,6 +99,7 @@ model JobMetadata {
   payments           PaymentReceived[]
   workCompletion     WorkCompletion?
   bankApproval       BankApproval?
+  projectReports     ProjectReportSubmission[]
 }
 
 model SurveyReport {
@@ -145,6 +148,7 @@ model Expense {
   reconciliationAudits ReconciliationAudit[]
   paidBy             String             @default("FES") // "FES" or "EMPLOYEE"
   createdAt          DateTime           @default(now())
+  projectReports     ProjectReportSubmission[]
 }
 
 model PaymentReceived {
@@ -298,4 +302,45 @@ model ReconciliationAudit {
   adjustedAmount   Float?
   comment          String?
   createdAt        DateTime           @default(now())
+}
+
+/// Field Employee Project Progress & Expense Submissions
+model ProjectReportSubmission {
+  id                     Int                  @id @default(autoincrement())
+  jobMetadataId          Int
+  jobMetadata            JobMetadata          @relation(fields: [jobMetadataId], references: [id], onDelete: Cascade)
+  employeeId             Int
+  employee               User                 @relation("EmployeeProjectReports", fields: [employeeId], references: [id], onDelete: Cascade)
+  status                 String               @default("SUBMITTED") // ASSIGNED, IN_PROGRESS, SUBMITTED, UNDER_REVIEW, CORRECTION_REQUIRED, APPROVED
+  branchName             String?
+  reportDate             DateTime?            @default(now())
+  version                Int                  @default(1)
+  expenseData            String?              // JSON string of all expense rows, quantities, amounts, remarks
+  progressData           String?              // JSON string of all progress rows, units, percentages, remarks
+  totalExpenseAmount     Float                @default(0)
+  overallProgressPercent Float                @default(0)
+  attachments            String?              // JSON array of bill/receipt URLs or image strings
+  paidBy                 String               @default("FES") // "FES" or "EMPLOYEE"
+  reviewerNotes          String?
+  reviewedById           Int?
+  reviewedBy             User?                @relation("ReviewedProjectReports", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt             DateTime?
+  linkedExpenseId        Int?
+  linkedExpense          Expense?             @relation(fields: [linkedExpenseId], references: [id], onDelete: SetNull)
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  audits                 ProjectReportAudit[]
+}
+
+/// Audit Trail for Project Report Reviews, Rejections, and Resubmissions
+model ProjectReportAudit {
+  id            Int                     @id @default(autoincrement())
+  reportId      Int
+  report        ProjectReportSubmission @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  action        String                  // SUBMITTED, RESUBMITTED, REVIEW_STARTED, CORRECTION_REQUESTED, APPROVED, REJECTED
+  changedById   Int?
+  changedByName String?
+  version       Int
+  comment       String?
+  createdAt     DateTime                @default(now())
 }

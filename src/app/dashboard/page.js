@@ -4,11 +4,12 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Webcam from 'react-webcam';
 import {
   Mail, RefreshCw, Activity, CheckCircle, DollarSign,
-  User, AlertCircle, FileText, Camera, Upload, ChevronRight, Save, ClipboardList, Check, Search, Edit3, Plus, Trash2, Image, Banknote, Hammer, Receipt, CreditCard, MessageSquare, Clock, Send
+  User, AlertCircle, FileText, Camera, Upload, ChevronRight, Save, ClipboardList, Check, Search, Edit3, Plus, Trash2, Image, Banknote, Hammer, Receipt, CreditCard, MessageSquare, Clock, Send, HardHat
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
 import DocumentStudio from '@/components/DocumentStudio';
+import ProjectReportReviewer from '@/components/ProjectReportReviewer';
 
 const PARTITION_CONFIGS = {
   field: {
@@ -1390,6 +1391,27 @@ export default function EmployeeRealTimeDashboard() {
                         <span style={{ fontSize: 11, background: `${paymentStatusStyle.bg}20`, color: paymentStatusStyle.color, border: `1px solid ${paymentStatusStyle.bg}40`, padding: '3px 8px', borderRadius: 4 }}>
                           Payment: {paymentStatusStyle.label}
                         </span>
+                        {/* Project Field Report Status Badge */}
+                        {job.workNature === 'PROJECT' && (
+                          (() => {
+                            const pReport = (job.projectReports || [])[0];
+                            if (!pReport) {
+                              return (
+                                <span style={{ fontSize: 11, background: 'rgba(100, 116, 139, 0.15)', color: '#94a3b8', border: '1px solid rgba(100, 116, 139, 0.3)', padding: '3px 8px', borderRadius: 4 }}>
+                                  Field Report: Pending
+                                </span>
+                              );
+                            }
+                            const isApproved = pReport.status === 'APPROVED';
+                            const isCorrection = pReport.status === 'CORRECTION_REQUIRED';
+                            const color = isApproved ? '#4ade80' : isCorrection ? '#f87171' : '#38bdf8';
+                            return (
+                              <span style={{ fontSize: 11, background: `${color}18`, color, border: `1px solid ${color}40`, padding: '3px 8px', borderRadius: 4, fontWeight: 600 }}>
+                                {isApproved ? '✅ Report Approved' : isCorrection ? '⚠️ Correction Requested' : `📩 Field Report: ${pReport.status}`} ({Math.round(pReport.overallProgressPercent)}%)
+                              </span>
+                            );
+                          })()
+                        )}
                       </div>
                       <h2 style={{ fontSize: 20, marginBottom: 4 }}>{job.clientName}</h2>
                       <p style={{ color: '#94a3b8', fontSize: 14 }}>Site Branch: {job.branchName} · POC: {job.personOfContact}</p>
@@ -1611,7 +1633,25 @@ export default function EmployeeRealTimeDashboard() {
                         >
                           <DollarSign size={13} /> Log Payment
                         </button>
+                        <button
+                          type="button"
+                          className={`nexus-btn ${actionType === 'project-report' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
+                          style={{
+                            padding: '7px 12px',
+                            fontSize: 12,
+                            border: job.workNature === 'PROJECT' ? '1px solid rgba(52, 211, 153, 0.4)' : undefined,
+                            color: job.workNature === 'PROJECT' && actionType !== 'project-report' ? '#34d399' : undefined,
+                          }}
+                          onClick={() => setActionType(actionType === 'project-report' ? null : 'project-report')}
+                        >
+                          <HardHat size={13} /> Project Field Reports ({(job.projectReports || []).length})
+                        </button>
                       </div>
+
+                      {/* Project Field Reports Reviewer Panel */}
+                      {actionType === 'project-report' && (
+                        <ProjectReportReviewer job={job} onReportUpdated={loadDashboardData} />
+                      )}
 
                       {/* Survey Panel */}
                       {actionType === 'survey' && (

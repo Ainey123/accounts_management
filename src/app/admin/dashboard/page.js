@@ -25,7 +25,7 @@ export default function AdminCommandCenter() {
   const [settings, setSettings] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form, setForm] = useState({ employeeName: '', pin: '' });
+  const [form, setForm] = useState({ employeeName: '', pin: '', role: 'EMPLOYEE' });
   const [message, setMessage] = useState('');
   const [registering, setRegistering] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -289,10 +289,10 @@ export default function AdminCommandCenter() {
     try {
       const res = await apiFetch('/api/admin/create-employee', {
         method: 'POST',
-        body: JSON.stringify({ employeeName: form.employeeName, pin: form.pin }),
+        body: JSON.stringify({ employeeName: form.employeeName, pin: form.pin, role: form.role || 'EMPLOYEE' }),
       });
       const action = res.action === 'pin_updated' ? 'PIN updated' : 'Employee created';
-      setForm({ employeeName: '', pin: '' });
+      setForm({ employeeName: '', pin: '', role: 'EMPLOYEE' });
       setIsModalOpen(false);
       setMessage(`${action}: ${form.employeeName}`);
       await loadAll();
@@ -943,11 +943,11 @@ export default function AdminCommandCenter() {
                 return (
                   <tr key={u.id}>
                     <td style={{ fontWeight: 600 }}>{u.employeeName}</td>
-                    <td style={{ fontSize: 12, color: '#64748b' }}>{u.role === 'EMPLOYEE' ? 'PIN Login' : u.email}</td>
-                    <td style={{ fontSize: 13, fontWeight: 600, color: '#f59e0b', letterSpacing: 2 }}>{u.role === 'EMPLOYEE' ? (u.pin || '—') : '—'}</td>
+                    <td style={{ fontSize: 12, color: '#64748b' }}>{u.role === 'ADMIN' ? u.email : 'PIN Login'}</td>
+                    <td style={{ fontSize: 13, fontWeight: 600, color: '#f59e0b', letterSpacing: 2 }}>{u.role !== 'ADMIN' ? (u.pin || '—') : '—'}</td>
                     <td>
-                      <span className={`status-pill ${u.role === 'ADMIN' ? 'active' : ''}`} style={u.role === 'ADMIN' ? { background: 'rgba(167,139,250,0.2)', color: '#a78bfa' } : {}}>
-                        {u.role}
+                      <span className={`status-pill ${u.role === 'ADMIN' ? 'active' : ''}`} style={u.role === 'ADMIN' ? { background: 'rgba(167,139,250,0.2)', color: '#a78bfa' } : u.role === 'FIELD_EMPLOYEE' ? { background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)' } : {}}>
+                        {u.role === 'FIELD_EMPLOYEE' ? 'FIELD STAFF' : u.role === 'EMPLOYEE' ? 'OFFICE STAFF' : u.role}
                       </span>
                     </td>
                     <td style={{ fontFamily: 'monospace', color: '#00f2fe' }}>{serial || '—'}</td>
@@ -1476,6 +1476,17 @@ export default function AdminCommandCenter() {
                   value={form.employeeName}
                   onChange={(e) => setForm({ ...form, employeeName: e.target.value })}
                 />
+              </div>
+              <div>
+                <label className="field-label">Portal & Role Assignment</label>
+                <select
+                  className="nexus-select"
+                  value={form.role || 'EMPLOYEE'}
+                  onChange={(e) => setForm({ ...form, role: e.target.value })}
+                >
+                  <option value="EMPLOYEE">🏢 Office Staff (Full NEXUS Operations Console)</option>
+                  <option value="FIELD_EMPLOYEE">🔧 Field Staff (Field Portal & Project Reports Only)</option>
+                </select>
               </div>
               <div>
                 <label className="field-label">Login PIN (4-6 digits)</label>

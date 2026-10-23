@@ -85,6 +85,9 @@ export async function POST(request) {
 
     // Build rich, structured metadata tags
     const notesPrefixParts = [];
+    if (body.isFieldWork || body.source === 'field' || (!summaryNotes?.includes('[Office]') && !summaryNotes?.includes('[Other Expense]') && !category?.toLowerCase().includes('office'))) {
+      notesPrefixParts.push('[Field Work]');
+    }
     if (billId || billNumber) notesPrefixParts.push(`[${billId || `Bill ${billNumber}`}]`);
     if (bankReceiptId) notesPrefixParts.push(`[Bank Receipt ID: ${bankReceiptId}]`);
     if (bankName) notesPrefixParts.push(`[Bank: ${bankName}]`);

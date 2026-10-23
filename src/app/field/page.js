@@ -5,12 +5,14 @@ import {
   HardHat, Briefcase, Mail, Phone, Calendar, Clock,
   CheckCircle2, AlertTriangle, FileText, DollarSign, Upload,
   Camera, Download, RefreshCw, LogOut, ChevronRight, ArrowLeft,
-  Save, Send, ShieldAlert, History, Paperclip, Eye, X, AlertCircle
+  Save, Send, ShieldAlert, History, Paperclip, Eye, X, AlertCircle,
+  Building, Plus, PlusCircle, Receipt, User, Search
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { apiFetch } from '@/lib/api';
 import { PROJECT_EXPENSE_TEMPLATE, PROJECT_PROGRESS_TEMPLATE } from '@/lib/projectReportTemplates';
 import { downloadExpenseReportPdf, downloadProgressReportPdf } from '@/lib/projectPdfGenerator';
+import ProjectReportModal from '@/components/ProjectReportModal';
 
 export default function FieldPortalPage() {
   const { user, logout } = useAuth();
@@ -34,7 +36,46 @@ export default function FieldPortalPage() {
   const [actionMessage, setActionMessage] = useState({ type: '', text: '' });
   const [searchTerm, setSearchTerm] = useState('');
 
+  // ── Job Intake State ──
+  const [pendingTickets, setPendingTickets] = useState([]);
+  const [allEmployees, setAllEmployees] = useState([]);
+  const [intakeTicketId, setIntakeTicketId] = useState('');
+  const [intakeTicketSearch, setIntakeTicketSearch] = useState('');
+  const [intakeForm, setIntakeForm] = useState({
+    clientName: '',
+    branchName: '',
+    personOfContact: '',
+    workNature: '',
+    assignedEmployeeId: '',
+    manualEnteredBy: '',
+  });
+  const [submittingIntake, setSubmittingIntake] = useState(false);
+  const [showManualTicketModal, setShowManualTicketModal] = useState(false);
+  const [manualTicketSubject, setManualTicketSubject] = useState('');
+  const [manualTicketSender, setManualTicketSender] = useState('');
+  const [creatingManualTicket, setCreatingManualTicket] = useState(false);
+
+  // ── Prompt for Both PDFs on Project Option ──
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [modalJobForReport, setModalJobForReport] = useState(null);
+
+  // ── Direct Log Field Expense Modal State ──
+  const [isLogExpenseModalOpen, setIsLogExpenseModalOpen] = useState(false);
+  const [submittingFieldExpense, setSubmittingFieldExpense] = useState(false);
+  const [logExpenseForm, setLogExpenseForm] = useState({
+    jobMetadataId: '',
+    category: 'Site Expense',
+    amount: '',
+    paidBy: 'FES',
+    expenseDate: new Date().toISOString().split('T')[0],
+    expenseTime: new Date().toTimeString().slice(0, 5),
+    billNumber: '',
+    summaryNotes: '',
+    imageUrl: '',
+  });
+
   const fileInputRef = useRef(null);
+  const expenseFileInputRef = useRef(null);
 
   // Initialize form templates
   const initTemplates = (report = null) => {
@@ -98,14 +139,18 @@ export default function FieldPortalPage() {
     setLoading(true);
     setActionMessage({ type: '', text: '' });
     try {
-      const [jobsRes, reportsRes] = await Promise.all([
+      const [jobsRes, reportsRes, ticketsRes, usersRes] = await Promise.all([
         apiFetch('/api/jobs'),
         apiFetch('/api/project-reports?myReports=true'),
+        apiFetch('/api/tickets?pending=true').catch(() => ({ tickets: [] })),
+        apiFetch('/api/users').catch(() => ({ users: [] })),
       ]);
       const fetchedJobs = jobsRes.jobs || [];
       const fetchedReports = reportsRes.reports || [];
       setJobs(fetchedJobs);
       setMySubmissions(fetchedReports);
+      setPendingTickets(ticketsRes.tickets || []);
+      setAllEmployees((usersRes.users || []).filter((u) => u.role !== 'ADMIN'));
 
       // If active job is open, refresh its report
       if (selectedJob) {
@@ -123,6 +168,176 @@ export default function FieldPortalPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // ── Open Log Field Expense Modal ──
+  const openLogExpenseModal = (job = null) => {
+    const targetJobId = job ? String(job.id) : (jobs[0]?.id ? String(jobs[0].id) : '');
+    setLogExpenseForm({
+      jobMetadataId: targetJobId,
+      category: 'Site Expense',
+      amount: '',
+      paidBy: 'FES',
+      expenseDate: new Date().toISOString().split('T')[0],
+      expenseTime: new Date().toTimeString().slice(0, 5),
+      billNumber: '',
+      summaryNotes: '',
+      imageUrl: '',
+    });
+    setIsLogExpenseModalOpen(true);
+  };
+
+  const handleExpenseFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setLogExpenseForm((prev) => ({ ...prev, imageUrl: event.target.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleLogExpenseSubmit = async (e) => {
+    e.preventDefault();
+    if (!logExpenseForm.jobMetadataId) {
+      setActionMessage({ type: 'error', text: 'Please select a job for this expense.' });
+      return;
+    }
+    const amt = parseFloat(logExpenseForm.amount);
+    if (isNaN(amt) || amt <= 0) {
+      setActionMessage({ type: 'error', text: 'Please enter a valid expense amount.' });
+      return;
+    }
+    setSubmittingFieldExpense(true);
+    setActionMessage({ type: '', text: '' });
+    try {
+      const payload = {
+        jobMetadataId: Number(logExpenseForm.jobMetadataId),
+        amount: amt,
+        category: logExpenseForm.category || 'Site Expense',
+        paidBy: logExpenseForm.paidBy || 'FES',
+        expenseDate: logExpenseForm.expenseDate,
+        expenseTime: logExpenseForm.expenseTime,
+        billNumber: logExpenseForm.billNumber,
+        summaryNotes: logExpenseForm.summaryNotes,
+        imageUrl: logExpenseForm.imageUrl,
+        isFieldWork: true,
+        source: 'field',
+      };
+      await apiFetch('/api/expenses', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      setIsLogExpenseModalOpen(false);
+      setActionMessage({
+        type: 'success',
+        text: `Rs. ${amt.toLocaleString()} field expense logged successfully! Automatically submitted and visible to office operations for that Gmail account.`,
+      });
+      await loadData();
+    } catch (err) {
+      setActionMessage({ type: 'error', text: 'Failed to log expense: ' + err.message });
+    } finally {
+      setSubmittingFieldExpense(false);
+    }
+  };
+
+  // ── Intake Ticket Change ──
+  const handleIntakeTicketChange = (ticketId) => {
+    setIntakeTicketId(ticketId);
+    if (!ticketId) return;
+    const ticket = pendingTickets.find((t) => String(t.id) === String(ticketId));
+    if (ticket && !intakeForm.clientName) {
+      const senderName = ticket.sender?.split('@')[0] || '';
+      setIntakeForm((prev) => ({ ...prev, clientName: senderName }));
+    }
+  };
+
+  // ── Create Manual Ticket ──
+  const handleCreateManualTicket = async (e) => {
+    e.preventDefault();
+    setCreatingManualTicket(true);
+    try {
+      const { ticket } = await apiFetch('/api/tickets', {
+        method: 'POST',
+        body: JSON.stringify({
+          subject: manualTicketSubject,
+          sender: manualTicketSender || 'Field Site Entry',
+          createdById: user?.id,
+        }),
+      });
+      setPendingTickets((prev) => [ticket, ...prev]);
+      setIntakeTicketId(String(ticket.id));
+      setShowManualTicketModal(false);
+      setManualTicketSubject('');
+      setManualTicketSender('');
+      setActionMessage({ type: 'success', text: `Manual ticket #${ticket.serialNo} created.` });
+    } catch (err) {
+      setActionMessage({ type: 'error', text: 'Failed to create manual ticket: ' + err.message });
+    } finally {
+      setCreatingManualTicket(false);
+    }
+  };
+
+  // ── Save Job Intake ──
+  const handleIntakeSubmit = async (e) => {
+    e.preventDefault();
+    if (!intakeTicketId) {
+      setActionMessage({ type: 'error', text: 'Select an incoming ticket first to link this job.' });
+      return;
+    }
+    setSubmittingIntake(true);
+    setActionMessage({ type: '', text: '' });
+    try {
+      const res = await apiFetch('/api/jobs', {
+        method: 'POST',
+        body: JSON.stringify({
+          ticketId: Number(intakeTicketId),
+          clientName: intakeForm.clientName,
+          branchName: intakeForm.branchName,
+          personOfContact: intakeForm.personOfContact,
+          workNature: intakeForm.workNature,
+          assignedEmployeeId: intakeForm.assignedEmployeeId ? Number(intakeForm.assignedEmployeeId) : user?.id,
+          manualEnteredBy: user?.employeeName || 'Field Staff',
+        }),
+      });
+
+      const savedJob = res.job;
+      const isProject = intakeForm.workNature === 'PROJECT';
+
+      // Reset form
+      setIntakeForm({
+        clientName: '',
+        branchName: '',
+        personOfContact: '',
+        workNature: '',
+        assignedEmployeeId: '',
+        manualEnteredBy: '',
+      });
+      setIntakeTicketId('');
+
+      await loadData();
+
+      // IF WORK NATURE IS PROJECT: Immediately open prompt of both PDFs!
+      if (isProject && savedJob) {
+        setActionMessage({
+          type: 'success',
+          text: `🎉 Job Serial #${savedJob.ticket?.serialNo || savedJob.id} generated! Please fill out the Project Daily Progress and Expense reports below.`,
+        });
+        setModalJobForReport(savedJob);
+        setIsReportModalOpen(true);
+      } else {
+        setActionMessage({
+          type: 'success',
+          text: `🎉 Job Serial #${savedJob?.ticket?.serialNo || savedJob?.id} created successfully and added to your portal.`,
+        });
+        setActiveTab('jobs');
+      }
+    } catch (err) {
+      setActionMessage({ type: 'error', text: 'Failed to save job metadata: ' + err.message });
+    } finally {
+      setSubmittingIntake(false);
+    }
+  };
 
   const openJob = (job) => {
     setSelectedJob(job);
@@ -408,6 +623,27 @@ export default function FieldPortalPage() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            type="button"
+            className="nexus-btn"
+            style={{
+              padding: '8px 14px',
+              fontSize: 12,
+              background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+              color: '#ffffff',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              border: 'none',
+              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+            }}
+            onClick={() => openLogExpenseModal()}
+            title="Log quick site operational expense claim"
+          >
+            <Receipt size={14} />
+            <span>Log Field Expense</span>
+          </button>
           <button
             type="button"
             className="nexus-btn nexus-btn-ghost"
@@ -1031,6 +1267,13 @@ export default function FieldPortalPage() {
             </button>
             <button
               type="button"
+              className={`tab-segment-btn ${activeTab === 'intake' ? 'active-field' : ''}`}
+              onClick={() => setActiveTab('intake')}
+            >
+              <PlusCircle size={15} style={{ display: 'inline', marginRight: 4 }} /> Job Intake
+            </button>
+            <button
+              type="button"
               className={`tab-segment-btn ${activeTab === 'history' ? 'active-field' : ''}`}
               onClick={() => setActiveTab('history')}
             >
@@ -1063,7 +1306,7 @@ export default function FieldPortalPage() {
                     {searchTerm ? 'No matching jobs found' : 'No Assigned Jobs'}
                   </div>
                   <div style={{ fontSize: 13, marginTop: 4 }}>
-                    {searchTerm ? 'Try a different search term.' : 'Office management will assign jobs to your portal.'}
+                    {searchTerm ? 'Try a different search term.' : 'Office management will assign jobs to your portal, or you can intake one from the Job Intake tab.'}
                   </div>
                 </div>
               ) : (
@@ -1110,13 +1353,26 @@ export default function FieldPortalPage() {
                           {job.ticket?.subject || '—'}
                         </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: 12, color: '#64748b' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: 12, color: '#64748b', flexWrap: 'wrap', gap: 8 }}>
                           <div style={{ display: 'flex', gap: 14 }}>
                             <span>POC: {job.personOfContact || '—'}</span>
                             <span>Date: {job.ticket?.exactDate ? new Date(job.ticket.exactDate).toLocaleDateString() : '—'}</span>
                           </div>
-                          <div style={{ color: '#34d399', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            Open Job & Fill Reports <ChevronRight size={14} />
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              className="nexus-btn nexus-btn-ghost"
+                              style={{ padding: '4px 10px', fontSize: 11, color: '#38bdf8', borderColor: 'rgba(56,189,248,0.3)', display: 'flex', alignItems: 'center', gap: 4 }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openLogExpenseModal(job);
+                              }}
+                            >
+                              <Receipt size={12} /> Log Expense
+                            </button>
+                            <div style={{ color: '#34d399', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                              Open Reports <ChevronRight size={14} />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1124,6 +1380,203 @@ export default function FieldPortalPage() {
                   })}
                 </div>
               )}
+            </div>
+          ) : activeTab === 'intake' ? (
+            /* ════════════════════════════════════════════════════════════════ */
+            /* ── VIEW 3: FIELD JOB INTAKE & PROJECT PROMPT ─────────────────── */
+            /* ════════════════════════════════════════════════════════════════ */
+            <div>
+              <div className="glass-card" style={{ marginBottom: 20, padding: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+                  <div>
+                    <h2 style={{ fontSize: 18, color: '#f8fafc', margin: 0, fontWeight: 700 }}>
+                      Field Job & Project Intake
+                    </h2>
+                    <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0 0' }}>
+                      Enter site intake from incoming tickets or direct site work. Selecting <strong>Project</strong> automatically opens the digital reports prompt.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="nexus-btn nexus-btn-ghost"
+                    style={{ padding: '8px 14px', fontSize: 12, color: '#38bdf8', borderColor: 'rgba(56,189,248,0.3)', display: 'flex', alignItems: 'center', gap: 6 }}
+                    onClick={() => setShowManualTicketModal(true)}
+                  >
+                    <Plus size={14} /> + Manual Site Ticket
+                  </button>
+                </div>
+
+                {/* Ticket Selection */}
+                <div style={{ marginBottom: 18 }}>
+                  <label className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Mail size={13} color="#38bdf8" /> 1. Link Incoming Ticket (from Gmail / Operations)
+                  </label>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <select
+                      className="nexus-select"
+                      value={intakeTicketId}
+                      onChange={(e) => handleIntakeTicketChange(e.target.value)}
+                      style={{ flex: 1, minWidth: 260 }}
+                    >
+                      <option value="">— Select pending ticket —</option>
+                      {pendingTickets
+                        .filter((t) => !t.jobMetadata && t.status !== 'IRRELEVANT' && t.status !== 'CANCELLED')
+                        .filter((t) => {
+                          if (!intakeTicketSearch) return true;
+                          const q = intakeTicketSearch.toLowerCase();
+                          return (
+                            t.subject?.toLowerCase().includes(q) ||
+                            t.sender?.toLowerCase().includes(q) ||
+                            t.serialNo?.toLowerCase().includes(q) ||
+                            t.gmailAccount?.gmailEmail?.toLowerCase().includes(q)
+                          );
+                        })
+                        .map((t) => (
+                          <option key={t.id} value={t.id}>
+                            #{t.serialNo} — {t.subject} ({t.sender || 'Gmail'})
+                          </option>
+                        ))}
+                    </select>
+                    <div style={{ position: 'relative', width: 220 }}>
+                      <Search size={14} style={{ position: 'absolute', left: 10, top: 12, color: '#64748b' }} />
+                      <input
+                        className="nexus-input"
+                        style={{ paddingLeft: 30, fontSize: 12 }}
+                        placeholder="Search tickets..."
+                        value={intakeTicketSearch}
+                        onChange={(e) => setIntakeTicketSearch(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Intake Form Fields */}
+                <form onSubmit={handleIntakeSubmit}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+                    <div>
+                      <label className="field-label"><User size={12} style={{ display: 'inline', marginRight: 4 }} />Client Name</label>
+                      <input
+                        className="nexus-input"
+                        required
+                        placeholder="e.g. UBL Bank, FES"
+                        value={intakeForm.clientName}
+                        onChange={(e) => setIntakeForm({ ...intakeForm, clientName: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="field-label"><Building size={12} style={{ display: 'inline', marginRight: 4 }} />Branch Name</label>
+                      <input
+                        className="nexus-input"
+                        required
+                        placeholder="e.g. UBL Mall Road Branch"
+                        value={intakeForm.branchName}
+                        onChange={(e) => setIntakeForm({ ...intakeForm, branchName: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="field-label"><User size={12} style={{ display: 'inline', marginRight: 4 }} />Person of Contact</label>
+                      <input
+                        className="nexus-input"
+                        required
+                        placeholder="Branch contact person"
+                        value={intakeForm.personOfContact}
+                        onChange={(e) => setIntakeForm({ ...intakeForm, personOfContact: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="field-label"><Briefcase size={12} style={{ display: 'inline', marginRight: 4 }} />Work Nature</label>
+                      <select
+                        className="nexus-select"
+                        required
+                        value={intakeForm.workNature}
+                        onChange={(e) => setIntakeForm({ ...intakeForm, workNature: e.target.value })}
+                      >
+                        <option value="">— Select Work Nature —</option>
+                        <option value="ELECTRICAL">⚡ Electrical</option>
+                        <option value="WAPDA">🔌 WAPDA</option>
+                        <option value="MAINTENANCE">🔧 Maintenance</option>
+                        <option value="PROJECT">⭐ Project (Prompts 2 PDF Reports)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="field-label"><HardHat size={12} style={{ display: 'inline', marginRight: 4 }} />Assigned Employee</label>
+                      <select
+                        className="nexus-select"
+                        value={intakeForm.assignedEmployeeId || user?.id || ''}
+                        onChange={(e) => setIntakeForm({ ...intakeForm, assignedEmployeeId: e.target.value })}
+                      >
+                        <option value={user?.id || ''}>[Me] {user?.employeeName || 'Current Field Tech'}</option>
+                        {allEmployees.filter((e) => e.id !== user?.id).map((emp) => (
+                          <option key={emp.id} value={emp.id}>
+                            {emp.role === 'FIELD_EMPLOYEE' ? `[Field] ${emp.employeeName}` : emp.employeeName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="field-label"><User size={12} style={{ display: 'inline', marginRight: 4 }} />Entered By</label>
+                      <input
+                        className="nexus-input"
+                        disabled
+                        value={user?.employeeName || 'Field Employee'}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Dynamic Alert Banner for Project */}
+                  {intakeForm.workNature === 'PROJECT' && (
+                    <div style={{
+                      marginTop: 18,
+                      padding: '14px 18px',
+                      borderRadius: 8,
+                      background: 'rgba(16, 185, 129, 0.12)',
+                      border: '1px solid rgba(16, 185, 129, 0.35)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12
+                    }}>
+                      <HardHat size={26} color="#34d399" />
+                      <div>
+                        <div style={{ color: '#34d399', fontWeight: 'bold', fontSize: 13 }}>
+                          Project Work Nature Selected — 2 Digital Report Templates Active
+                        </div>
+                        <div style={{ color: '#cbd5e1', fontSize: 12, marginTop: 2 }}>
+                          Upon submitting, a prompt will immediately open with the <strong>Daily Progress Report</strong> (9 categories) and <strong>Project Expense Report</strong> (11 categories) for you to complete. Submitted expenses will automatically route to the office employee who connected that Gmail account.
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="nexus-btn"
+                    disabled={submittingIntake}
+                    style={{
+                      width: '100%',
+                      marginTop: 20,
+                      padding: '12px 20px',
+                      background: intakeForm.workNature === 'PROJECT'
+                        ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)'
+                        : 'linear-gradient(135deg, #2563eb 0%, #38bdf8 100%)',
+                      color: '#fff',
+                      fontWeight: 700,
+                      fontSize: 14,
+                      border: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                    }}
+                  >
+                    <Send size={16} />
+                    {submittingIntake
+                      ? 'Generating Serial...'
+                      : intakeForm.workNature === 'PROJECT'
+                      ? 'Save Job & Open Project Reports Prompt'
+                      : 'Generate Serial & Save Metadata'}
+                  </button>
+                </form>
+              </div>
             </div>
           ) : (
             /* ── SUBMITTED REPORTS & EXPENSES HISTORY ─────────────────────── */
@@ -1197,6 +1650,308 @@ export default function FieldPortalPage() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* ── MODAL 1: PROMPT FOR BOTH PDF REPORTS ON PROJECT INTAKE ──────── */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {isReportModalOpen && modalJobForReport && (
+        <ProjectReportModal
+          job={modalJobForReport}
+          onClose={() => {
+            setIsReportModalOpen(false);
+            setModalJobForReport(null);
+          }}
+          onSubmitted={async () => {
+            setIsReportModalOpen(false);
+            setModalJobForReport(null);
+            setActionMessage({
+              type: 'success',
+              text: '🎉 Project Reports & Expenses submitted successfully! Automatically routed to the office employee who connected that Gmail account.',
+            });
+            await loadData();
+            setActiveTab('history');
+          }}
+        />
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* ── MODAL 2: DIRECT LOG FIELD OPERATIONAL EXPENSE ───────────────── */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {isLogExpenseModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(6px)',
+            padding: 16,
+          }}
+          onClick={() => setIsLogExpenseModalOpen(false)}
+        >
+          <div
+            className="glass-card"
+            style={{
+              width: '100%',
+              maxWidth: 500,
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: 24,
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Receipt size={20} color="#34d399" />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 17, color: '#f8fafc' }}>Log Field Operational Expense</h3>
+                  <div style={{ fontSize: 11, color: '#94a3b8' }}>Submitted claims route directly to office Operations Feed</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="nexus-btn nexus-btn-ghost"
+                onClick={() => setIsLogExpenseModalOpen(false)}
+                style={{ padding: 6 }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleLogExpenseSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label className="field-label">Target Job / Site Branch</label>
+                <select
+                  className="nexus-select"
+                  required
+                  value={logExpenseForm.jobMetadataId}
+                  onChange={(e) => setLogExpenseForm({ ...logExpenseForm, jobMetadataId: e.target.value })}
+                >
+                  <option value="">— Select job to charge expense against —</option>
+                  {jobs.map((j) => (
+                    <option key={j.id} value={j.id}>
+                      #{j.ticket?.serialNo || j.id} — {j.branchName} ({j.clientName})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label className="field-label">Expense Category</label>
+                  <select
+                    className="nexus-select"
+                    value={logExpenseForm.category}
+                    onChange={(e) => setLogExpenseForm({ ...logExpenseForm, category: e.target.value })}
+                  >
+                    <option value="Site Expense">Site Expense</option>
+                    <option value="Fuel & Travel">Fuel & Travel</option>
+                    <option value="Spare Parts & Materials">Spare Parts & Materials</option>
+                    <option value="Labor & Wages">Labor & Wages</option>
+                    <option value="Food & Refreshment">Food & Refreshment</option>
+                    <option value="Maintenance">Maintenance</option>
+                    <option value="Emergency Repair">Emergency Repair</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="field-label">Amount (Rs.)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="1"
+                    required
+                    className="nexus-input"
+                    placeholder="e.g. 3500"
+                    value={logExpenseForm.amount}
+                    onChange={(e) => setLogExpenseForm({ ...logExpenseForm, amount: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label className="field-label">Paid By</label>
+                  <select
+                    className="nexus-select"
+                    value={logExpenseForm.paidBy}
+                    onChange={(e) => setLogExpenseForm({ ...logExpenseForm, paidBy: e.target.value })}
+                  >
+                    <option value="FES">🏢 Paid by Company (FES)</option>
+                    <option value="EMPLOYEE">👤 Paid by Field Employee</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="field-label">Bill / Voucher #</label>
+                  <input
+                    className="nexus-input"
+                    placeholder="Optional receipt #"
+                    value={logExpenseForm.billNumber}
+                    onChange={(e) => setLogExpenseForm({ ...logExpenseForm, billNumber: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label className="field-label">Date</label>
+                  <input
+                    type="date"
+                    className="nexus-input"
+                    value={logExpenseForm.expenseDate}
+                    onChange={(e) => setLogExpenseForm({ ...logExpenseForm, expenseDate: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="field-label">Time</label>
+                  <input
+                    type="time"
+                    className="nexus-input"
+                    value={logExpenseForm.expenseTime}
+                    onChange={(e) => setLogExpenseForm({ ...logExpenseForm, expenseTime: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="field-label">Upload Bill or Site Receipt Photo</label>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    type="file"
+                    ref={expenseFileInputRef}
+                    accept="image/*,application/pdf"
+                    style={{ display: 'none' }}
+                    onChange={handleExpenseFileUpload}
+                  />
+                  <button
+                    type="button"
+                    className="nexus-btn nexus-btn-ghost"
+                    onClick={() => expenseFileInputRef.current?.click()}
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px' }}
+                  >
+                    <Camera size={16} /> Choose Photo / Voucher
+                  </button>
+                  {logExpenseForm.imageUrl && (
+                    <button
+                      type="button"
+                      className="nexus-btn nexus-btn-ghost"
+                      onClick={() => setLogExpenseForm((prev) => ({ ...prev, imageUrl: '' }))}
+                      style={{ color: '#f87171', padding: '10px 14px' }}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                {logExpenseForm.imageUrl && (
+                  <div style={{ marginTop: 8, padding: 6, background: 'rgba(0,0,0,0.3)', borderRadius: 6, textAlign: 'center' }}>
+                    <span style={{ fontSize: 11, color: '#34d399' }}>✓ Photo attached ready to submit</span>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="field-label">Summary Notes</label>
+                <textarea
+                  className="nexus-input"
+                  rows={2}
+                  placeholder="Detail site items purchased or work performed..."
+                  value={logExpenseForm.summaryNotes}
+                  onChange={(e) => setLogExpenseForm({ ...logExpenseForm, summaryNotes: e.target.value })}
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="nexus-btn nexus-btn-primary"
+                disabled={submittingFieldExpense}
+                style={{
+                  background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                  padding: 12,
+                  fontWeight: 600,
+                  fontSize: 14,
+                  marginTop: 6,
+                }}
+              >
+                <Send size={15} />
+                {submittingFieldExpense ? 'Submitting to Office...' : 'Submit Field Expense'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* ── MODAL 3: MANUAL TICKET CREATION MODAL ───────────────────────── */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {showManualTicketModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(6px)',
+            padding: 16,
+          }}
+          onClick={() => setShowManualTicketModal(false)}
+        >
+          <div
+            className="glass-card"
+            style={{ width: '100%', maxWidth: 440, padding: 22 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 16, color: '#f8fafc' }}>Create Manual Site Ticket</h3>
+              <button
+                type="button"
+                className="nexus-btn nexus-btn-ghost"
+                onClick={() => setShowManualTicketModal(false)}
+                style={{ padding: 6 }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <form onSubmit={handleCreateManualTicket} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label className="field-label">Subject / Ticket Description</label>
+                <input
+                  className="nexus-input"
+                  required
+                  placeholder="e.g. Electrical renovation of main hall"
+                  value={manualTicketSubject}
+                  onChange={(e) => setManualTicketSubject(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="field-label">Sender / Client Label</label>
+                <input
+                  className="nexus-input"
+                  placeholder="e.g. UBL Central or On-Site Client"
+                  value={manualTicketSender}
+                  onChange={(e) => setManualTicketSender(e.target.value)}
+                />
+              </div>
+              <button
+                type="submit"
+                className="nexus-btn nexus-btn-primary"
+                disabled={creatingManualTicket}
+                style={{ padding: 12, fontWeight: 600 }}
+              >
+                {creatingManualTicket ? 'Creating...' : 'Create Ticket & Continue'}
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </div>

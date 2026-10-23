@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Send, Building, User, Briefcase, X, Copy, Search } from 'lucide-react';
+import { Send, Building, User, Briefcase, X, Copy, Search, HardHat, FileText } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useJob } from '@/components/JobContext';
 import { useAuth } from '@/components/AuthProvider';
+import ProjectReportModal from '@/components/ProjectReportModal';
 
 const WORK_NATURES = [
   { value: 'ELECTRICAL', label: 'Electrical' },
@@ -38,6 +39,8 @@ export default function IntakeGridPage() {
   const [jobSearch, setJobSearch] = useState('');
   const [ticketSearch, setTicketSearch] = useState('');
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [modalJobForReport, setModalJobForReport] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -88,7 +91,8 @@ export default function IntakeGridPage() {
     setSubmitting(true);
     setMessage('');
     try {
-      await apiFetch('/api/jobs', {
+      const isProject = form.workNature === 'PROJECT';
+      const res = await apiFetch('/api/jobs', {
         method: 'POST',
         body: JSON.stringify({
           ticketId: Number(selectedTicketId),
@@ -107,6 +111,12 @@ export default function IntakeGridPage() {
       if (updated.length) setSelectedTicketId(String(updated[0].id));
       else setSelectedTicketId('');
       await refreshJobs();
+
+      // Trigger prompt for both PDF reports when Project is selected
+      if (isProject && res.job) {
+        setModalJobForReport(res.job);
+        setIsReportModalOpen(true);
+      }
     } catch (err) {
       setMessage(err.message);
     } finally {
@@ -320,6 +330,29 @@ export default function IntakeGridPage() {
           </div>
         </div>
 
+        {form.workNature === 'PROJECT' && (
+          <div style={{
+            marginTop: 18,
+            padding: '12px 16px',
+            borderRadius: 8,
+            background: 'rgba(16, 185, 129, 0.12)',
+            border: '1px solid rgba(16, 185, 129, 0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12
+          }}>
+            <HardHat size={22} color="#34d399" />
+            <div>
+              <div style={{ color: '#34d399', fontWeight: 600, fontSize: 13 }}>
+                Project Work Selected — Digital Report Templates Active
+              </div>
+              <div style={{ color: '#cbd5e1', fontSize: 12, marginTop: 2 }}>
+                Upon saving metadata, an interactive prompt will immediately open with both the <strong>Daily Progress Report</strong> (9 categories) and <strong>Project Expense Report</strong> (11 categories) to complete or review.
+              </div>
+            </div>
+          </div>
+        )}
+
         {message && (
           <div className={message.includes('saved') ? 'alert-success' : 'alert-error'} style={{ marginTop: 20 }}>
             {message}
@@ -327,7 +360,7 @@ export default function IntakeGridPage() {
         )}
 
         <button type="submit" className="nexus-btn nexus-btn-primary" style={{ width: '100%', marginTop: 24, padding: 16 }} disabled={submitting || loadingData}>
-          <Send size={18} /> {loadingData ? 'Loading...' : submitting ? 'Saving...' : 'Generate Serial & Save Metadata'}
+          <Send size={18} /> {loadingData ? 'Loading...' : submitting ? 'Saving...' : form.workNature === 'PROJECT' ? 'Generate Serial & Open Project Reports' : 'Generate Serial & Save Metadata'}
         </button>
       </form>
 
@@ -353,6 +386,7 @@ export default function IntakeGridPage() {
               <th>Work Nature</th>
               <th>Assigned To</th>
               <th>Entered By</th>
+              <th>Reports</th>
             </tr>
           </thead>
           <tbody>
@@ -375,10 +409,11 @@ export default function IntakeGridPage() {
                   );
                 });
               if (list.length === 0) {
-                return <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No entries yet.</td></tr>;
+                return <tr><td colSpan={9} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>No entries yet.</td></tr>;
               }
               return list.map((t) => {
                 const j = t.jobMetadata;
+                const isProj = j.workNature === 'PROJECT';
                 return (
                   <tr key={t.id}>
                     <td style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 600 }}>{t.serialNo}</td>
@@ -399,10 +434,31 @@ export default function IntakeGridPage() {
                       </div>
                     </td>
                     <td>{j.personOfContact}</td>
-                    <td>{j.workNature}</td>
+                    <td>
+                      <span style={isProj ? { color: '#34d399', fontWeight: 600 } : {}}>
+                        {j.workNature}
+                      </span>
+                    </td>
                     <td>{j.assignedEmployee?.employeeName || '—'}</td>
                     <td style={{ color: '#94a3b8', fontSize: 12 }}>
                       {j.createdBy?.employeeName || j.createdBy?.email || j.manualEnteredBy || t.createdBy?.employeeName || t.createdBy?.email || 'Auto-Ingested'}
+                    </td>
+                    <td>
+                      {isProj ? (
+                        <button
+                          type="button"
+                          className="nexus-btn nexus-btn-ghost"
+                          style={{ padding: '4px 8px', fontSize: 11, color: '#34d399', borderColor: 'rgba(52,211,153,0.3)', display: 'flex', alignItems: 'center', gap: 4 }}
+                          onClick={() => {
+                            setModalJobForReport({ ...j, ticket: t });
+                            setIsReportModalOpen(true);
+                          }}
+                        >
+                          <FileText size={12} /> View/Fill Reports
+                        </button>
+                      ) : (
+                        <span style={{ color: '#64748b', fontSize: 11 }}>Standard</span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -411,6 +467,23 @@ export default function IntakeGridPage() {
           </tbody>
         </table>
       </section>
+
+      {/* ── PROJECT REPORT PROMPT MODAL ── */}
+      {isReportModalOpen && modalJobForReport && (
+        <ProjectReportModal
+          job={modalJobForReport}
+          onClose={() => {
+            setIsReportModalOpen(false);
+            setModalJobForReport(null);
+          }}
+          onSubmitted={async () => {
+            setIsReportModalOpen(false);
+            setModalJobForReport(null);
+            setMessage('Project reports & expenses successfully submitted to operations feed!');
+            await refreshJobs();
+          }}
+        />
+      )}
 
       {showManualForm && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent' }} onClick={() => setShowManualForm(false)}>

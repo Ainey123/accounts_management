@@ -292,7 +292,19 @@ export default function AdminCommandCenter() {
         body: JSON.stringify({ employeeName: form.employeeName, pin: form.pin, role: form.role || 'EMPLOYEE' }),
       });
       const action = res.action === 'pin_updated' ? 'PIN updated' : 'Employee created';
-      setForm({ employeeName: '', pin: '', role: 'EMPLOYEE' });
+
+      if (form.batch && form.employeeName) {
+        const updatedAliases = { ...employeeAliases, [form.employeeName.trim()]: form.batch };
+        setEmployeeAliases(updatedAliases);
+        setEditingAliases(updatedAliases);
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('nexus_employee_aliases', JSON.stringify(updatedAliases));
+          } catch (e) {}
+        }
+      }
+
+      setForm({ employeeName: '', pin: '', role: 'EMPLOYEE', batch: 'Ali Shehzad (Batch 1)' });
       setIsModalOpen(false);
       setMessage(`${action}: ${form.employeeName}`);
       await loadAll();
@@ -312,6 +324,55 @@ export default function AdminCommandCenter() {
       await loadAll();
     } catch (err) {
       setMessage(err.message);
+    }
+  };
+
+  const handleToggleRole = async (id, currentRole) => {
+    const nextRole = currentRole === 'FIELD_EMPLOYEE' ? 'EMPLOYEE' : 'FIELD_EMPLOYEE';
+    try {
+      await apiFetch(`/api/admin/users/${id}/role`, {
+        method: 'PATCH',
+        body: JSON.stringify({ role: nextRole }),
+      });
+      setMessage(`Employee role switched to ${nextRole === 'FIELD_EMPLOYEE' ? 'Field Staff' : 'Office Staff'}`);
+      await loadAll();
+    } catch (err) {
+      setMessage('Failed to toggle role: ' + err.message);
+    }
+  };
+
+  const [selectedBatchForRole, setSelectedBatchForRole] = useState('all');
+  const [batchActionRunning, setBatchActionRunning] = useState(false);
+
+  const handleBatchToggleRole = async (targetRole) => {
+    const matchingUsers = users.filter((u) => {
+      if (u.role === 'ADMIN') return false;
+      if (selectedBatchForRole === 'all') return true;
+      const b = getMappedBatch(u.employeeName);
+      return b.includes(selectedBatchForRole) || b === selectedBatchForRole;
+    });
+
+    if (matchingUsers.length === 0) {
+      alert(`No employees found matching: ${selectedBatchForRole}`);
+      return;
+    }
+
+    setBatchActionRunning(true);
+    try {
+      for (const u of matchingUsers) {
+        if (u.role !== targetRole) {
+          await apiFetch(`/api/admin/users/${u.id}/role`, {
+            method: 'PATCH',
+            body: JSON.stringify({ role: targetRole }),
+          });
+        }
+      }
+      setMessage(`Successfully updated ${matchingUsers.length} employee(s) to ${targetRole === 'FIELD_EMPLOYEE' ? 'Field Staff' : 'Office Staff'}.`);
+      await loadAll();
+    } catch (err) {
+      setMessage('Batch update failed: ' + err.message);
+    } finally {
+      setBatchActionRunning(false);
     }
   };
 
@@ -915,7 +976,7 @@ export default function AdminCommandCenter() {
       {/* EMPLOYEES TAB */}
       {activeTab === 'employees' && (
         <section className="glass-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <Users size={20} color="#00f2fe" />
               <h2 style={{ fontSize: 18, margin: 0 }}>Live Employee Tracker ({employees.length})</h2>
@@ -925,10 +986,74 @@ export default function AdminCommandCenter() {
             </button>
           </div>
 
+          {/* Quick Batch & Role Manager */}
+          <div style={{
+            marginBottom: 20,
+            padding: '12px 16px',
+            borderRadius: 8,
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Batch Quick Role Switch:</span>
+              <select
+                className="nexus-select"
+                style={{ padding: '6px 12px', fontSize: 12, minWidth: 180 }}
+                value={selectedBatchForRole}
+                onChange={(e) => setSelectedBatchForRole(e.target.value)}
+              >
+                <option value="all">All Employees</option>
+                <option value="Batch 1">Batch 1 (Ali Shehzad)</option>
+                <option value="Batch 2">Batch 2 (Muhammad Ibrahim)</option>
+                <option value="Batch 3">Batch 3 (Shah Zaib)</option>
+                <option value="Batch 4">Batch 4 (Sarmad Islam)</option>
+              </select>
+              <button
+                type="button"
+                className="nexus-btn nexus-btn-ghost"
+                style={{
+                  padding: '6px 12px',
+                  fontSize: 12,
+                  color: '#34d399',
+                  borderColor: 'rgba(52,211,153,0.4)',
+                  fontWeight: 600,
+                }}
+                disabled={batchActionRunning}
+                onClick={() => handleBatchToggleRole('FIELD_EMPLOYEE')}
+              >
+                ➜ Switch Batch to Field Staff
+              </button>
+              <button
+                type="button"
+                className="nexus-btn nexus-btn-ghost"
+                style={{
+                  padding: '6px 12px',
+                  fontSize: 12,
+                  color: '#38bdf8',
+                  borderColor: 'rgba(56,189,248,0.4)',
+                  fontWeight: 600,
+                }}
+                disabled={batchActionRunning}
+                onClick={() => handleBatchToggleRole('EMPLOYEE')}
+              >
+                ➜ Switch Batch to Office Staff
+              </button>
+            </div>
+            <div style={{ fontSize: 11, color: '#64748b' }}>
+              Field Staff login via dedicated Field Portal; Office Staff access Full Operations Console.
+            </div>
+          </div>
+
           <table className="data-table">
             <thead>
               <tr>
                 <th>Name</th>
+                <th>Batch</th>
                 <th>Login</th>
                 <th>PIN</th>
                 <th>Role</th>
@@ -943,6 +1068,11 @@ export default function AdminCommandCenter() {
                 return (
                   <tr key={u.id}>
                     <td style={{ fontWeight: 600 }}>{u.employeeName}</td>
+                    <td>
+                      <span style={{ fontSize: 11, color: '#c4b5fd', background: 'rgba(167,139,250,0.1)', padding: '2px 8px', borderRadius: 4, fontWeight: 500 }}>
+                        {getMappedBatch(u.employeeName)}
+                      </span>
+                    </td>
                     <td style={{ fontSize: 12, color: '#64748b' }}>{u.role === 'ADMIN' ? u.email : 'PIN Login'}</td>
                     <td style={{ fontSize: 13, fontWeight: 600, color: '#f59e0b', letterSpacing: 2 }}>{u.role !== 'ADMIN' ? (u.pin || '—') : '—'}</td>
                     <td>
@@ -979,6 +1109,23 @@ export default function AdminCommandCenter() {
                         >
                           <Key size={14} />
                         </button>
+                        {u.role !== 'ADMIN' && (
+                          <button
+                            type="button"
+                            className="nexus-btn nexus-btn-ghost"
+                            onClick={() => handleToggleRole(u.id, u.role)}
+                            style={{
+                              padding: '4px 8px',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              color: u.role === 'FIELD_EMPLOYEE' ? '#38bdf8' : '#34d399',
+                              border: `1px solid ${u.role === 'FIELD_EMPLOYEE' ? 'rgba(56,189,248,0.4)' : 'rgba(52,211,153,0.4)'}`,
+                            }}
+                            title={u.role === 'FIELD_EMPLOYEE' ? 'Switch to Office Staff' : 'Switch to Field Staff'}
+                          >
+                            {u.role === 'FIELD_EMPLOYEE' ? 'To Office' : 'To Field'}
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="nexus-btn nexus-btn-ghost"
@@ -1486,6 +1633,20 @@ export default function AdminCommandCenter() {
                 >
                   <option value="EMPLOYEE">🏢 Office Staff (Full NEXUS Operations Console)</option>
                   <option value="FIELD_EMPLOYEE">🔧 Field Staff (Field Portal & Project Reports Only)</option>
+                </select>
+              </div>
+              <div>
+                <label className="field-label">Batch Assignment</label>
+                <select
+                  className="nexus-select"
+                  value={form.batch || 'Ali Shehzad (Batch 1)'}
+                  onChange={(e) => setForm({ ...form, batch: e.target.value })}
+                >
+                  <option value="Ali Shehzad (Batch 1)">Batch 1 (Ali Shehzad)</option>
+                  <option value="Muhammad Ibrahim (Batch 2)">Batch 2 (Muhammad Ibrahim)</option>
+                  <option value="Shah Zaib (Batch 3)">Batch 3 (Shah Zaib)</option>
+                  <option value="Sarmad Islam (Batch 4)">Batch 4 (Sarmad Islam)</option>
+                  <option value="Field Operations (Batch 5)">Batch 5 (Field Operations)</option>
                 </select>
               </div>
               <div>

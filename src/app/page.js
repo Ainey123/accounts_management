@@ -132,21 +132,25 @@ export default function LoginPage() {
                 <option value="">
                   {loadingEmployees ? 'Loading...' : employees.length === 0 ? 'No employees found — contact admin' : '— Select your name —'}
                 </option>
-                {employees
-                  .filter((emp) => {
-                    if (activeTab === 'FIELD_EMPLOYEE') {
-                      return emp.role === 'FIELD_EMPLOYEE' || emp.role === 'EMPLOYEE';
-                    }
-                    return emp.role === 'EMPLOYEE';
-                  })
-                  .map((emp) => (
+                {(() => {
+                  const hasFieldRoles = employees.some((e) => e.role === 'FIELD_EMPLOYEE');
+                  const list = activeTab === 'FIELD_EMPLOYEE'
+                    ? (hasFieldRoles ? employees.filter((e) => e.role === 'FIELD_EMPLOYEE') : employees.filter((e) => e.role !== 'ADMIN'))
+                    : employees.filter((e) => e.role !== 'ADMIN');
+                  return list.map((emp) => (
                     <option key={emp.id} value={emp.employeeName}>
-                      {emp.employeeName} {emp.role === 'FIELD_EMPLOYEE' ? '(Field)' : ''}
+                      {emp.employeeName} {emp.role === 'FIELD_EMPLOYEE' ? '★ (Field Staff)' : ''}
                     </option>
-                  ))}
+                  ));
+                })()}
               </select>
               <ChevronDown size={16} style={{ position: 'absolute', right: 12, top: 13, color: '#64748b', pointerEvents: 'none' }} />
             </div>
+            {activeTab === 'FIELD_EMPLOYEE' && !employees.some((e) => e.role === 'FIELD_EMPLOYEE') && (
+              <div style={{ marginTop: 8, padding: '8px 12px', background: 'rgba(56, 189, 248, 0.1)', borderRadius: 6, fontSize: 11, color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                ℹ️ Admin has not assigned staff specifically to &quot;Field Staff&quot; yet in the database. Select any staff name below or use Admin Console to assign/create Field Staff.
+              </div>
+            )}
           </div>
         )}
 

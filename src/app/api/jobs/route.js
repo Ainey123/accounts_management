@@ -17,21 +17,58 @@ function getUserFromCookie(request) {
 export async function GET(request) {
   try {
     const user = getUserFromCookie(request);
+    const { searchParams } = new URL(request.url);
+    const showAll = searchParams.get('all') === 'true';
+
     let whereClause = undefined;
 
-    if (user && user.role === 'FIELD_EMPLOYEE') {
-      const empId = user.id ? Number(user.id) : null;
-      if (!empId) {
-        return NextResponse.json({ jobs: [] });
-      }
-      whereClause = { assignedEmployeeId: empId };
-    } else if (user && user.role === 'EMPLOYEE') {
-      const empId = user.id ? Number(user.id) : null;
-      if (empId && !isNaN(empId)) {
+    if (!showAll) {
+      if (user && user.role === 'FIELD_EMPLOYEE') {
+        const empId = user.id ? Number(user.id) : null;
+        if (!empId) {
+          return NextResponse.json({ jobs: [] });
+        }
         whereClause = { assignedEmployeeId: empId };
+      } else if (user && user.role === 'EMPLOYEE') {
+        const empId = user.id ? Number(user.id) : null;
+        if (empId && !isNaN(empId)) {
+          // Query employee's connected Gmail accounts to support multi-account & domain routing
+          let userGmailAccountIds = [];
+          try {
+            const userWithAccounts = await prisma.user.findUnique({
+              where: { id: empId },
+              select: {
+                employeeName: true,
+                email: true,
+                gmailAccounts: { select: { id: true, gmailEmail: true } },
+              },
+            });
+            if (userWithAccounts?.gmailAccounts?.length > 0) {
+              userGmailAccountIds = userWithAccounts.gmailAccounts.map((g) => g.id);
+            }
+          } catch (accErr) {
+            console.warn('Failed to fetch user gmail accounts for routing:', accErr.message);
+          }
+
+          // Office employee sees jobs assigned to them, created by them, or from their connected Gmail account / domain
+          const orConditions = [
+            { assignedEmployeeId: empId },
+            { createdById: empId },
+            { ticket: { gmailAccount: { userId: empId } } },
+            { ticket: { createdById: empId } },
+          ];
+
+          if (userGmailAccountIds.length > 0) {
+            orConditions.push({ ticket: { gmailAccountId: { in: userGmailAccountIds } } });
+          }
+
+          if (user.employeeName) {
+            orConditions.push({ manualEnteredBy: { equals: user.employeeName, mode: 'insensitive' } });
+          }
+
+          whereClause = { OR: orConditions };
+        }
       }
-      // If employee has no valid ID (e.g. PIN login), show ALL jobs (no filter)
-      // so the dashboard is never empty due to broken cookie
     }
 
     let jobs = [];

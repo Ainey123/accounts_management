@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, KeyRound, Briefcase, Settings, User, ChevronDown, HardHat } from 'lucide-react';
+import { ShieldCheck, KeyRound, Briefcase, Settings, User, ChevronDown, HardHat, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { apiFetch } from '@/lib/api';
 
 export default function LoginPage() {
-  const [activeTab, setActiveTab] = useState('FIELD_EMPLOYEE');
+  const [activeTab, setActiveTab] = useState('EMPLOYEE');
   const [pin, setPin] = useState('');
   const [selectedName, setSelectedName] = useState('');
   const [employees, setEmployees] = useState([]);
@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const { login } = useAuth();
 
-  // Fetch employee names for dropdown when on EMPLOYEE or FIELD_EMPLOYEE tab
+  // Fetch employee list for dropdowns
   useEffect(() => {
     if (activeTab === 'ADMIN') return;
     setLoadingEmployees(true);
@@ -28,13 +28,30 @@ export default function LoginPage() {
       .finally(() => setLoadingEmployees(false));
   }, [activeTab]);
 
+  // Strict separation: Office staff vs Field staff
+  const officeEmployees = employees.filter((e) => e.role === 'EMPLOYEE');
+  const fieldEmployees = employees.filter((e) => e.role === 'FIELD_EMPLOYEE');
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
 
-    if ((activeTab === 'EMPLOYEE' || activeTab === 'FIELD_EMPLOYEE') && !selectedName) {
-      setError('Please select your name from the list.');
-      return;
+    if (activeTab === 'FIELD_EMPLOYEE') {
+      if (fieldEmployees.length === 0) {
+        setError('No field employees registered yet. An admin must add field staff from the Admin Console.');
+        return;
+      }
+      if (!selectedName) {
+        setError('Please select your field employee name from the list.');
+        return;
+      }
+    }
+
+    if (activeTab === 'EMPLOYEE') {
+      if (!selectedName) {
+        setError('Please select your name from the office employee list.');
+        return;
+      }
     }
 
     setLoading(true);
@@ -82,25 +99,25 @@ export default function LoginPage() {
           {activeTab === 'FIELD_EMPLOYEE'
             ? 'Field staff assigned jobs & project reports access'
             : activeTab === 'EMPLOYEE'
-            ? 'Select your name and enter PIN to access'
-            : 'Enter admin PIN to access'}
+            ? 'Select your name and enter PIN to access office operations'
+            : 'Enter master admin PIN to access command center'}
         </p>
       </div>
 
       <div className="tab-segment" style={{ gap: 4 }}>
         <button
           type="button"
-          className={`tab-segment-btn ${activeTab === 'FIELD_EMPLOYEE' ? 'active-field' : ''}`}
-          onClick={() => switchTab('FIELD_EMPLOYEE')}
-        >
-          <HardHat size={15} style={{ display: 'inline', marginRight: 4 }} /> Field Portal
-        </button>
-        <button
-          type="button"
           className={`tab-segment-btn ${activeTab === 'EMPLOYEE' ? 'active-employee' : ''}`}
           onClick={() => switchTab('EMPLOYEE')}
         >
           <Briefcase size={15} style={{ display: 'inline', marginRight: 4 }} /> Office
+        </button>
+        <button
+          type="button"
+          className={`tab-segment-btn ${activeTab === 'FIELD_EMPLOYEE' ? 'active-field' : ''}`}
+          onClick={() => switchTab('FIELD_EMPLOYEE')}
+        >
+          <HardHat size={15} style={{ display: 'inline', marginRight: 4 }} /> Field Portal
         </button>
         <button
           type="button"
@@ -114,12 +131,12 @@ export default function LoginPage() {
       {error && <div className="alert-error" style={{ marginBottom: 20 }}>{error}</div>}
 
       <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        {/* Name dropdown — for field and office employees */}
-        {(activeTab === 'EMPLOYEE' || activeTab === 'FIELD_EMPLOYEE') && (
+        {/* OFFICE EMPLOYEE DROPDOWN */}
+        {activeTab === 'EMPLOYEE' && (
           <div>
             <label className="field-label">
               <User size={13} style={{ display: 'inline', marginRight: 4 }} />
-              {activeTab === 'FIELD_EMPLOYEE' ? 'Field Employee Name' : 'Your Name'}
+              Office Employee Name
             </label>
             <div style={{ position: 'relative' }}>
               <select
@@ -130,25 +147,73 @@ export default function LoginPage() {
                 required
               >
                 <option value="">
-                  {loadingEmployees ? 'Loading...' : employees.length === 0 ? 'No employees found — contact admin' : '— Select your name —'}
+                  {loadingEmployees ? 'Loading...' : officeEmployees.length === 0 ? 'No office employees found — contact admin' : '— Select your name —'}
                 </option>
-                {(() => {
-                  const hasFieldRoles = employees.some((e) => e.role === 'FIELD_EMPLOYEE');
-                  const list = activeTab === 'FIELD_EMPLOYEE'
-                    ? (hasFieldRoles ? employees.filter((e) => e.role === 'FIELD_EMPLOYEE') : employees.filter((e) => e.role !== 'ADMIN'))
-                    : employees.filter((e) => e.role !== 'ADMIN');
-                  return list.map((emp) => (
-                    <option key={emp.id} value={emp.employeeName}>
-                      {emp.employeeName} {emp.role === 'FIELD_EMPLOYEE' ? '★ (Field Staff)' : ''}
-                    </option>
-                  ));
-                })()}
+                {officeEmployees.map((emp) => (
+                  <option key={emp.id} value={emp.employeeName}>
+                    {emp.employeeName}
+                  </option>
+                ))}
               </select>
               <ChevronDown size={16} style={{ position: 'absolute', right: 12, top: 13, color: '#64748b', pointerEvents: 'none' }} />
             </div>
-            {activeTab === 'FIELD_EMPLOYEE' && !employees.some((e) => e.role === 'FIELD_EMPLOYEE') && (
-              <div style={{ marginTop: 8, padding: '8px 12px', background: 'rgba(56, 189, 248, 0.1)', borderRadius: 6, fontSize: 11, color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
-                ℹ️ Admin has not assigned staff specifically to &quot;Field Staff&quot; yet in the database. Select any staff name below or use Admin Console to assign/create Field Staff.
+          </div>
+        )}
+
+        {/* FIELD EMPLOYEE DROPDOWN */}
+        {activeTab === 'FIELD_EMPLOYEE' && (
+          <div>
+            <label className="field-label">
+              <HardHat size={13} style={{ display: 'inline', marginRight: 4, color: '#34d399' }} />
+              Field Employee Name
+            </label>
+            <div style={{ position: 'relative' }}>
+              <select
+                className="nexus-input"
+                style={{ paddingLeft: 14, paddingRight: 36, appearance: 'none' }}
+                value={selectedName}
+                onChange={(e) => setSelectedName(e.target.value)}
+                disabled={loadingEmployees || fieldEmployees.length === 0}
+                required
+              >
+                <option value="">
+                  {loadingEmployees
+                    ? 'Loading...'
+                    : fieldEmployees.length === 0
+                    ? '— No Field Employees Registered —'
+                    : '— Select field employee name —'}
+                </option>
+                {fieldEmployees.map((emp) => (
+                  <option key={emp.id} value={emp.employeeName}>
+                    {emp.employeeName}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={16} style={{ position: 'absolute', right: 12, top: 13, color: '#64748b', pointerEvents: 'none' }} />
+            </div>
+
+            {/* Clear notice when no field employees exist yet */}
+            {fieldEmployees.length === 0 && !loadingEmployees && (
+              <div style={{
+                marginTop: 10,
+                padding: '10px 14px',
+                background: 'rgba(239, 68, 68, 0.08)',
+                borderRadius: 8,
+                fontSize: 12,
+                color: '#f87171',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 8,
+                lineHeight: 1.4
+              }}>
+                <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+                <div>
+                  <strong>No Field Employees Added Yet.</strong>
+                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                    Office staff cannot log in through the Field Portal. To register field employees or assign this role, log into the Admin Console under <strong>Employees</strong>.
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -181,9 +246,17 @@ export default function LoginPage() {
             fontSize: 16,
             background: activeTab === 'FIELD_EMPLOYEE' ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : undefined,
           }}
-          disabled={loading}
+          disabled={loading || (activeTab === 'FIELD_EMPLOYEE' && fieldEmployees.length === 0)}
         >
-          {loading ? 'Authenticating...' : activeTab === 'ADMIN' ? 'Access Master Console' : activeTab === 'FIELD_EMPLOYEE' ? 'Open Field Portal' : 'Secure Login'}
+          {loading
+            ? 'Authenticating...'
+            : activeTab === 'ADMIN'
+            ? 'Access Master Console'
+            : activeTab === 'FIELD_EMPLOYEE'
+            ? fieldEmployees.length === 0
+              ? 'No Field Staff Registered'
+              : 'Open Field Portal'
+            : 'Access Office Console'}
         </button>
       </form>
     </div>

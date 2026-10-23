@@ -46,8 +46,9 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Email, password, and employee name are required' }, { status: 400 });
     }
 
-    if (role !== 'EMPLOYEE') {
-      return NextResponse.json({ error: 'Only employee accounts can be created via this endpoint' }, { status: 400 });
+    const targetRole = role === 'FIELD_EMPLOYEE' ? 'FIELD_EMPLOYEE' : 'EMPLOYEE';
+    if (role !== 'EMPLOYEE' && role !== 'FIELD_EMPLOYEE') {
+      return NextResponse.json({ error: 'Only employee accounts (EMPLOYEE or FIELD_EMPLOYEE) can be created via this endpoint' }, { status: 400 });
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -60,7 +61,7 @@ export async function POST(request) {
         email,
         password: hashPassword(password),
         employeeName,
-        role: 'EMPLOYEE',
+        role: targetRole,
         activeStatus: true,
       },
     });

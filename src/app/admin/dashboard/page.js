@@ -8,7 +8,8 @@ import {
   TrendingUp, TrendingDown, Check, ClipboardCopy,
   CheckCircle, AlertCircle, XCircle, MessageSquare, Clock, Send,
   Award, Calendar, Download, Printer, Edit3, BarChart3,
-  FileSpreadsheet, Receipt, ArrowRight, ArrowUpRight
+  FileSpreadsheet, Receipt, ArrowRight, ArrowUpRight,
+  HardHat, Briefcase
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import ReconciliationModule from '@/components/ReconciliationModule';
@@ -25,7 +26,8 @@ export default function AdminCommandCenter() {
   const [settings, setSettings] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form, setForm] = useState({ employeeName: '', pin: '', role: 'EMPLOYEE' });
+  const [form, setForm] = useState({ employeeName: '', pin: '', role: 'EMPLOYEE', batch: 'Ali Shehzad (Batch 1)' });
+  const [employeeTabFilter, setEmployeeTabFilter] = useState('all');
   const [message, setMessage] = useState('');
   const [registering, setRegistering] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -65,13 +67,30 @@ export default function AdminCommandCenter() {
   };
 
   useEffect(() => {
+    const handleTabChange = (e) => {
+      if (e?.detail) {
+        setActiveTab(e.detail);
+      } else if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const tabParam = params.get('tab');
+        if (tabParam) setActiveTab(tabParam);
+      }
+    };
+
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
-      if (tabParam) {
-        setActiveTab(tabParam);
-      }
+      if (tabParam) setActiveTab(tabParam);
+
+      window.addEventListener('nexus-admin-tab', handleTabChange);
+      window.addEventListener('popstate', handleTabChange);
     }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('nexus-admin-tab', handleTabChange);
+        window.removeEventListener('popstate', handleTabChange);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -531,7 +550,10 @@ export default function AdminCommandCenter() {
     );
   });
 
-  const employees = users.filter((u) => u.role === 'EMPLOYEE');
+  const officeEmployees = users.filter((u) => u.role === 'EMPLOYEE');
+  const fieldEmployees = users.filter((u) => u.role === 'FIELD_EMPLOYEE');
+  const nonAdminStaff = users.filter((u) => u.role !== 'ADMIN');
+  const employees = nonAdminStaff;
 
   // ── Employee Progress Batch Calculations ─────────────────────────────────
   const visibleProgressTickets = React.useMemo(() => {
@@ -726,6 +748,42 @@ export default function AdminCommandCenter() {
               </div>
             </section>
           )}
+
+          {/* EMPLOYEES QUICK OVERVIEW */}
+          <section className="glass-card" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(0,242,254,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Users size={20} color="#00f2fe" />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#f8fafc' }}>Staff & Employees Management</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
+                  <span style={{ color: '#00f2fe', fontWeight: 600 }}>{officeEmployees.length}</span> Office Staff · <span style={{ color: '#34d399', fontWeight: 600 }}>{fieldEmployees.length}</span> Field Staff
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                className="nexus-btn nexus-btn-ghost"
+                onClick={() => setActiveTab('employees')}
+                style={{ fontSize: 12, padding: '7px 14px' }}
+              >
+                View Employees Tab
+              </button>
+              <button
+                type="button"
+                className="nexus-btn nexus-btn-primary"
+                onClick={() => {
+                  setForm({ employeeName: '', pin: '', role: 'EMPLOYEE', batch: 'Ali Shehzad (Batch 1)' });
+                  setIsModalOpen(true);
+                }}
+                style={{ fontSize: 12, padding: '7px 14px' }}
+              >
+                <UserPlus size={14} style={{ display: 'inline', marginRight: 4 }} /> + Create Employee
+              </button>
+            </div>
+          </section>
 
           {/* EMPLOYEE BUSINESS CARD MATRIX */}
           <section className="glass-card">
@@ -976,13 +1034,79 @@ export default function AdminCommandCenter() {
       {/* EMPLOYEES TAB */}
       {activeTab === 'employees' && (
         <section className="glass-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Users size={20} color="#00f2fe" />
-              <h2 style={{ fontSize: 18, margin: 0 }}>Live Employee Tracker ({employees.length})</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 16 }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <Users size={22} color="#00f2fe" />
+                <h2 style={{ fontSize: 20, margin: 0, fontWeight: 700 }}>Employees Management</h2>
+              </div>
+              <p style={{ fontSize: 13, color: '#94a3b8', margin: '6px 0 0' }}>
+                Create employee accounts, assign them as <strong>Office Employee</strong> or <strong>Field Employee</strong>, and manage login PINs.
+              </p>
             </div>
-            <button type="button" className="nexus-btn nexus-btn-primary" onClick={() => setIsModalOpen(true)}>
-              <UserPlus size={16} /> Register User
+            <button
+              type="button"
+              className="nexus-btn nexus-btn-primary"
+              onClick={() => {
+                setForm({ employeeName: '', pin: '', role: 'EMPLOYEE', batch: 'Ali Shehzad (Batch 1)' });
+                setIsModalOpen(true);
+              }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', fontSize: 14, fontWeight: 600 }}
+            >
+              <UserPlus size={16} /> + Create Employee
+            </button>
+          </div>
+
+          {/* Quick Metrics Bar */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 24 }}>
+            <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 10, padding: '14px 18px' }}>
+              <div style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Total Staff</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: '#f8fafc', marginTop: 4 }}>{nonAdminStaff.length}</div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>All registered accounts</div>
+            </div>
+            <div style={{ background: 'rgba(0, 242, 254, 0.04)', border: '1px solid rgba(0, 242, 254, 0.2)', borderRadius: 10, padding: '14px 18px' }}>
+              <div style={{ fontSize: 11, color: '#00f2fe', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Briefcase size={13} /> Office Employees
+              </div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: '#00f2fe', marginTop: 4 }}>{officeEmployees.length}</div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Office Console & Invoicing</div>
+            </div>
+            <div style={{ background: 'rgba(16, 185, 129, 0.04)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: 10, padding: '14px 18px' }}>
+              <div style={{ fontSize: 11, color: '#34d399', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <HardHat size={13} /> Field Employees
+              </div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: '#34d399', marginTop: 4 }}>{fieldEmployees.length}</div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Dedicated Field Portal</div>
+            </div>
+          </div>
+
+          {/* Filter Pills */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className={`nexus-btn ${employeeTabFilter === 'all' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
+              style={{ fontSize: 12, padding: '6px 14px' }}
+              onClick={() => setEmployeeTabFilter('all')}
+            >
+              All Accounts ({users.length})
+            </button>
+            <button
+              type="button"
+              className={`nexus-btn ${employeeTabFilter === 'EMPLOYEE' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
+              style={{ fontSize: 12, padding: '6px 14px', borderColor: employeeTabFilter === 'EMPLOYEE' ? undefined : 'rgba(0, 242, 254, 0.3)', color: employeeTabFilter === 'EMPLOYEE' ? undefined : '#00f2fe' }}
+              onClick={() => setEmployeeTabFilter('EMPLOYEE')}
+            >
+              <Briefcase size={13} style={{ display: 'inline', marginRight: 4 }} />
+              Office Staff ({officeEmployees.length})
+            </button>
+            <button
+              type="button"
+              className={`nexus-btn ${employeeTabFilter === 'FIELD_EMPLOYEE' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
+              style={{ fontSize: 12, padding: '6px 14px', borderColor: employeeTabFilter === 'FIELD_EMPLOYEE' ? undefined : 'rgba(16, 185, 129, 0.3)', color: employeeTabFilter === 'FIELD_EMPLOYEE' ? undefined : '#34d399' }}
+              onClick={() => setEmployeeTabFilter('FIELD_EMPLOYEE')}
+            >
+              <HardHat size={13} style={{ display: 'inline', marginRight: 4 }} />
+              Field Staff ({fieldEmployees.length})
             </button>
           </div>
 
@@ -1045,102 +1169,151 @@ export default function AdminCommandCenter() {
               </button>
             </div>
             <div style={{ fontSize: 11, color: '#64748b' }}>
-              Field Staff login via dedicated Field Portal; Office Staff access Full Operations Console.
+              Field Staff login via Field Portal; Office Staff access Full Operations Console.
             </div>
           </div>
+
+          {/* Empty state notice if Field Staff filter selected and none exist */}
+          {employeeTabFilter === 'FIELD_EMPLOYEE' && fieldEmployees.length === 0 && (
+            <div style={{
+              padding: '24px 20px',
+              textAlign: 'center',
+              background: 'rgba(16, 185, 129, 0.03)',
+              border: '1px dashed rgba(16, 185, 129, 0.25)',
+              borderRadius: 10,
+              marginBottom: 20
+            }}>
+              <HardHat size={32} color="#34d399" style={{ margin: '0 auto 10px', opacity: 0.8 }} />
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#f8fafc' }}>No Field Employees Added Yet</div>
+              <p style={{ fontSize: 12, color: '#94a3b8', maxWidth: 460, margin: '6px auto 14px' }}>
+                There are currently no staff members assigned as Field Employees. Click &quot;+ Create Employee&quot; and select &quot;Field Employee&quot; to register your first field staff.
+              </p>
+              <button
+                type="button"
+                className="nexus-btn nexus-btn-primary"
+                onClick={() => {
+                  setForm({ employeeName: '', pin: '', role: 'FIELD_EMPLOYEE', batch: 'Field Operations (Batch 5)' });
+                  setIsModalOpen(true);
+                }}
+                style={{ fontSize: 13, background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)' }}
+              >
+                <UserPlus size={14} style={{ display: 'inline', marginRight: 6 }} />
+                + Create Field Employee
+              </button>
+            </div>
+          )}
 
           <table className="data-table">
             <thead>
               <tr>
                 <th>Name</th>
+                <th>Role / Type</th>
+                <th>Portal Access</th>
                 <th>Batch</th>
-                <th>Login</th>
+                <th>Login Type</th>
                 <th>PIN</th>
-                <th>Role</th>
-                <th>Active Job</th>
                 <th>Status</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => {
-                const serial = u.assignedJobs?.[0]?.ticket?.serialNo;
-                return (
-                  <tr key={u.id}>
-                    <td style={{ fontWeight: 600 }}>{u.employeeName}</td>
-                    <td>
-                      <span style={{ fontSize: 11, color: '#c4b5fd', background: 'rgba(167,139,250,0.1)', padding: '2px 8px', borderRadius: 4, fontWeight: 500 }}>
-                        {getMappedBatch(u.employeeName)}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: 12, color: '#64748b' }}>{u.role === 'ADMIN' ? u.email : 'PIN Login'}</td>
-                    <td style={{ fontSize: 13, fontWeight: 600, color: '#f59e0b', letterSpacing: 2 }}>{u.role !== 'ADMIN' ? (u.pin || '—') : '—'}</td>
-                    <td>
-                      <span className={`status-pill ${u.role === 'ADMIN' ? 'active' : ''}`} style={u.role === 'ADMIN' ? { background: 'rgba(167,139,250,0.2)', color: '#a78bfa' } : u.role === 'FIELD_EMPLOYEE' ? { background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)' } : {}}>
-                        {u.role === 'FIELD_EMPLOYEE' ? 'FIELD STAFF' : u.role === 'EMPLOYEE' ? 'OFFICE STAFF' : u.role}
-                      </span>
-                    </td>
-                    <td style={{ fontFamily: 'monospace', color: '#00f2fe' }}>{serial || '—'}</td>
-                    <td>
-                      <span className={`status-pill ${u.activeStatus ? 'active' : 'inactive'}`}>
-                        {u.activeStatus ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button type="button" className="nexus-btn nexus-btn-ghost" style={{ padding: 6 }} title="View">
-                          <Eye size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          className="nexus-btn nexus-btn-ghost"
-                          onClick={() => { setSelectedUserForComments(u.id); setActiveTab('comments'); }}
-                          style={{ padding: 6, color: '#a78bfa' }}
-                          title="Manage Comments for User"
+              {users
+                .filter((u) => {
+                  if (employeeTabFilter === 'EMPLOYEE') return u.role === 'EMPLOYEE';
+                  if (employeeTabFilter === 'FIELD_EMPLOYEE') return u.role === 'FIELD_EMPLOYEE';
+                  return true;
+                })
+                .map((u) => {
+                  return (
+                    <tr key={u.id}>
+                      <td style={{ fontWeight: 600 }}>{u.employeeName}</td>
+                      <td>
+                        <span
+                          className={`status-pill ${u.role === 'ADMIN' ? 'active' : ''}`}
+                          style={
+                            u.role === 'ADMIN'
+                              ? { background: 'rgba(167,139,250,0.2)', color: '#a78bfa' }
+                              : u.role === 'FIELD_EMPLOYEE'
+                              ? { background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)', fontWeight: 600 }
+                              : { background: 'rgba(0,242,254,0.12)', color: '#00f2fe', border: '1px solid rgba(0,242,254,0.3)', fontWeight: 600 }
+                          }
                         >
-                          <MessageSquare size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          className="nexus-btn nexus-btn-ghost"
-                          onClick={() => { setPasswordUserId(u.id); setPasswordForm({ password: '', confirmPassword: '' }); setPasswordModalOpen(true); }}
-                          style={{ padding: 6, color: '#f59e0b' }}
-                          title={u.role === 'ADMIN' ? 'Change Admin Password' : 'Reset Password'}
-                        >
-                          <Key size={14} />
-                        </button>
-                        {u.role !== 'ADMIN' && (
+                          {u.role === 'FIELD_EMPLOYEE' ? '🔧 FIELD EMPLOYEE' : u.role === 'EMPLOYEE' ? '🏢 OFFICE EMPLOYEE' : '🛡️ MASTER ADMIN'}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: 12 }}>
+                        {u.role === 'FIELD_EMPLOYEE' ? (
+                          <span style={{ color: '#34d399' }}>Field Portal (Mobile Reports & Jobs)</span>
+                        ) : u.role === 'EMPLOYEE' ? (
+                          <span style={{ color: '#00f2fe' }}>Operations Console (Invoices & Intake)</span>
+                        ) : (
+                          <span style={{ color: '#a78bfa' }}>Master Admin Command Center</span>
+                        )}
+                      </td>
+                      <td>
+                        <span style={{ fontSize: 11, color: '#c4b5fd', background: 'rgba(167,139,250,0.1)', padding: '2px 8px', borderRadius: 4, fontWeight: 500 }}>
+                          {getMappedBatch(u.employeeName)}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: 12, color: '#64748b' }}>{u.role === 'ADMIN' ? u.email : 'PIN Login'}</td>
+                      <td style={{ fontSize: 13, fontWeight: 600, color: '#f59e0b', letterSpacing: 2 }}>{u.role !== 'ADMIN' ? (u.pin || '—') : '—'}</td>
+                      <td>
+                        <span className={`status-pill ${u.activeStatus ? 'active' : 'inactive'}`}>
+                          {u.activeStatus ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                           <button
                             type="button"
                             className="nexus-btn nexus-btn-ghost"
-                            onClick={() => handleToggleRole(u.id, u.role)}
-                            style={{
-                              padding: '4px 8px',
-                              fontSize: 11,
-                              fontWeight: 600,
-                              color: u.role === 'FIELD_EMPLOYEE' ? '#38bdf8' : '#34d399',
-                              border: `1px solid ${u.role === 'FIELD_EMPLOYEE' ? 'rgba(56,189,248,0.4)' : 'rgba(52,211,153,0.4)'}`,
-                            }}
-                            title={u.role === 'FIELD_EMPLOYEE' ? 'Switch to Office Staff' : 'Switch to Field Staff'}
+                            onClick={() => { setSelectedUserForComments(u.id); setActiveTab('comments'); }}
+                            style={{ padding: 6, color: '#a78bfa' }}
+                            title="Manage Comments for User"
                           >
-                            {u.role === 'FIELD_EMPLOYEE' ? 'To Office' : 'To Field'}
+                            <MessageSquare size={14} />
                           </button>
-                        )}
-                        <button
-                          type="button"
-                          className="nexus-btn nexus-btn-ghost"
-                          onClick={() => handleDelete(u.id, u.role)}
-                          style={{ color: '#ef4444', padding: 6 }}
-                          title="Delete"
-                          disabled={u.role === 'ADMIN'}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                          <button
+                            type="button"
+                            className="nexus-btn nexus-btn-ghost"
+                            onClick={() => { setPasswordUserId(u.id); setPasswordForm({ password: '', confirmPassword: '' }); setPasswordModalOpen(true); }}
+                            style={{ padding: 6, color: '#f59e0b' }}
+                            title={u.role === 'ADMIN' ? 'Change Admin Password' : 'Reset Password'}
+                          >
+                            <Key size={14} />
+                          </button>
+                          {u.role !== 'ADMIN' && (
+                            <button
+                              type="button"
+                              className="nexus-btn nexus-btn-ghost"
+                              onClick={() => handleToggleRole(u.id, u.role)}
+                              style={{
+                                padding: '4px 10px',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                color: u.role === 'FIELD_EMPLOYEE' ? '#38bdf8' : '#34d399',
+                                border: `1px solid ${u.role === 'FIELD_EMPLOYEE' ? 'rgba(56,189,248,0.4)' : 'rgba(52,211,153,0.4)'}`,
+                              }}
+                              title={u.role === 'FIELD_EMPLOYEE' ? 'Switch to Office Employee' : 'Switch to Field Employee'}
+                            >
+                              {u.role === 'FIELD_EMPLOYEE' ? '➜ To Office' : '➜ To Field'}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="nexus-btn nexus-btn-ghost"
+                            onClick={() => handleDelete(u.id, u.role)}
+                            style={{ color: '#ef4444', padding: 6 }}
+                            title="Delete"
+                            disabled={u.role === 'ADMIN'}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </section>
@@ -1599,47 +1772,145 @@ export default function AdminCommandCenter() {
       {/* EMPLOYEE MODAL */}
       {isModalOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }} onClick={() => setIsModalOpen(false)}>
-          <div className="glass-card" style={{ width: '100%', maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <div className="glass-card" style={{ width: '100%', maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <UserCheck size={20} color="#00f2fe" />
-                <h3 style={{ margin: 0 }}>Add Employee Login</h3>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: form.role === 'FIELD_EMPLOYEE' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(0, 242, 254, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {form.role === 'FIELD_EMPLOYEE' ? <HardHat size={22} color="#34d399" /> : <Briefcase size={22} color="#00f2fe" />}
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Create Employee / Set Role</h3>
+                  <div style={{ fontSize: 12, color: '#94a3b8' }}>Assign credentials and console access</div>
+                </div>
               </div>
               <button type="button" className="nexus-btn nexus-btn-ghost" onClick={() => setIsModalOpen(false)} style={{ padding: 8 }}>
                 <X size={18} />
               </button>
             </div>
-            <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 20 }}>
-              Enter the employee&apos;s name and assign them a 4-6 digit PIN.
-              If the employee already exists, their PIN will be updated.
+
+            <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 18, lineHeight: 1.4 }}>
+              Enter the employee&apos;s name, assign their security PIN, and choose whether they are an <strong>Office Employee</strong> or <strong>Field Employee</strong>.
             </p>
+
             <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <label className="field-label">Employee Name</label>
                 <input
                   className="nexus-input"
                   required
-                  placeholder="e.g. Ibrahim, Rizwan"
+                  placeholder="e.g. Ibrahim, Rizwan, Tariq"
                   value={form.employeeName}
                   onChange={(e) => setForm({ ...form, employeeName: e.target.value })}
                 />
               </div>
+
+              {/* EMPLOYEE TYPE / ROLE SELECTION OPTION */}
               <div>
-                <label className="field-label">Portal & Role Assignment</label>
-                <select
-                  className="nexus-select"
-                  value={form.role || 'EMPLOYEE'}
-                  onChange={(e) => setForm({ ...form, role: e.target.value })}
-                >
-                  <option value="EMPLOYEE">🏢 Office Staff (Full NEXUS Operations Console)</option>
-                  <option value="FIELD_EMPLOYEE">🔧 Field Staff (Field Portal & Project Reports Only)</option>
-                </select>
+                <label className="field-label" style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>
+                  Select Employee Type / Role
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  {/* Office Employee Option */}
+                  <div
+                    onClick={() => setForm({ ...form, role: 'EMPLOYEE' })}
+                    style={{
+                      padding: '14px 12px',
+                      borderRadius: 10,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      border: form.role === 'EMPLOYEE' ? '2px solid #00f2fe' : '1px solid rgba(255, 255, 255, 0.1)',
+                      background: form.role === 'EMPLOYEE' ? 'rgba(0, 242, 254, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Briefcase size={16} color="#00f2fe" />
+                        <span style={{ fontWeight: 700, fontSize: 13, color: form.role === 'EMPLOYEE' ? '#00f2fe' : '#e2e8f0' }}>
+                          Office Employee
+                        </span>
+                      </div>
+                      <input
+                        type="radio"
+                        name="employeeRoleChoice"
+                        checked={form.role === 'EMPLOYEE'}
+                        onChange={() => setForm({ ...form, role: 'EMPLOYEE' })}
+                        style={{ accentColor: '#00f2fe' }}
+                      />
+                    </div>
+                    <p style={{ fontSize: 11, color: '#94a3b8', margin: 0, lineHeight: 1.4 }}>
+                      Full Operations Console. Job intake, invoicing, quotes, approvals & ledger.
+                    </p>
+                    <div style={{
+                      marginTop: 4,
+                      fontSize: 10,
+                      fontWeight: 600,
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      background: 'rgba(0, 242, 254, 0.15)',
+                      color: '#00f2fe',
+                      alignSelf: 'flex-start',
+                    }}>
+                      🏢 Office Console Login
+                    </div>
+                  </div>
+
+                  {/* Field Employee Option */}
+                  <div
+                    onClick={() => setForm({ ...form, role: 'FIELD_EMPLOYEE' })}
+                    style={{
+                      padding: '14px 12px',
+                      borderRadius: 10,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      border: form.role === 'FIELD_EMPLOYEE' ? '2px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)',
+                      background: form.role === 'FIELD_EMPLOYEE' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <HardHat size={16} color="#34d399" />
+                        <span style={{ fontWeight: 700, fontSize: 13, color: form.role === 'FIELD_EMPLOYEE' ? '#34d399' : '#e2e8f0' }}>
+                          Field Employee
+                        </span>
+                      </div>
+                      <input
+                        type="radio"
+                        name="employeeRoleChoice"
+                        checked={form.role === 'FIELD_EMPLOYEE'}
+                        onChange={() => setForm({ ...form, role: 'FIELD_EMPLOYEE' })}
+                        style={{ accentColor: '#10b981' }}
+                      />
+                    </div>
+                    <p style={{ fontSize: 11, color: '#94a3b8', margin: 0, lineHeight: 1.4 }}>
+                      Dedicated Field Portal. View assigned jobs & submit on-site photo project reports.
+                    </p>
+                    <div style={{
+                      marginTop: 4,
+                      fontSize: 10,
+                      fontWeight: 600,
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      background: 'rgba(16, 185, 129, 0.2)',
+                      color: '#34d399',
+                      alignSelf: 'flex-start',
+                    }}>
+                      🔧 Field Portal Login
+                    </div>
+                  </div>
+                </div>
               </div>
+
               <div>
                 <label className="field-label">Batch Assignment</label>
                 <select
                   className="nexus-select"
-                  value={form.batch || 'Ali Shehzad (Batch 1)'}
+                  value={form.batch || (form.role === 'FIELD_EMPLOYEE' ? 'Field Operations (Batch 5)' : 'Ali Shehzad (Batch 1)')}
                   onChange={(e) => setForm({ ...form, batch: e.target.value })}
                 >
                   <option value="Ali Shehzad (Batch 1)">Batch 1 (Ali Shehzad)</option>
@@ -1649,8 +1920,9 @@ export default function AdminCommandCenter() {
                   <option value="Field Operations (Batch 5)">Batch 5 (Field Operations)</option>
                 </select>
               </div>
+
               <div>
-                <label className="field-label">Login PIN (4-6 digits)</label>
+                <label className="field-label">Login Security PIN (4-6 digits)</label>
                 <input
                   className="nexus-input"
                   type="password"
@@ -1662,10 +1934,28 @@ export default function AdminCommandCenter() {
                   pattern="\d{4,6}"
                   onChange={(e) => setForm({ ...form, pin: e.target.value.replace(/\D/g, '').slice(0, 6) })}
                 />
-                <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>The employee uses this PIN to log in — no email required.</p>
+                <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                  The employee uses this PIN on the login page to access {form.role === 'FIELD_EMPLOYEE' ? 'the Field Portal' : 'the Office Console'}.
+                </p>
               </div>
-              <button type="submit" className="nexus-btn nexus-btn-primary" disabled={registering}>
-                <Key size={15} /> {registering ? 'Saving...' : 'Save Employee'}
+
+              <button
+                type="submit"
+                className="nexus-btn nexus-btn-primary"
+                disabled={registering}
+                style={{
+                  background: form.role === 'FIELD_EMPLOYEE' ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : undefined,
+                  padding: '14px',
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                <Key size={15} />
+                {registering
+                  ? 'Saving Employee...'
+                  : form.role === 'FIELD_EMPLOYEE'
+                  ? '+ Create / Save Field Employee'
+                  : '+ Create / Save Office Employee'}
               </button>
             </form>
           </div>

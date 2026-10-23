@@ -41,7 +41,7 @@ export default function Sidebar() {
     { name: 'Staff Progress & WhatsApp', href: '/progress', icon: Award },
     { name: 'Pending Payments', href: '/pending-payments', icon: Clock },
     { name: 'Expense Reconciliation', href: '/admin/dashboard?tab=reconciliation', icon: Receipt },
-    { name: 'Employee Monitor', href: '/admin/dashboard?tab=employees', icon: Users },
+    { name: 'Employees', href: '/admin/dashboard?tab=employees', icon: Users },
     { name: 'All Tickets Inbox', href: '/admin/dashboard?tab=tickets', icon: Mail },
     { name: 'Financial Overview', href: '/ledger', icon: DollarSign },
     { name: 'All Documents', href: '/admin/documents', icon: FileText },
@@ -63,7 +63,15 @@ export default function Sidebar() {
               key={item.name}
               type="button"
               className={`nav-panel ${isActive ? 'active' : ''}`}
-              onClick={() => router.push(item.href)}
+              onClick={() => {
+                if (item.href.includes('tab=')) {
+                  const tab = item.href.split('tab=')[1];
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('nexus-admin-tab', { detail: tab }));
+                  }
+                }
+                router.push(item.href);
+              }}
             >
               <Icon size={18} className="nav-icon" />
               <span>{item.name}</span>

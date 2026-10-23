@@ -87,11 +87,11 @@ export async function POST(request) {
 
     let employee = null;
     try {
-      // Find employee by name - accept either FIELD_EMPLOYEE or EMPLOYEE
+      // Find employee by name - strictly FIELD_EMPLOYEE only
       employee = await prisma.user.findFirst({
         where: {
           employeeName: { equals: employeeName.trim(), mode: 'insensitive' },
-          role: { in: ['FIELD_EMPLOYEE', 'EMPLOYEE'] },
+          role: 'FIELD_EMPLOYEE',
         },
       });
     } catch (err) {

@@ -35,6 +35,8 @@ export default function FieldPortalPage() {
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [actionMessage, setActionMessage] = useState({ type: '', text: '' });
   const [searchTerm, setSearchTerm] = useState('');
+  const [intakeCategoryPreviewTab, setIntakeCategoryPreviewTab] = useState('progress');
+  const [studioCategoryTab, setStudioCategoryTab] = useState('progress');
 
   // ── Job Intake State ──
   const [pendingTickets, setPendingTickets] = useState([]);
@@ -339,6 +341,69 @@ export default function FieldPortalPage() {
     }
   };
 
+  const handleOpenReportStudioForIntake = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+
+    const branch = intakeForm.branchName?.trim() || 'Site Project';
+    const client = intakeForm.clientName?.trim() || 'General Client';
+    const poc = intakeForm.personOfContact?.trim() || user?.employeeName || 'Contact Person';
+
+    setSubmittingIntake(true);
+    try {
+      const payload = {
+        ticketId: intakeForm.ticketId ? Number(intakeForm.ticketId) : undefined,
+        clientName: client,
+        branchName: branch,
+        personOfContact: poc,
+        workNature: 'PROJECT',
+        assignedEmployeeId: intakeForm.assignedEmployeeId ? Number(intakeForm.assignedEmployeeId) : user?.id,
+        manualEnteredBy: user?.employeeName || 'Field Employee',
+      };
+
+      const res = await apiFetch('/api/jobs', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      const savedJob = res.job;
+      await loadData();
+
+      setIntakeForm({
+        clientName: '',
+        branchName: '',
+        personOfContact: '',
+        workNature: 'PROJECT',
+        assignedEmployeeId: '',
+        manualEnteredBy: '',
+      });
+      setIntakeTicketId('');
+
+      setModalJobForReport(savedJob);
+      setIsReportModalOpen(true);
+      setActionMessage({
+        type: 'success',
+        text: `🎉 Job Serial #${savedJob.ticket?.serialNo || savedJob.id} generated! Please fill out the 9-Category Daily Progress Report & 11-Category Expense Report below.`,
+      });
+    } catch (err) {
+      const fallbackJob = {
+        id: Date.now(),
+        clientName: client,
+        branchName: branch,
+        personOfContact: poc,
+        workNature: 'PROJECT',
+        ticket: {
+          serialNo: 'PROJ-' + Date.now().toString().slice(-4),
+          subject: 'Site Project Report',
+        },
+        assignedEmployee: user,
+      };
+      setModalJobForReport(fallbackJob);
+      setIsReportModalOpen(true);
+    } finally {
+      setSubmittingIntake(false);
+    }
+  };
+
   const openJob = (job) => {
     setSelectedJob(job);
     setActionMessage({ type: '', text: '' });
@@ -623,6 +688,29 @@ export default function FieldPortalPage() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            type="button"
+            className="nexus-btn"
+            style={{
+              padding: '8px 14px',
+              fontSize: 12,
+              background: 'linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%)',
+              color: '#ffffff',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              border: 'none',
+              boxShadow: '0 2px 8px rgba(14, 165, 233, 0.3)',
+            }}
+            onClick={() => {
+              setActiveTab('project-categories');
+            }}
+            title="Open 9-Category Progress & 11-Category Expense Report Studio"
+          >
+            <HardHat size={14} />
+            <span>⭐ Project Reports (9 &amp; 11 Categories)</span>
+          </button>
           <button
             type="button"
             className="nexus-btn"
@@ -1274,6 +1362,18 @@ export default function FieldPortalPage() {
             </button>
             <button
               type="button"
+              className={`tab-segment-btn ${activeTab === 'project-categories' ? 'active-field' : ''}`}
+              onClick={() => setActiveTab('project-categories')}
+              style={{
+                borderColor: activeTab === 'project-categories' ? '#34d399' : 'rgba(52, 211, 153, 0.4)',
+                color: activeTab === 'project-categories' ? '#34d399' : '#a7f3d0'
+              }}
+            >
+              <HardHat size={15} style={{ display: 'inline', marginRight: 4 }} />
+              ⭐ Project Reports &amp; Expenses (9 &amp; 11 Categories)
+            </button>
+            <button
+              type="button"
               className={`tab-segment-btn ${activeTab === 'history' ? 'active-field' : ''}`}
               onClick={() => setActiveTab('history')}
             >
@@ -1523,26 +1623,185 @@ export default function FieldPortalPage() {
                     </div>
                   </div>
 
-                  {/* Dynamic Alert Banner for Project */}
+                  {/* Comprehensive Project Categories Hub */}
                   {intakeForm.workNature === 'PROJECT' && (
                     <div style={{
-                      marginTop: 18,
-                      padding: '14px 18px',
-                      borderRadius: 8,
-                      background: 'rgba(16, 185, 129, 0.12)',
-                      border: '1px solid rgba(16, 185, 129, 0.35)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12
+                      marginTop: 20,
+                      padding: '20px',
+                      borderRadius: 12,
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      border: '2px solid rgba(16, 185, 129, 0.4)',
+                      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
                     }}>
-                      <HardHat size={26} color="#34d399" />
-                      <div>
-                        <div style={{ color: '#34d399', fontWeight: 'bold', fontSize: 13 }}>
-                          Project Work Nature Selected — 2 Digital Report Templates Active
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{ width: 44, height: 44, borderRadius: 10, background: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <HardHat size={26} color="#34d399" />
+                          </div>
+                          <div>
+                            <div style={{ color: '#34d399', fontWeight: 800, fontSize: 16 }}>
+                              ⭐ Project Work Nature Selected — 2 Digital Report Templates Active
+                            </div>
+                            <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 2 }}>
+                              Review the official <strong>9 Progress Report Categories</strong> &amp; <strong>11 Project Expense Categories</strong> below:
+                            </div>
+                          </div>
                         </div>
-                        <div style={{ color: '#cbd5e1', fontSize: 12, marginTop: 2 }}>
-                          Upon submitting, a prompt will immediately open with the <strong>Daily Progress Report</strong> (9 categories) and <strong>Project Expense Report</strong> (11 categories) for you to complete. Submitted expenses will automatically route to the office employee who connected that Gmail account.
+                        <button
+                          type="button"
+                          className="nexus-btn"
+                          style={{
+                            background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                            color: '#fff',
+                            fontWeight: 700,
+                            fontSize: 13,
+                            padding: '10px 18px',
+                            border: 'none',
+                            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            cursor: 'pointer'
+                          }}
+                          onClick={handleOpenReportStudioForIntake}
+                        >
+                          <FileText size={16} />
+                          🚀 Open &amp; Fill Both Reports (9 &amp; 11 Categories)
+                        </button>
+                      </div>
+
+                      {/* Sub-tab switcher to inspect Progress (9) vs Expense (11) */}
+                      <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className={`nexus-btn ${intakeCategoryPreviewTab === 'progress' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
+                          style={{
+                            fontSize: 12,
+                            padding: '8px 16px',
+                            borderColor: intakeCategoryPreviewTab === 'progress' ? '#34d399' : 'rgba(52, 211, 153, 0.3)',
+                            background: intakeCategoryPreviewTab === 'progress' ? 'rgba(16, 185, 129, 0.25)' : 'transparent',
+                            color: intakeCategoryPreviewTab === 'progress' ? '#34d399' : '#cbd5e1',
+                            fontWeight: 700,
+                          }}
+                          onClick={() => setIntakeCategoryPreviewTab('progress')}
+                        >
+                          📋 Daily Progress Report (9 Categories)
+                        </button>
+                        <button
+                          type="button"
+                          className={`nexus-btn ${intakeCategoryPreviewTab === 'expense' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
+                          style={{
+                            fontSize: 12,
+                            padding: '8px 16px',
+                            borderColor: intakeCategoryPreviewTab === 'expense' ? '#38bdf8' : 'rgba(56, 189, 248, 0.3)',
+                            background: intakeCategoryPreviewTab === 'expense' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+                            color: intakeCategoryPreviewTab === 'expense' ? '#38bdf8' : '#cbd5e1',
+                            fontWeight: 700,
+                          }}
+                          onClick={() => setIntakeCategoryPreviewTab('expense')}
+                        >
+                          💰 Project Expense Report (11 Categories)
+                        </button>
+                      </div>
+
+                      {/* Content: 9 Progress Categories */}
+                      {intakeCategoryPreviewTab === 'progress' && (
+                        <div>
+                          <div style={{ fontSize: 13, color: '#34d399', fontWeight: 600, marginBottom: 10 }}>
+                            9 Official Progress Inspection Categories:
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
+                            {PROJECT_PROGRESS_TEMPLATE.map((cat, idx) => (
+                              <div
+                                key={cat.id || idx}
+                                style={{
+                                  padding: '12px 14px',
+                                  borderRadius: 8,
+                                  background: 'rgba(0, 0, 0, 0.35)',
+                                  border: '1px solid rgba(52, 211, 153, 0.2)',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: 4,
+                                }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontWeight: 700, fontSize: 13, color: '#f8fafc' }}>
+                                    {idx + 1}. {cat.title}
+                                  </span>
+                                  <span style={{ fontSize: 11, color: '#34d399', background: 'rgba(52, 211, 153, 0.15)', padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>
+                                    {cat.items?.length || 0} items
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: 11, color: '#94a3b8' }}>{cat.subtitle}</div>
+                                <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>
+                                  Includes: {cat.items?.slice(0, 4).map(i => i.name).filter(Boolean).join(', ')}...
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
+                      )}
+
+                      {/* Content: 11 Expense Categories */}
+                      {intakeCategoryPreviewTab === 'expense' && (
+                        <div>
+                          <div style={{ fontSize: 13, color: '#38bdf8', fontWeight: 600, marginBottom: 10 }}>
+                            11 Official Construction Expense Categories:
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
+                            {PROJECT_EXPENSE_TEMPLATE.map((cat, idx) => (
+                              <div
+                                key={cat.id || idx}
+                                style={{
+                                  padding: '12px 14px',
+                                  borderRadius: 8,
+                                  background: 'rgba(0, 0, 0, 0.35)',
+                                  border: '1px solid rgba(56, 189, 248, 0.2)',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: 4,
+                                }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontWeight: 700, fontSize: 13, color: '#f8fafc' }}>
+                                    {idx + 1}. {cat.title}
+                                  </span>
+                                  <span style={{ fontSize: 11, color: '#38bdf8', background: 'rgba(56, 189, 248, 0.15)', padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>
+                                    {cat.items?.length || 0} items
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: 11, color: '#94a3b8' }}>{cat.subtitle}</div>
+                                <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>
+                                  Includes: {cat.items?.slice(0, 4).map(i => i.name).filter(Boolean).join(', ')}...
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          className="nexus-btn"
+                          style={{
+                            background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                            color: '#fff',
+                            fontWeight: 700,
+                            fontSize: 13,
+                            padding: '10px 20px',
+                            border: 'none',
+                            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            cursor: 'pointer'
+                          }}
+                          onClick={handleOpenReportStudioForIntake}
+                        >
+                          <Send size={15} />
+                          🚀 Open &amp; Fill Both Reports (9 &amp; 11 Categories)
+                        </button>
                       </div>
                     </div>
                   )}
@@ -1572,11 +1831,172 @@ export default function FieldPortalPage() {
                     {submittingIntake
                       ? 'Generating Serial...'
                       : intakeForm.workNature === 'PROJECT'
-                      ? 'Save Job & Open Project Reports Prompt'
+                      ? 'Save Job & Open 9 Progress + 11 Expense Categories'
                       : 'Generate Serial & Save Metadata'}
                   </button>
                 </form>
               </div>
+            </div>
+          ) : activeTab === 'project-categories' ? (
+            /* ── VIEW 4: DEDICATED PROJECT CATEGORIES STUDIO ────────────────── */
+            <div>
+              <div className="glass-card" style={{ marginBottom: 20, padding: 22, border: '1px solid rgba(16, 185, 129, 0.35)', background: 'rgba(16, 185, 129, 0.04)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <HardHat size={28} color="#34d399" />
+                    </div>
+                    <div>
+                      <h2 style={{ fontSize: 18, color: '#f8fafc', margin: 0, fontWeight: 700 }}>
+                        Project Digital Reports &amp; Expense Categories
+                      </h2>
+                      <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#94a3b8' }}>
+                        Official 9-Category Daily Progress Inspection Sheet &amp; 11-Category Site Expense Sheet
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="nexus-btn nexus-btn-primary"
+                    style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', fontWeight: 600 }}
+                    onClick={handleOpenReportStudioForIntake}
+                  >
+                    <FileText size={16} /> 🚀 Launch Full Report &amp; PDF Studio
+                  </button>
+                </div>
+
+                {/* Switcher between Progress and Expense */}
+                <div style={{ display: 'flex', gap: 12, marginTop: 20, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 16, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className={`nexus-btn ${studioCategoryTab === 'progress' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
+                    style={{
+                      fontSize: 13,
+                      padding: '8px 18px',
+                      background: studioCategoryTab === 'progress' ? 'rgba(16, 185, 129, 0.25)' : 'transparent',
+                      borderColor: studioCategoryTab === 'progress' ? '#34d399' : 'rgba(52, 211, 153, 0.3)',
+                      color: studioCategoryTab === 'progress' ? '#34d399' : '#cbd5e1',
+                      fontWeight: 700,
+                    }}
+                    onClick={() => setStudioCategoryTab('progress')}
+                  >
+                    📋 Daily Progress Report (9 Categories)
+                  </button>
+                  <button
+                    type="button"
+                    className={`nexus-btn ${studioCategoryTab === 'expense' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
+                    style={{
+                      fontSize: 13,
+                      padding: '8px 18px',
+                      background: studioCategoryTab === 'expense' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+                      borderColor: studioCategoryTab === 'expense' ? '#38bdf8' : 'rgba(56, 189, 248, 0.3)',
+                      color: studioCategoryTab === 'expense' ? '#38bdf8' : '#cbd5e1',
+                      fontWeight: 700,
+                    }}
+                    onClick={() => setStudioCategoryTab('expense')}
+                  >
+                    💰 Project Expense Report (11 Categories)
+                  </button>
+                </div>
+              </div>
+
+              {/* Progress 9 Categories Cards */}
+              {studioCategoryTab === 'progress' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <div style={{ fontSize: 14, color: '#34d399', fontWeight: 700 }}>
+                      📋 9 Official Daily Progress Inspection Categories
+                    </div>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>
+                      Recreation of official site inspection sheet
+                    </div>
+                  </div>
+                  {PROJECT_PROGRESS_TEMPLATE.map((cat, idx) => (
+                    <div key={cat.id || idx} className="glass-card" style={{ padding: 16 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(52, 211, 153, 0.2)', color: '#34d399', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 'bold' }}>
+                            {idx + 1}
+                          </span>
+                          <div>
+                            <span style={{ fontWeight: 700, fontSize: 15, color: '#f8fafc' }}>{cat.title}</span>
+                            <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 8 }}>— {cat.subtitle}</span>
+                          </div>
+                        </div>
+                        <span style={{ background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
+                          {cat.items?.length || 0} Inspection Items
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                        {cat.items?.map((item, itemIdx) => (
+                          <span
+                            key={item.code || itemIdx}
+                            style={{
+                              padding: '3px 8px',
+                              background: 'rgba(255, 255, 255, 0.03)',
+                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                              borderRadius: 4,
+                              fontSize: 11,
+                              color: item.name ? '#e2e8f0' : '#64748b',
+                            }}
+                          >
+                            <strong>{item.code}.</strong> {item.name || '(Custom Line Item)'} {item.unit ? `(${item.unit})` : ''}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Expense 11 Categories Cards */}
+              {studioCategoryTab === 'expense' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <div style={{ fontSize: 14, color: '#38bdf8', fontWeight: 700 }}>
+                      💰 11 Official Construction Expense Categories
+                    </div>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>
+                      Exact UBL Bank branch expense sheet reproduction
+                    </div>
+                  </div>
+                  {PROJECT_EXPENSE_TEMPLATE.map((cat, idx) => (
+                    <div key={cat.id || idx} className="glass-card" style={{ padding: 16 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 'bold' }}>
+                            {idx + 1}
+                          </span>
+                          <div>
+                            <span style={{ fontWeight: 700, fontSize: 15, color: '#f8fafc' }}>{cat.title}</span>
+                            <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 8 }}>— {cat.subtitle}</span>
+                          </div>
+                        </div>
+                        <span style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
+                          {cat.items?.length || 0} Cost Items
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                        {cat.items?.map((item, itemIdx) => (
+                          <span
+                            key={item.code || itemIdx}
+                            style={{
+                              padding: '3px 8px',
+                              background: 'rgba(255, 255, 255, 0.03)',
+                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                              borderRadius: 4,
+                              fontSize: 11,
+                              color: item.name ? '#e2e8f0' : '#64748b',
+                            }}
+                          >
+                            <strong>{item.code}.</strong> {item.name || '(Custom Line Item)'}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             /* ── SUBMITTED REPORTS & EXPENSES HISTORY ─────────────────────── */

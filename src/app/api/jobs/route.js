@@ -189,7 +189,30 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
       }
       if (ticket.jobMetadata) {
-        return NextResponse.json({ error: 'Ticket already has job metadata', job: ticket.jobMetadata }, { status: 409 });
+        let existingJob = ticket.jobMetadata;
+        const updates = {};
+        if (workNature && existingJob.workNature !== workNature) {
+          updates.workNature = workNature;
+        }
+        if (assignedEmployeeId && !existingJob.assignedEmployeeId) {
+          updates.assignedEmployeeId = Number(assignedEmployeeId);
+        }
+        if (Object.keys(updates).length > 0) {
+          existingJob = await prisma.jobMetadata.update({
+            where: { id: existingJob.id },
+            data: updates,
+            include: {
+              ticket: true,
+              createdBy: { select: { id: true, employeeName: true, email: true } },
+              assignedEmployee: { select: { id: true, employeeName: true, email: true } },
+            },
+          });
+        }
+        return NextResponse.json({
+          job: existingJob,
+          message: 'Ticket already taken by office operations. Connected to job successfully.',
+          alreadyExisted: true,
+        }, { status: 200 });
       }
     }
 

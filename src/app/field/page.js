@@ -49,6 +49,8 @@ export default function FieldPortalPage() {
   const [allEmployees, setAllEmployees] = useState([]);
   const [intakeTicketId, setIntakeTicketId] = useState('');
   const [intakeTicketSearch, setIntakeTicketSearch] = useState('');
+  const [intakeFilterType, setIntakeFilterType] = useState('all'); // 'all' | 'taken' | 'pending'
+  const [showQuickPickGrid, setShowQuickPickGrid] = useState(true);
   const [intakeForm, setIntakeForm] = useState({
     clientName: '',
     branchName: '',
@@ -150,7 +152,7 @@ export default function FieldPortalPage() {
       const [jobsRes, reportsRes, ticketsRes, usersRes] = await Promise.all([
         apiFetch('/api/jobs'),
         apiFetch('/api/project-reports?myReports=true'),
-        apiFetch('/api/tickets').catch(() => ({ tickets: [] })),
+        apiFetch('/api/tickets?limit=250').catch(() => ({ tickets: [] })),
         apiFetch('/api/users').catch(() => ({ users: [] })),
       ]);
       const fetchedJobs = jobsRes.jobs || [];
@@ -296,6 +298,7 @@ export default function FieldPortalPage() {
         }),
       });
       setPendingTickets((prev) => [ticket, ...prev]);
+      setAllTickets((prev) => [ticket, ...prev]);
       setIntakeTicketId(String(ticket.id));
       setShowManualTicketModal(false);
       setManualTicketSubject('');
@@ -442,12 +445,38 @@ export default function FieldPortalPage() {
     );
   });
 
+  const filteredIntakeTickets = (allTickets || [])
+    .filter((t) => t.status !== 'IRRELEVANT' && t.status !== 'CANCELLED')
+    .filter((t) => {
+      if (intakeFilterType === 'taken') return !!t.jobMetadata;
+      if (intakeFilterType === 'pending') return !t.jobMetadata;
+      return true;
+    })
+    .filter((t) => {
+      if (!intakeTicketSearch) return true;
+      const q = intakeTicketSearch.toLowerCase();
+      const takenBy = (t.jobMetadata?.createdBy?.employeeName || t.jobMetadata?.manualEnteredBy || '').toLowerCase();
+      const client = (t.jobMetadata?.clientName || '').toLowerCase();
+      const branch = (t.jobMetadata?.branchName || '').toLowerCase();
+      return (
+        (t.subject || '').toLowerCase().includes(q) ||
+        (t.sender || '').toLowerCase().includes(q) ||
+        (t.serialNo || '').toLowerCase().includes(q) ||
+        takenBy.includes(q) ||
+        client.includes(q) ||
+        branch.includes(q) ||
+        (t.gmailAccount?.gmailEmail || '').toLowerCase().includes(q)
+      );
+    });
+
+  const selectedIntakeTicket = (allTickets || []).find((t) => String(t.id) === String(intakeTicketId));
+
   const handleAutoOpenProjectScreen = (customBranch = '', customClient = '') => {
     const branch = customBranch || intakeForm.branchName?.trim() || studioProjectBranch || 'UBL Bank Mall Road Branch';
     const client = customClient || intakeForm.clientName?.trim() || studioProjectClient || 'UBL Bank';
     const poc = intakeForm.personOfContact?.trim() || studioProjectPoc || user?.employeeName || 'Branch Manager';
 
-    const matchedTicket = pendingTickets.find((t) => String(t.id) === String(intakeTicketId));
+    const matchedTicket = (allTickets || []).find((t) => String(t.id) === String(intakeTicketId)) || (pendingTickets || []).find((t) => String(t.id) === String(intakeTicketId));
 
     const projectJob = {
       id: matchedTicket?.jobMetadata?.id || Date.now(),
@@ -880,7 +909,28 @@ export default function FieldPortalPage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="nexus-btn"
+            style={{
+              padding: '8px 14px',
+              fontSize: 12,
+              background: activeTab === 'gmails' ? 'rgba(56, 189, 248, 0.25)' : 'rgba(56, 189, 248, 0.12)',
+              color: '#38bdf8',
+              border: '1px solid rgba(56, 189, 248, 0.4)',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              cursor: 'pointer',
+            }}
+            onClick={() => setActiveTab('gmails')}
+            title="Browse all incoming emails taken by office batches or pending"
+          >
+            <Mail size={15} />
+            <span>📧 All Gmails ({allTickets.length})</span>
+          </button>
           <button
             type="button"
             className="nexus-btn"
@@ -1952,53 +2002,320 @@ export default function FieldPortalPage() {
                   </button>
                 </div>
 
-                {/* Ticket Selection */}
-                <div style={{ marginBottom: 18 }}>
-                  <label className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Mail size={13} color="#38bdf8" /> 1. Link Incoming Ticket (from Gmail / Operations)
-                  </label>
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {/* Ticket Selection Area */}
+                <div style={{ marginBottom: 20, padding: 18, background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px solid rgba(56, 189, 248, 0.25)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+                    <div>
+                      <label className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0, fontSize: 13, color: '#38bdf8', fontWeight: 700 }}>
+                        <Mail size={15} color="#38bdf8" /> 1. Link Incoming Email / Ticket (Showing Both Taken &amp; Pending)
+                      </label>
+                      <p style={{ margin: '3px 0 0 0', fontSize: 11, color: '#94a3b8' }}>
+                        Choose any email matching your site work. Even if already taken by office operations (Shahzaib, Rizwan, Batch 1), you can attach site reports &amp; expenses to notify them!
+                      </p>
+                    </div>
+
+                    {/* Filter Pills */}
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => setIntakeFilterType('all')}
+                        style={{
+                          padding: '5px 12px',
+                          borderRadius: 6,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          background: intakeFilterType === 'all' ? '#38bdf8' : 'rgba(255,255,255,0.06)',
+                          color: intakeFilterType === 'all' ? '#0f172a' : '#cbd5e1',
+                          border: 'none',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        All Emails ({allTickets.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIntakeFilterType('taken')}
+                        style={{
+                          padding: '5px 12px',
+                          borderRadius: 6,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          background: intakeFilterType === 'taken' ? '#10b981' : 'rgba(255,255,255,0.06)',
+                          color: intakeFilterType === 'taken' ? '#ffffff' : '#34d399',
+                          border: 'none',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        ✅ Taken by Office ({allTickets.filter(t => !!t.jobMetadata).length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIntakeFilterType('pending')}
+                        style={{
+                          padding: '5px 12px',
+                          borderRadius: 6,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          background: intakeFilterType === 'pending' ? '#f59e0b' : 'rgba(255,255,255,0.06)',
+                          color: intakeFilterType === 'pending' ? '#0f172a' : '#fbbf24',
+                          border: 'none',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        ⏳ Pending ({allTickets.filter(t => !t.jobMetadata).length})
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Dropdown & Search Bar */}
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
                     <select
                       className="nexus-select"
                       value={intakeTicketId}
                       onChange={(e) => handleIntakeTicketChange(e.target.value)}
-                      style={{ flex: 1, minWidth: 260 }}
+                      style={{ flex: 1, minWidth: 260, fontSize: 13, borderColor: intakeTicketId ? '#10b981' : undefined }}
                     >
-                      <option value="">— Select pending ticket —</option>
-                      {(allTickets || [])
-                        .filter((t) => t.status !== 'IRRELEVANT' && t.status !== 'CANCELLED')
-                        .filter((t) => {
-                          if (!intakeTicketSearch) return true;
-                          const q = intakeTicketSearch.toLowerCase();
-                          const takenBy = (t.jobMetadata?.createdBy?.employeeName || t.jobMetadata?.manualEnteredBy || '').toLowerCase();
-                          return (
-                            t.subject?.toLowerCase().includes(q) ||
-                            t.sender?.toLowerCase().includes(q) ||
-                            t.serialNo?.toLowerCase().includes(q) ||
-                            takenBy.includes(q) ||
-                            t.gmailAccount?.gmailEmail?.toLowerCase().includes(q)
-                          );
-                        })
-                        .map((t) => {
-                          const isTaken = !!t.jobMetadata;
-                          const taker = t.jobMetadata?.createdBy?.employeeName || t.jobMetadata?.manualEnteredBy || 'Office Staff';
-                          return (
-                            <option key={t.id} value={t.id}>
-                              {isTaken ? `[✅ Taken by: ${taker}]` : '[⏳ Pending]'} #{t.serialNo} — {t.subject} ({t.sender || 'Gmail'})
-                            </option>
-                          );
-                        })}
+                      <option value="">
+                        — Select Email / Ticket ({filteredIntakeTickets.length} available: Taken by Office &amp; Pending) —
+                      </option>
+                      {filteredIntakeTickets.map((t) => {
+                        const isTaken = !!t.jobMetadata;
+                        const taker = t.jobMetadata?.createdBy?.employeeName || t.jobMetadata?.manualEnteredBy || 'Office Staff';
+                        const branch = t.jobMetadata?.branchName ? ` | ${t.jobMetadata.branchName}` : '';
+                        return (
+                          <option key={t.id} value={t.id}>
+                            {isTaken ? `[✅ TAKEN by: ${taker}${branch}]` : '[⏳ PENDING]'} #{t.serialNo} — {t.subject} ({t.sender || 'Gmail'})
+                          </option>
+                        );
+                      })}
                     </select>
-                    <div style={{ position: 'relative', width: 220 }}>
+
+                    <div style={{ position: 'relative', width: 240 }}>
                       <Search size={14} style={{ position: 'absolute', left: 10, top: 12, color: '#64748b' }} />
                       <input
                         className="nexus-input"
                         style={{ paddingLeft: 30, fontSize: 12 }}
-                        placeholder="Search tickets..."
+                        placeholder="Search tickets by name, subject, taker..."
                         value={intakeTicketSearch}
                         onChange={(e) => setIntakeTicketSearch(e.target.value)}
                       />
                     </div>
+                  </div>
+
+                  {/* Selected Ticket Preview Banner */}
+                  {selectedIntakeTicket && (
+                    <div
+                      style={{
+                        padding: '14px 16px',
+                        borderRadius: 10,
+                        border: selectedIntakeTicket.jobMetadata ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(251, 191, 36, 0.4)',
+                        background: selectedIntakeTicket.jobMetadata ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.08)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: 12,
+                        marginBottom: 14,
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <span style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 700, fontSize: 13 }}>
+                            #{selectedIntakeTicket.serialNo}
+                          </span>
+                          {selectedIntakeTicket.jobMetadata ? (
+                            <span style={{ background: 'rgba(34, 197, 94, 0.25)', color: '#4ade80', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
+                              ✅ TAKEN BY OFFICE: {selectedIntakeTicket.jobMetadata?.createdBy?.employeeName || selectedIntakeTicket.jobMetadata?.manualEnteredBy || 'Office Staff'}
+                            </span>
+                          ) : (
+                            <span style={{ background: 'rgba(245, 158, 11, 0.25)', color: '#fbbf24', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
+                              ⏳ PENDING / UNASSIGNED EMAIL
+                            </span>
+                          )}
+                          <span style={{ fontSize: 11, color: '#94a3b8' }}>
+                            📅 {new Date(selectedIntakeTicket.exactDate).toLocaleDateString()}
+                          </span>
+                        </div>
+
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#f8fafc', marginTop: 6 }}>
+                          {selectedIntakeTicket.subject}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
+                          From: <strong style={{ color: '#cbd5e1' }}>{selectedIntakeTicket.sender}</strong>
+                          {selectedIntakeTicket.jobMetadata?.clientName && (
+                            <span style={{ marginLeft: 8 }}>| Client: <strong style={{ color: '#e2e8f0' }}>{selectedIntakeTicket.jobMetadata.clientName}</strong></span>
+                          )}
+                          {selectedIntakeTicket.jobMetadata?.branchName && (
+                            <span style={{ marginLeft: 8 }}>| Branch: <strong style={{ color: '#e2e8f0' }}>{selectedIntakeTicket.jobMetadata.branchName}</strong></span>
+                          )}
+                        </div>
+
+                        <div style={{ fontSize: 11, color: selectedIntakeTicket.jobMetadata ? '#86efac' : '#fde68a', marginTop: 4 }}>
+                          {selectedIntakeTicket.jobMetadata
+                            ? `ℹ️ Linked to office job. Submitting your project report/expenses here will automatically notify ${selectedIntakeTicket.jobMetadata.createdBy?.employeeName || 'the office employee'}.`
+                            : 'ℹ️ Unassigned ticket. Claim this work and enter your site reports & expenses below.'}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className="nexus-btn"
+                          style={{
+                            background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                            color: '#ffffff',
+                            fontWeight: 700,
+                            fontSize: 12,
+                            padding: '8px 14px',
+                            border: 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)',
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => handleOpenProjectForTicket(selectedIntakeTicket)}
+                        >
+                          <HardHat size={14} /> ⭐ Put Details as Project (9 &amp; 11 Categories)
+                        </button>
+                        <button
+                          type="button"
+                          className="nexus-btn nexus-btn-ghost"
+                          style={{ padding: '7px 12px', fontSize: 11, color: '#cbd5e1' }}
+                          onClick={() => {
+                            setIntakeTicketId('');
+                            setIntakeForm({
+                              clientName: '',
+                              branchName: '',
+                              personOfContact: '',
+                              workNature: '',
+                              assignedEmployeeId: '',
+                              manualEnteredBy: '',
+                            });
+                          }}
+                        >
+                          Clear Selection
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Quick-Pick Grid of Recent Emails (both Taken & Pending) */}
+                  <div style={{ marginTop: 14 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#cbd5e1' }}>
+                        ⚡ Quick Select from Recent Emails ({filteredIntakeTickets.slice(0, 8).length} of {filteredIntakeTickets.length}):
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowQuickPickGrid(!showQuickPickGrid)}
+                        style={{ background: 'transparent', border: 'none', color: '#38bdf8', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        {showQuickPickGrid ? '▲ Collapse Quick Cards' : '▼ Expand Quick Cards'}
+                      </button>
+                    </div>
+
+                    {showQuickPickGrid && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+                        {filteredIntakeTickets.slice(0, 8).map((t) => {
+                          const isTaken = !!t.jobMetadata;
+                          const taker = t.jobMetadata?.createdBy?.employeeName || t.jobMetadata?.manualEnteredBy || 'Office Staff';
+                          const isSelected = String(t.id) === String(intakeTicketId);
+
+                          return (
+                            <div
+                              key={t.id}
+                              style={{
+                                padding: 12,
+                                borderRadius: 8,
+                                border: isSelected
+                                  ? '2px solid #38bdf8'
+                                  : isTaken
+                                  ? '1px solid rgba(16, 185, 129, 0.3)'
+                                  : '1px solid rgba(251, 191, 36, 0.3)',
+                                background: isSelected
+                                  ? 'rgba(56, 189, 248, 0.12)'
+                                  : isTaken
+                                  ? 'rgba(16, 185, 129, 0.04)'
+                                  : 'rgba(245, 158, 11, 0.04)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'space-between',
+                                gap: 8,
+                              }}
+                            >
+                              <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                  <span style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 700, fontSize: 12 }}>
+                                    #{t.serialNo}
+                                  </span>
+                                  {isTaken ? (
+                                    <span style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#4ade80', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
+                                      ✅ TAKEN: {taker}
+                                    </span>
+                                  ) : (
+                                    <span style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
+                                      ⏳ PENDING
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: '#f8fafc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.subject}>
+                                  {t.subject || '(No Subject)'}
+                                </div>
+                                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  From: {t.sender}
+                                </div>
+                                {isTaken && (t.jobMetadata?.clientName || t.jobMetadata?.branchName) && (
+                                  <div style={{ fontSize: 10, color: '#cbd5e1', marginTop: 4, background: 'rgba(255,255,255,0.03)', padding: '2px 6px', borderRadius: 4 }}>
+                                    {t.jobMetadata.clientName || 'Client'} · {t.jobMetadata.branchName || 'Branch'}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                                <button
+                                  type="button"
+                                  className="nexus-btn nexus-btn-ghost"
+                                  style={{
+                                    flex: 1,
+                                    padding: '5px 8px',
+                                    fontSize: 11,
+                                    borderColor: isSelected ? '#38bdf8' : 'rgba(255,255,255,0.15)',
+                                    color: isSelected ? '#38bdf8' : '#e2e8f0',
+                                    fontWeight: isSelected ? 700 : 500,
+                                  }}
+                                  onClick={() => handleIntakeTicketChange(String(t.id))}
+                                >
+                                  {isSelected ? '✓ Selected' : '👉 Select'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="nexus-btn"
+                                  style={{
+                                    padding: '5px 10px',
+                                    fontSize: 11,
+                                    background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                                    color: '#ffffff',
+                                    fontWeight: 700,
+                                    border: 'none',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                  }}
+                                  onClick={() => handleOpenProjectForTicket(t)}
+                                  title="Put Details as Project (9 & 11 Categories)"
+                                >
+                                  <HardHat size={12} /> Project
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
 

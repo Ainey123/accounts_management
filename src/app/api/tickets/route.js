@@ -21,9 +21,31 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const pending = searchParams.get('pending') === 'true';
+    const limitParam = searchParams.get('limit');
+    const all = searchParams.get('all') === 'true';
+    const q = searchParams.get('q');
+
+    let where = undefined;
+    if (pending) {
+      where = { jobMetadata: null, NOT: { status: { in: ['IRRELEVANT', 'CANCELLED'] } } };
+    }
+
+    if (q) {
+      const qClause = {
+        OR: [
+          { subject: { contains: q, mode: 'insensitive' } },
+          { sender: { contains: q, mode: 'insensitive' } },
+          { serialNo: { contains: q, mode: 'insensitive' } },
+        ],
+      };
+      where = where ? { AND: [where, qClause] } : qClause;
+    }
+
+    const take = all ? undefined : (limitParam ? parseInt(limitParam, 10) : 250);
 
     const tickets = await withRetry(() => prisma.ticket.findMany({
-      where: pending ? { jobMetadata: null, NOT: { status: { in: ['IRRELEVANT', 'CANCELLED'] } } } : undefined,
+      where,
+      take,
       orderBy: { exactDate: 'desc' },
       include: {
         gmailAccount: {
@@ -36,7 +58,6 @@ export async function GET(request) {
         createdBy: { select: { id: true, employeeName: true, email: true } },
         jobMetadata: {
           include: {
-            ticket: true,
             assignedEmployee: { select: { id: true, employeeName: true, email: true } },
             createdBy: { select: { id: true, employeeName: true, email: true } },
             expenses: { select: { id: true, amount: true, createdAt: true, paidBy: true, category: true, summaryNotes: true } },

@@ -42,7 +42,10 @@ export default function FieldPortalPage() {
   const [studioProjectPoc, setStudioProjectPoc] = useState('Branch Manager');
 
   // ── Job Intake State ──
+  const [allTickets, setAllTickets] = useState([]);
   const [pendingTickets, setPendingTickets] = useState([]);
+  const [gmailSearchTerm, setGmailSearchTerm] = useState('');
+  const [gmailFilterType, setGmailFilterType] = useState('all'); // 'all' | 'pending' | 'taken'
   const [allEmployees, setAllEmployees] = useState([]);
   const [intakeTicketId, setIntakeTicketId] = useState('');
   const [intakeTicketSearch, setIntakeTicketSearch] = useState('');
@@ -147,14 +150,16 @@ export default function FieldPortalPage() {
       const [jobsRes, reportsRes, ticketsRes, usersRes] = await Promise.all([
         apiFetch('/api/jobs'),
         apiFetch('/api/project-reports?myReports=true'),
-        apiFetch('/api/tickets?pending=true').catch(() => ({ tickets: [] })),
+        apiFetch('/api/tickets').catch(() => ({ tickets: [] })),
         apiFetch('/api/users').catch(() => ({ users: [] })),
       ]);
       const fetchedJobs = jobsRes.jobs || [];
       const fetchedReports = reportsRes.reports || [];
+      const fetchedTickets = ticketsRes.tickets || [];
       setJobs(fetchedJobs);
       setMySubmissions(fetchedReports);
-      setPendingTickets(ticketsRes.tickets || []);
+      setAllTickets(fetchedTickets);
+      setPendingTickets(fetchedTickets.filter((t) => !t.jobMetadata));
       setAllEmployees((usersRes.users || []).filter((u) => u.role !== 'ADMIN'));
 
       // If active job is open, refresh its report
@@ -251,10 +256,29 @@ export default function FieldPortalPage() {
   const handleIntakeTicketChange = (ticketId) => {
     setIntakeTicketId(ticketId);
     if (!ticketId) return;
-    const ticket = pendingTickets.find((t) => String(t.id) === String(ticketId));
-    if (ticket && !intakeForm.clientName) {
-      const senderName = ticket.sender?.split('@')[0] || '';
-      setIntakeForm((prev) => ({ ...prev, clientName: senderName }));
+    const ticket = (allTickets || []).find((t) => String(t.id) === String(ticketId));
+    if (ticket) {
+      if (ticket.jobMetadata) {
+        setIntakeForm((prev) => ({
+          ...prev,
+          clientName: ticket.jobMetadata.clientName || prev.clientName,
+          branchName: ticket.jobMetadata.branchName || prev.branchName,
+          personOfContact: ticket.jobMetadata.personOfContact || prev.personOfContact,
+          workNature: ticket.jobMetadata.workNature || 'PROJECT',
+        }));
+        const taker = ticket.jobMetadata.createdBy?.employeeName || ticket.jobMetadata.manualEnteredBy || 'Office Staff';
+        setActionMessage({
+          type: 'success',
+          text: `ℹ️ Email #${ticket.serialNo} was taken by ${taker}. You can attach your Project Progress & Expenses to this job directly!`,
+        });
+      } else {
+        const senderName = ticket.sender?.split('@')[0] || '';
+        setIntakeForm((prev) => ({
+          ...prev,
+          clientName: prev.clientName || senderName,
+          branchName: prev.branchName || ticket.subject || '',
+        }));
+      }
     }
   };
 
@@ -344,6 +368,79 @@ export default function FieldPortalPage() {
       setSubmittingIntake(false);
     }
   };
+
+  const handleOpenProjectForTicket = (ticket) => {
+    if (ticket.jobMetadata) {
+      const job = {
+        ...ticket.jobMetadata,
+        ticket,
+      };
+      setSelectedJob(job);
+      const matched = (mySubmissions || []).find((r) => r.jobMetadataId === job.id);
+      const rep = matched || (ticket.jobMetadata.projectReports?.[0] || null);
+      setExistingReport(rep);
+      initTemplates(rep);
+      setStudioProjectBranch(job.branchName);
+      setStudioProjectClient(job.clientName);
+      setStudioProjectPoc(job.personOfContact);
+      setModalJobForReport(job);
+      setIsReportModalOpen(true);
+      const creatorName = ticket.jobMetadata.createdBy?.employeeName || ticket.jobMetadata.manualEnteredBy || 'Office Staff';
+      setActionMessage({
+        type: 'success',
+        text: `⭐ Email taken by ${creatorName} linked! Fill in your 9 Progress & 11 Expense Categories below. ${creatorName} will be automatically notified upon submission.`,
+      });
+    } else {
+      const senderName = ticket.sender?.split('@')[0] || 'Client';
+      const defaultBranch = ticket.subject || 'Site Project';
+      const projectJob = {
+        id: Date.now(),
+        ticketId: ticket.id,
+        clientName: senderName,
+        branchName: defaultBranch,
+        personOfContact: user?.employeeName || 'Site Contact',
+        workNature: 'PROJECT',
+        ticket,
+        assignedEmployee: user,
+      };
+      setSelectedJob(projectJob);
+      setStudioProjectBranch(defaultBranch);
+      setStudioProjectClient(senderName);
+      setStudioProjectPoc(user?.employeeName || 'Site Contact');
+      initTemplates();
+      setModalJobForReport(projectJob);
+      setIsReportModalOpen(true);
+      setActionMessage({
+        type: 'success',
+        text: `⭐ Linked to pending email #${ticket.serialNo}. Please fill in the 9 Progress Categories & 11 Expense Categories.`,
+      });
+    }
+  };
+
+  const filteredAllTickets = (allTickets || []).filter((t) => {
+    if (gmailFilterType === 'pending' && t.jobMetadata) return false;
+    if (gmailFilterType === 'taken' && !t.jobMetadata) return false;
+
+    if (!gmailSearchTerm) return true;
+    const q = gmailSearchTerm.toLowerCase();
+    const takenBy = (t.jobMetadata?.createdBy?.employeeName || t.jobMetadata?.manualEnteredBy || '').toLowerCase();
+    const client = (t.jobMetadata?.clientName || '').toLowerCase();
+    const branch = (t.jobMetadata?.branchName || '').toLowerCase();
+    const subject = (t.subject || '').toLowerCase();
+    const sender = (t.sender || '').toLowerCase();
+    const serial = (t.serialNo || '').toLowerCase();
+    const emailBox = (t.gmailAccount?.gmailEmail || '').toLowerCase();
+
+    return (
+      subject.includes(q) ||
+      sender.includes(q) ||
+      serial.includes(q) ||
+      takenBy.includes(q) ||
+      client.includes(q) ||
+      branch.includes(q) ||
+      emailBox.includes(q)
+    );
+  });
 
   const handleAutoOpenProjectScreen = (customBranch = '', customClient = '') => {
     const branch = customBranch || intakeForm.branchName?.trim() || studioProjectBranch || 'UBL Bank Mall Road Branch';
@@ -1442,7 +1539,7 @@ export default function FieldPortalPage() {
         /* ════════════════════════════════════════════════════════════════════ */
         <div>
           {/* View Tab Switcher */}
-          <div className="tab-segment" style={{ marginBottom: 20 }}>
+          <div className="tab-segment" style={{ marginBottom: 20, flexWrap: 'wrap', gap: 6 }}>
             <button
               type="button"
               className={`tab-segment-btn ${activeTab === 'jobs' ? 'active-field' : ''}`}
@@ -1452,10 +1549,15 @@ export default function FieldPortalPage() {
             </button>
             <button
               type="button"
-              className={`tab-segment-btn ${activeTab === 'intake' ? 'active-field' : ''}`}
-              onClick={() => setActiveTab('intake')}
+              className={`tab-segment-btn ${activeTab === 'gmails' ? 'active-field' : ''}`}
+              onClick={() => setActiveTab('gmails')}
+              style={{
+                borderColor: activeTab === 'gmails' ? '#38bdf8' : 'rgba(56, 189, 248, 0.4)',
+                color: activeTab === 'gmails' ? '#38bdf8' : '#7dd3fc',
+                fontWeight: 600,
+              }}
             >
-              <PlusCircle size={15} style={{ display: 'inline', marginRight: 4 }} /> Job Intake
+              <Mail size={15} style={{ display: 'inline', marginRight: 4 }} /> 📧 All Gmails Feed ({allTickets.length})
             </button>
             <button
               type="button"
@@ -1471,10 +1573,17 @@ export default function FieldPortalPage() {
             </button>
             <button
               type="button"
+              className={`tab-segment-btn ${activeTab === 'intake' ? 'active-field' : ''}`}
+              onClick={() => setActiveTab('intake')}
+            >
+              <PlusCircle size={15} style={{ display: 'inline', marginRight: 4 }} /> Job Intake
+            </button>
+            <button
+              type="button"
               className={`tab-segment-btn ${activeTab === 'history' ? 'active-field' : ''}`}
               onClick={() => setActiveTab('history')}
             >
-              <History size={15} style={{ display: 'inline', marginRight: 4 }} /> Submitted Reports & Expenses ({mySubmissions.length})
+              <History size={15} style={{ display: 'inline', marginRight: 4 }} /> Submitted Reports &amp; Expenses ({mySubmissions.length})
             </button>
           </div>
 
@@ -1601,6 +1710,223 @@ export default function FieldPortalPage() {
                 </div>
               )}
             </div>
+          ) : activeTab === 'gmails' ? (
+            /* ════════════════════════════════════════════════════════════════ */
+            /* ── VIEW 2.5: ALL INCOMING GMAILS FEED (PENDING & TAKEN) ──────── */
+            /* ════════════════════════════════════════════════════════════════ */
+            <div>
+              {/* Header Card with Filter Buttons */}
+              <div className="glass-card" style={{ marginBottom: 20, padding: 20, border: '1px solid rgba(56, 189, 248, 0.3)', background: 'rgba(56, 189, 248, 0.04)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 10, background: 'rgba(56, 189, 248, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                      <Mail size={24} color="#38bdf8" />
+                    </div>
+                    <div>
+                      <h2 style={{ fontSize: 18, color: '#f8fafc', margin: 0, fontWeight: 700 }}>
+                        📧 All Incoming Gmails Feed (Pending &amp; Taken)
+                      </h2>
+                      <p style={{ margin: '3px 0 0 0', fontSize: 12, color: '#94a3b8' }}>
+                        Browse all emails taken by office employees (Batch 1, etc.) or pending. Click <strong>⭐ Put Details as Project</strong> to attach your site progress &amp; expenses. The responsible office staff will be automatically notified!
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Filter Pills */}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className={`nexus-btn ${gmailFilterType === 'all' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
+                      style={{ fontSize: 12, padding: '6px 14px' }}
+                      onClick={() => setGmailFilterType('all')}
+                    >
+                      All Gmails ({allTickets.length})
+                    </button>
+                    <button
+                      type="button"
+                      className={`nexus-btn ${gmailFilterType === 'taken' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
+                      style={{
+                        fontSize: 12,
+                        padding: '6px 14px',
+                        borderColor: gmailFilterType === 'taken' ? '#34d399' : 'rgba(52, 211, 153, 0.3)',
+                        background: gmailFilterType === 'taken' ? 'rgba(16, 185, 129, 0.25)' : 'transparent',
+                        color: gmailFilterType === 'taken' ? '#34d399' : '#cbd5e1',
+                      }}
+                      onClick={() => setGmailFilterType('taken')}
+                    >
+                      ✅ Taken by Office ({allTickets.filter((t) => t.jobMetadata).length})
+                    </button>
+                    <button
+                      type="button"
+                      className={`nexus-btn ${gmailFilterType === 'pending' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
+                      style={{
+                        fontSize: 12,
+                        padding: '6px 14px',
+                        borderColor: gmailFilterType === 'pending' ? '#fbbf24' : 'rgba(251, 191, 36, 0.3)',
+                        background: gmailFilterType === 'pending' ? 'rgba(245, 158, 11, 0.25)' : 'transparent',
+                        color: gmailFilterType === 'pending' ? '#fbbf24' : '#cbd5e1',
+                      }}
+                      onClick={() => setGmailFilterType('pending')}
+                    >
+                      ⏳ Pending ({allTickets.filter((t) => !t.jobMetadata).length})
+                    </button>
+                  </div>
+                </div>
+
+                {/* Search Bar */}
+                <div style={{ position: 'relative' }}>
+                  <Search size={15} style={{ position: 'absolute', left: 12, top: 13, color: '#64748b' }} />
+                  <input
+                    className="nexus-input"
+                    placeholder="Search by subject, sender, client, branch, office employee (Batch 1, etc.), or ticket serial #..."
+                    value={gmailSearchTerm}
+                    onChange={(e) => setGmailSearchTerm(e.target.value)}
+                    style={{ width: '100%', paddingLeft: 36, fontSize: 13, padding: '10px 14px 10px 36px' }}
+                  />
+                </div>
+              </div>
+
+              {/* List of Tickets */}
+              {filteredAllTickets.length === 0 ? (
+                <div className="glass-card" style={{ textAlign: 'center', padding: '48px 24px', color: '#64748b' }}>
+                  <Mail size={40} color="#64748b" style={{ margin: '0 auto 12px auto' }} />
+                  <div style={{ fontSize: 16, fontWeight: 600, color: '#f8fafc' }}>
+                    {gmailSearchTerm ? 'No matching Gmails found' : 'No Gmails available'}
+                  </div>
+                  <div style={{ fontSize: 13, marginTop: 4 }}>
+                    {gmailSearchTerm ? 'Try searching by a different keyword.' : 'Gmails synced from accounts will appear here.'}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {filteredAllTickets.map((ticket) => {
+                    const isTaken = !!ticket.jobMetadata;
+                    const takerName = ticket.jobMetadata?.createdBy?.employeeName || ticket.jobMetadata?.manualEnteredBy || 'Office Staff';
+                    const pReport = ticket.jobMetadata?.projectReports?.[0];
+
+                    return (
+                      <div
+                        key={ticket.id}
+                        className="glass-card"
+                        style={{
+                          padding: 18,
+                          border: isTaken ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(251, 191, 36, 0.3)',
+                          background: isTaken ? 'rgba(16, 185, 129, 0.03)' : 'rgba(245, 158, 11, 0.03)',
+                          transition: 'border-color 0.15s',
+                        }}
+                      >
+                        {/* Top Row: Serial, Status Badge, Ingest Details */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                            <span style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 700, fontSize: 14 }}>
+                              #{ticket.serialNo}
+                            </span>
+                            {isTaken ? (
+                              <span style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#4ade80', border: '1px solid rgba(34, 197, 94, 0.35)', padding: '3px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700 }}>
+                                ✅ TAKEN BY: {takerName}
+                              </span>
+                            ) : (
+                              <span style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.35)', padding: '3px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700 }}>
+                                ⏳ PENDING / UNASSIGNED
+                              </span>
+                            )}
+                            {ticket.jobMetadata?.workNature && (
+                              <span style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '3px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>
+                                {ticket.jobMetadata.workNature}
+                              </span>
+                            )}
+                          </div>
+
+                          <div style={{ fontSize: 12, color: '#64748b', textAlign: 'right' }}>
+                            <div>📅 {new Date(ticket.exactDate).toLocaleDateString()} {ticket.time ? `· ${ticket.time}` : ''}</div>
+                            <div style={{ fontSize: 11, color: '#94a3b8' }}>Box: {ticket.gmailAccount?.gmailEmail || 'Direct Ingest'}</div>
+                          </div>
+                        </div>
+
+                        {/* Originating Subject */}
+                        <div style={{ margin: '8px 0', padding: '10px 14px', background: 'rgba(0, 0, 0, 0.3)', borderRadius: 8, border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                          <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>
+                            Email Subject:
+                          </div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: '#f8fafc' }}>
+                            {ticket.subject || '(No Subject)'}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
+                            From: <strong style={{ color: '#cbd5e1' }}>{ticket.sender}</strong>
+                          </div>
+                        </div>
+
+                        {/* Job Metadata details if taken */}
+                        {isTaken && (
+                          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12, color: '#94a3b8', marginBottom: 10, padding: '6px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: 6 }}>
+                            <span>Client: <strong style={{ color: '#f8fafc' }}>{ticket.jobMetadata.clientName}</strong></span>
+                            <span>Branch: <strong style={{ color: '#f8fafc' }}>{ticket.jobMetadata.branchName}</strong></span>
+                            <span>POC: <strong style={{ color: '#f8fafc' }}>{ticket.jobMetadata.personOfContact || '—'}</strong></span>
+                          </div>
+                        )}
+
+                        {/* Attached Project Reports or Expenses summary */}
+                        {pReport && (
+                          <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: 6, border: '1px solid rgba(16, 185, 129, 0.25)', fontSize: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                            <div>
+                              <span style={{ color: '#94a3b8' }}>Site Progress: </span>
+                              <strong style={{ color: '#34d399' }}>{Math.round(pReport.overallProgressPercent)}%</strong>
+                              <span style={{ color: '#64748b', margin: '0 8px' }}>|</span>
+                              <span style={{ color: '#94a3b8' }}>Total Expenses: </span>
+                              <strong style={{ color: '#38bdf8' }}>Rs. {pReport.totalExpenseAmount.toLocaleString()}</strong>
+                            </div>
+                            <span style={{ background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>
+                              {pReport.status}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Actions Footer */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap', gap: 8 }}>
+                          <div style={{ fontSize: 12, color: '#64748b' }}>
+                            {isTaken
+                              ? `Matching work? Add your project report & expenses directly. ${takerName} will be notified.`
+                              : 'Unassigned email. You can take it as a project and record your site expenses.'}
+                          </div>
+
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              className="nexus-btn nexus-btn-ghost"
+                              style={{ padding: '6px 12px', fontSize: 11, color: '#38bdf8', borderColor: 'rgba(56,189,248,0.3)', display: 'flex', alignItems: 'center', gap: 4 }}
+                              onClick={() => openLogExpenseModal(ticket.jobMetadata || { id: ticket.id, branchName: ticket.subject })}
+                            >
+                              <Receipt size={13} /> Log Quick Expense
+                            </button>
+
+                            <button
+                              type="button"
+                              className="nexus-btn"
+                              style={{
+                                padding: '7px 16px',
+                                fontSize: 12,
+                                background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                                color: '#ffffff',
+                                fontWeight: 700,
+                                border: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)',
+                                cursor: 'pointer',
+                              }}
+                              onClick={() => handleOpenProjectForTicket(ticket)}
+                            >
+                              <HardHat size={14} /> ⭐ Put Details as Project (9 &amp; 11 Categories)
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           ) : activeTab === 'intake' ? (
             /* ════════════════════════════════════════════════════════════════ */
             /* ── VIEW 3: FIELD JOB INTAKE & PROJECT PROMPT ─────────────────── */
@@ -1639,23 +1965,29 @@ export default function FieldPortalPage() {
                       style={{ flex: 1, minWidth: 260 }}
                     >
                       <option value="">— Select pending ticket —</option>
-                      {pendingTickets
-                        .filter((t) => !t.jobMetadata && t.status !== 'IRRELEVANT' && t.status !== 'CANCELLED')
+                      {(allTickets || [])
+                        .filter((t) => t.status !== 'IRRELEVANT' && t.status !== 'CANCELLED')
                         .filter((t) => {
                           if (!intakeTicketSearch) return true;
                           const q = intakeTicketSearch.toLowerCase();
+                          const takenBy = (t.jobMetadata?.createdBy?.employeeName || t.jobMetadata?.manualEnteredBy || '').toLowerCase();
                           return (
                             t.subject?.toLowerCase().includes(q) ||
                             t.sender?.toLowerCase().includes(q) ||
                             t.serialNo?.toLowerCase().includes(q) ||
+                            takenBy.includes(q) ||
                             t.gmailAccount?.gmailEmail?.toLowerCase().includes(q)
                           );
                         })
-                        .map((t) => (
-                          <option key={t.id} value={t.id}>
-                            #{t.serialNo} — {t.subject} ({t.sender || 'Gmail'})
-                          </option>
-                        ))}
+                        .map((t) => {
+                          const isTaken = !!t.jobMetadata;
+                          const taker = t.jobMetadata?.createdBy?.employeeName || t.jobMetadata?.manualEnteredBy || 'Office Staff';
+                          return (
+                            <option key={t.id} value={t.id}>
+                              {isTaken ? `[✅ Taken by: ${taker}]` : '[⏳ Pending]'} #{t.serialNo} — {t.subject} ({t.sender || 'Gmail'})
+                            </option>
+                          );
+                        })}
                     </select>
                     <div style={{ position: 'relative', width: 220 }}>
                       <Search size={14} style={{ position: 'absolute', left: 10, top: 12, color: '#64748b' }} />

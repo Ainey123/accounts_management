@@ -26,12 +26,24 @@ export async function GET(request) {
       where: pending ? { jobMetadata: null, NOT: { status: { in: ['IRRELEVANT', 'CANCELLED'] } } } : undefined,
       orderBy: { exactDate: 'desc' },
       include: {
-        gmailAccount: { select: { id: true, gmailEmail: true } },
+        gmailAccount: {
+          select: {
+            id: true,
+            gmailEmail: true,
+            user: { select: { id: true, employeeName: true, email: true } },
+          },
+        },
         createdBy: { select: { id: true, employeeName: true, email: true } },
         jobMetadata: {
           include: {
+            ticket: true,
             assignedEmployee: { select: { id: true, employeeName: true, email: true } },
             createdBy: { select: { id: true, employeeName: true, email: true } },
+            expenses: { select: { id: true, amount: true, createdAt: true, paidBy: true, category: true, summaryNotes: true } },
+            projectReports: {
+              orderBy: { createdAt: 'desc' },
+              select: { id: true, status: true, totalExpenseAmount: true, overallProgressPercent: true, version: true, updatedAt: true },
+            },
           },
         },
       },

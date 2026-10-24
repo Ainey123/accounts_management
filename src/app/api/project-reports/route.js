@@ -166,14 +166,19 @@ export async function POST(request) {
         include: { ticket: true },
       });
       finalJobId = job.id;
-    } else if (user.role === 'FIELD_EMPLOYEE' && job.assignedEmployeeId && job.assignedEmployeeId !== employeeId) {
-      return NextResponse.json({ error: 'You are only authorized to submit reports for jobs assigned to you.' }, { status: 403 });
-    } else if (!job.assignedEmployeeId) {
-      // Assign unassigned job to this employee
-      await prisma.jobMetadata.update({
-        where: { id: job.id },
-        data: { assignedEmployeeId: employeeId },
-      });
+    } else if (user.role === 'FIELD_EMPLOYEE') {
+      // Allow field employees to put project details & expenses on any matching job/ticket (e.g. taken by Batch 1)
+      if (!job.assignedEmployeeId) {
+        await prisma.jobMetadata.update({
+          where: { id: job.id },
+          data: { assignedEmployeeId: employeeId, workNature: 'PROJECT' },
+        });
+      } else if (job.workNature !== 'PROJECT') {
+        await prisma.jobMetadata.update({
+          where: { id: job.id },
+          data: { workNature: 'PROJECT' },
+        });
+      }
     }
 
     const finalExpenseData = typeof expenseData === 'string' ? expenseData : JSON.stringify(expenseData || []);
@@ -324,6 +329,36 @@ export async function POST(request) {
           data: { linkedExpenseId: linkedExpense.id },
         });
       }
+    }
+
+    // Notify the office employee (e.g. Batch 1 who took the email/job)
+    try {
+      const fullJob = await prisma.jobMetadata.findUnique({
+        where: { id: Number(finalJobId) },
+        include: {
+          ticket: { include: { gmailAccount: true } },
+          createdBy: true,
+        },
+      });
+      const targetOfficeUserId = fullJob?.createdById || fullJob?.ticket?.createdById || fullJob?.ticket?.gmailAccount?.userId;
+      if (targetOfficeUserId && targetOfficeUserId !== employeeId) {
+        const fieldEmpName = user.employeeName || user.email || 'Field Employee';
+        const jobBranch = branchName || fullJob.branchName || 'Site Project';
+        const emailSubject = fullJob.ticket?.subject || 'Site Job';
+        const serial = fullJob.ticket?.serialNo || fullJob.id;
+        
+        await prisma.comment.create({
+          data: {
+            userId: targetOfficeUserId,
+            senderRole: 'FIELD_EMPLOYEE',
+            senderName: fieldEmpName,
+            adminName: fieldEmpName,
+            content: `🔔 Field employee ${fieldEmpName} logged Rs. ${finalTotalExpense.toLocaleString()} project expenses and ${Math.round(finalProgressPct)}% progress for "${jobBranch}" (Ticket #${serial}, Email: "${emailSubject}").`,
+          },
+        });
+      }
+    } catch (notifErr) {
+      console.warn('Failed to send office notification comment:', notifErr.message);
     }
 
     return NextResponse.json({ report, success: true }, { status: 201 });

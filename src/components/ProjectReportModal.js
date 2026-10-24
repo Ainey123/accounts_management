@@ -20,6 +20,15 @@ export default function ProjectReportModal({ job, existingReport = null, onClose
   const [savingDraft, setSavingDraft] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [branchName, setBranchName] = useState(job?.branchName || 'UBL Bank Branch');
+  const [clientName, setClientName] = useState(job?.clientName || 'UBL Bank');
+  const [personOfContact, setPersonOfContact] = useState(job?.personOfContact || 'Branch Manager');
+
+  useEffect(() => {
+    if (job?.branchName) setBranchName(job.branchName);
+    if (job?.clientName) setClientName(job.clientName);
+    if (job?.personOfContact) setPersonOfContact(job.personOfContact);
+  }, [job]);
 
   const fileInputRef = useRef(null);
 
@@ -164,8 +173,10 @@ export default function ProjectReportModal({ job, existingReport = null, onClose
 
     try {
       const payload = {
-        jobMetadataId: job.id,
-        branchName: job.branchName,
+        jobMetadataId: job?.id,
+        branchName: branchName || job?.branchName || 'UBL Bank Branch',
+        clientName: clientName || job?.clientName || 'UBL Bank',
+        personOfContact: personOfContact || job?.personOfContact || 'Branch Manager',
         reportDate,
         expenseData: expenseSections,
         progressData: progressSections,
@@ -290,14 +301,14 @@ export default function ProjectReportModal({ job, existingReport = null, onClose
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 16, fontWeight: 'bold', color: '#f8fafc' }}>
-                  Project Digital Report: {job.branchName}
+                  Project Digital Report: {branchName || job.branchName}
                 </span>
                 <span style={{ fontFamily: 'monospace', color: '#00f2fe', fontSize: 12, fontWeight: 'bold' }}>
                   #{job.ticket?.serialNo || job.id}
                 </span>
               </div>
               <div style={{ fontSize: 12, color: '#94a3b8' }}>
-                Client: <strong style={{ color: '#e2e8f0' }}>{job.clientName}</strong> | POC: {job.personOfContact}
+                Client: <strong style={{ color: '#e2e8f0' }}>{clientName || job.clientName}</strong> | POC: {personOfContact || job.personOfContact}
               </div>
             </div>
           </div>
@@ -315,13 +326,62 @@ export default function ProjectReportModal({ job, existingReport = null, onClose
         </div>
 
         {/* Originating Email Bar */}
-        <div style={{ padding: '8px 20px', background: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12, color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Mail size={13} color="#38bdf8" />
-          <span style={{ color: '#64748b' }}>Email Subject:</span>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{job.ticket?.subject || '—'}</span>
+        <div style={{ padding: '8px 20px', background: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12, color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 200 }}>
+            <Mail size={13} color="#38bdf8" />
+            <span style={{ color: '#64748b' }}>Email / Work Subject:</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.ticket?.subject || `${clientName} - ${branchName} Project`}</span>
+          </div>
           {job.ticket?.sender && (
             <span style={{ color: '#64748b', fontSize: 11 }}>From: {job.ticket.sender}</span>
           )}
+        </div>
+
+        {/* Project Details Editable Strip */}
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', padding: '10px 20px', background: 'rgba(15, 23, 42, 0.8)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 180 }}>
+            <span style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Branch:</span>
+            <input
+              className="nexus-input"
+              style={{ padding: '4px 8px', fontSize: 12, height: 28, width: '100%' }}
+              value={branchName}
+              onChange={(e) => setBranchName(e.target.value)}
+              placeholder="Branch Name (e.g. UBL Mall Road)"
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 140 }}>
+            <span style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Client:</span>
+            <input
+              className="nexus-input"
+              style={{ padding: '4px 8px', fontSize: 12, height: 28, width: '100%' }}
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              placeholder="Client (e.g. UBL Bank)"
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 120 }}>
+            <span style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Date:</span>
+            <input
+              type="date"
+              className="nexus-input"
+              style={{ padding: '4px 8px', fontSize: 12, height: 28 }}
+              value={reportDate}
+              onChange={(e) => setReportDate(e.target.value)}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 120 }}>
+            <span style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Paid By:</span>
+            <select
+              className="nexus-select"
+              style={{ padding: '4px 8px', fontSize: 12, height: 28 }}
+              value={paidBy}
+              onChange={(e) => setPaidBy(e.target.value)}
+            >
+              <option value="FES">FES</option>
+              <option value="Client">Client</option>
+              <option value="Subcontractor">Subcontractor</option>
+            </select>
+          </div>
         </div>
 
         {/* Message Banner */}

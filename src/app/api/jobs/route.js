@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { nextTicketSerialNo } from '@/lib/serial';
 
 const WORK_NATURES = ['ELECTRICAL', 'WAPDA', 'MAINTENANCE', 'PROJECT'];
 
@@ -154,34 +155,52 @@ export async function POST(request) {
     const parsedId = user?.id ? Number(user.id) : null;
     const userId = (parsedId && !isNaN(parsedId)) ? parsedId : null;
 
-    if (!ticketId || !clientName || !branchName || !personOfContact || !workNature) {
-      return NextResponse.json({ error: 'All job metadata fields are required' }, { status: 400 });
+    if (!clientName || !branchName || !personOfContact || !workNature) {
+      return NextResponse.json({ error: 'Client, Branch, POC, and Work Nature are required' }, { status: 400 });
     }
 
     if (!WORK_NATURES.includes(workNature)) {
       return NextResponse.json({ error: 'Invalid work nature' }, { status: 400 });
     }
 
-    const ticket = await prisma.ticket.findUnique({
-      where: { id: Number(ticketId) },
-      include: { jobMetadata: true },
-    });
+    let finalTicketId = ticketId ? Number(ticketId) : null;
+    if (!finalTicketId) {
+      const serialNo = await nextTicketSerialNo();
+      const newTicket = await prisma.ticket.create({
+        data: {
+          serialNo,
+          subject: `${clientName} - ${branchName} (${workNature})`,
+          sender: manualEnteredBy || user?.employeeName || 'Field Site Entry',
+          exactDate: new Date(),
+          time: new Date().toTimeString().slice(0, 5),
+          status: 'RELEVANT',
+          statusLastChangedBy: user?.employeeName || 'Field Portal',
+          createdById: userId,
+        },
+      });
+      finalTicketId = newTicket.id;
+    } else {
+      const ticket = await prisma.ticket.findUnique({
+        where: { id: finalTicketId },
+        include: { jobMetadata: true },
+      });
 
-    if (!ticket) {
-      return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
-    }
-    if (ticket.jobMetadata) {
-      return NextResponse.json({ error: 'Ticket already has job metadata' }, { status: 409 });
+      if (!ticket) {
+        return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
+      }
+      if (ticket.jobMetadata) {
+        return NextResponse.json({ error: 'Ticket already has job metadata', job: ticket.jobMetadata }, { status: 409 });
+      }
     }
 
     const job = await prisma.jobMetadata.create({
       data: {
-        ticketId: Number(ticketId),
+        ticketId: finalTicketId,
         clientName,
         branchName,
         personOfContact,
         workNature,
-        assignedEmployeeId: assignedEmployeeId ? Number(assignedEmployeeId) : null,
+        assignedEmployeeId: assignedEmployeeId ? Number(assignedEmployeeId) : userId,
         manualEnteredBy: manualEnteredBy || null,
         createdById: userId,
       },
@@ -194,12 +213,12 @@ export async function POST(request) {
 
     // Auto-mark ticket as RELEVANT when intake/job is created
     await prisma.ticket.update({
-      where: { id: Number(ticketId) },
+      where: { id: finalTicketId },
       data: { 
         status: 'RELEVANT',
         statusLastChangedBy: user?.employeeName || user?.email || 'System'
       },
-    }).catch(() => {}); // Non-fatal — don't fail the job creation
+    }).catch(() => {});
 
     return NextResponse.json({ job }, { status: 201 });
   } catch (error) {

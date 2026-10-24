@@ -17,7 +17,18 @@ export default function AppShell({ children }) {
 
   if (isFieldPortal) {
     return (
-      <div className="field-portal-frame" style={{ minHeight: '100vh', background: '#0b0f19', color: '#f8fafc' }}>
+      <div
+        className="field-portal-frame"
+        style={{
+          width: '100%',
+          minHeight: '100vh',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          WebkitOverflowScrolling: 'touch',
+          background: '#0b0f19',
+          color: '#f8fafc',
+        }}
+      >
         <main style={{ minHeight: '100vh', padding: 0 }}>{children}</main>
       </div>
     );

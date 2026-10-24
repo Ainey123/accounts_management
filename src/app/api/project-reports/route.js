@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma, withDbRetry } from '@/lib/prisma';
+import { nextTicketSerialNo } from '@/lib/serial';
 
 export const dynamic = 'force-dynamic';
 
@@ -120,23 +121,59 @@ export async function POST(request) {
       status = 'SUBMITTED', // 'SUBMITTED' or 'IN_PROGRESS'
     } = body;
 
-    if (!jobMetadataId) {
-      return NextResponse.json({ error: 'jobMetadataId is required' }, { status: 400 });
-    }
+    const employeeId = Number(user.id);
+    let job = null;
+    let finalJobId = jobMetadataId ? Number(jobMetadataId) : null;
 
-    const job = await prisma.jobMetadata.findUnique({
-      where: { id: Number(jobMetadataId) },
-      include: { ticket: true },
-    });
+    if (finalJobId && !isNaN(finalJobId)) {
+      job = await prisma.jobMetadata.findUnique({
+        where: { id: finalJobId },
+        include: { ticket: true },
+      });
+    }
 
     if (!job) {
-      return NextResponse.json({ error: 'Associated job not found' }, { status: 404 });
-    }
+      // Auto-create ticket & jobMetadata so submitting project report never fails
+      const serialNo = await nextTicketSerialNo();
+      const client = body.clientName?.trim() || 'General Client';
+      const branch = branchName?.trim() || 'Site Project';
+      const poc = body.personOfContact?.trim() || user?.employeeName || 'Site Contact';
+      
+      const newTicket = await prisma.ticket.create({
+        data: {
+          serialNo,
+          subject: `${client} - ${branch} (PROJECT)`,
+          sender: user?.employeeName || 'Field Site Entry',
+          exactDate: new Date(),
+          time: new Date().toTimeString().slice(0, 5),
+          status: 'RELEVANT',
+          statusLastChangedBy: user?.employeeName || 'Field Portal',
+          createdById: employeeId,
+        },
+      });
 
-    // Role verification: If field employee, must be assigned to this job
-    const employeeId = Number(user.id);
-    if (user.role === 'FIELD_EMPLOYEE' && job.assignedEmployeeId !== employeeId) {
+      job = await prisma.jobMetadata.create({
+        data: {
+          ticketId: newTicket.id,
+          clientName: client,
+          branchName: branch,
+          personOfContact: poc,
+          workNature: 'PROJECT',
+          assignedEmployeeId: employeeId,
+          manualEnteredBy: user?.employeeName || 'Field Tech',
+          createdById: employeeId,
+        },
+        include: { ticket: true },
+      });
+      finalJobId = job.id;
+    } else if (user.role === 'FIELD_EMPLOYEE' && job.assignedEmployeeId && job.assignedEmployeeId !== employeeId) {
       return NextResponse.json({ error: 'You are only authorized to submit reports for jobs assigned to you.' }, { status: 403 });
+    } else if (!job.assignedEmployeeId) {
+      // Assign unassigned job to this employee
+      await prisma.jobMetadata.update({
+        where: { id: job.id },
+        data: { assignedEmployeeId: employeeId },
+      });
     }
 
     const finalExpenseData = typeof expenseData === 'string' ? expenseData : JSON.stringify(expenseData || []);
@@ -148,7 +185,7 @@ export async function POST(request) {
     // Idempotency check: prevent duplicate submissions within 5 seconds
     const recentSubmission = await prisma.projectReportSubmission.findFirst({
       where: {
-        jobMetadataId: Number(jobMetadataId),
+        jobMetadataId: Number(finalJobId),
         employeeId: employeeId,
         createdAt: { gte: new Date(Date.now() - 5000) },
       },
@@ -164,7 +201,7 @@ export async function POST(request) {
     // Check if an open/in-progress submission already exists for this job and employee
     const existingDraft = await prisma.projectReportSubmission.findFirst({
       where: {
-        jobMetadataId: Number(jobMetadataId),
+        jobMetadataId: Number(finalJobId),
         employeeId: employeeId,
         status: { in: ['IN_PROGRESS', 'CORRECTION_REQUIRED'] },
       },
@@ -220,7 +257,7 @@ export async function POST(request) {
         } else {
           linkedExpense = await prisma.expense.create({
             data: {
-              jobMetadataId: Number(jobMetadataId),
+              jobMetadataId: Number(finalJobId),
               amount: finalTotalExpense,
               imageUrl: getFirstAttachment(finalAttachments),
               summaryNotes: `[Field Work] [Project Report #${report.id} v${nextVersion}] ${branchName || job.branchName} - Grand Total: Rs. ${finalTotalExpense.toLocaleString()}`,
@@ -240,7 +277,7 @@ export async function POST(request) {
       // Create new submission
       report = await prisma.projectReportSubmission.create({
         data: {
-          jobMetadataId: Number(jobMetadataId),
+          jobMetadataId: Number(finalJobId),
           employeeId: employeeId,
           status,
           branchName: branchName || job.branchName,
@@ -271,7 +308,7 @@ export async function POST(request) {
       if (status === 'SUBMITTED' && finalTotalExpense > 0) {
         linkedExpense = await prisma.expense.create({
           data: {
-            jobMetadataId: Number(jobMetadataId),
+            jobMetadataId: Number(finalJobId),
             amount: finalTotalExpense,
             imageUrl: getFirstAttachment(finalAttachments),
             summaryNotes: `[Field Work] [Project Report #${report.id} v1] ${branchName || job.branchName} - Grand Total: Rs. ${finalTotalExpense.toLocaleString()}`,

@@ -379,3 +379,29 @@
   flex: 1;
   max-width: 400px;
 }
+
+
+/* ── Field Portal & Project Categories Screen Styling ── */
+.field-portal-frame {
+  width: 100%;
+  min-height: 100vh;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.project-categories-container {
+  width: 100%;
+}
+
+.project-category-table input.nexus-input {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+  border-radius: 4px;
+}
+
+.project-category-table input.nexus-input:focus {
+  border-color: #34d399;
+  background: rgba(15, 23, 42, 0.9);
+}

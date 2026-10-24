@@ -37,6 +37,9 @@ export default function FieldPortalPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [intakeCategoryPreviewTab, setIntakeCategoryPreviewTab] = useState('progress');
   const [studioCategoryTab, setStudioCategoryTab] = useState('progress');
+  const [studioProjectBranch, setStudioProjectBranch] = useState('UBL Bank Mall Road Branch');
+  const [studioProjectClient, setStudioProjectClient] = useState('UBL Bank');
+  const [studioProjectPoc, setStudioProjectPoc] = useState('Branch Manager');
 
   // ── Job Intake State ──
   const [pendingTickets, setPendingTickets] = useState([]);
@@ -169,6 +172,7 @@ export default function FieldPortalPage() {
 
   useEffect(() => {
     loadData();
+    initTemplates();
   }, []);
 
   // ── Open Log Field Expense Modal ──
@@ -338,6 +342,98 @@ export default function FieldPortalPage() {
       setActionMessage({ type: 'error', text: 'Failed to save job metadata: ' + err.message });
     } finally {
       setSubmittingIntake(false);
+    }
+  };
+
+  const handleAutoOpenProjectScreen = (customBranch = '', customClient = '') => {
+    const branch = customBranch || intakeForm.branchName?.trim() || studioProjectBranch || 'UBL Bank Mall Road Branch';
+    const client = customClient || intakeForm.clientName?.trim() || studioProjectClient || 'UBL Bank';
+    const poc = intakeForm.personOfContact?.trim() || studioProjectPoc || user?.employeeName || 'Branch Manager';
+
+    const matchedTicket = pendingTickets.find((t) => String(t.id) === String(intakeTicketId));
+
+    const projectJob = {
+      id: matchedTicket?.jobMetadata?.id || Date.now(),
+      ticketId: matchedTicket?.id || undefined,
+      clientName: client,
+      branchName: branch,
+      personOfContact: poc,
+      workNature: 'PROJECT',
+      ticket: matchedTicket || {
+        serialNo: 'PROJ-' + Date.now().toString().slice(-4),
+        subject: `${client} - ${branch} Daily Progress & Expense Report`,
+      },
+      assignedEmployee: user,
+    };
+
+    setModalJobForReport(projectJob);
+    setIsReportModalOpen(true);
+  };
+
+  const openProjectReportModalForJob = (job) => {
+    setSelectedJob(job);
+    const matched = (mySubmissions || []).find((r) => r.jobMetadataId === job.id);
+    setExistingReport(matched || null);
+    initTemplates(matched || null);
+    setModalJobForReport(job);
+    setIsReportModalOpen(true);
+  };
+
+  const handleStudioSubmit = async (statusToSet = 'SUBMITTED') => {
+    const isSubmitting = statusToSet === 'SUBMITTED';
+    if (isSubmitting) setSubmitting(true);
+    else setSavingDraft(true);
+    setActionMessage({ type: '', text: '' });
+
+    const totalExpense = calculateTotalExpenses();
+    const overallProgress = calculateOverallProgress();
+
+    try {
+      const activeBranch = studioProjectBranch?.trim() || selectedJob?.branchName || intakeForm.branchName?.trim() || 'UBL Bank Mall Road Branch';
+      const activeClient = studioProjectClient?.trim() || selectedJob?.clientName || intakeForm.clientName?.trim() || 'UBL Bank';
+      const activePoc = studioProjectPoc?.trim() || selectedJob?.personOfContact || intakeForm.personOfContact?.trim() || user?.employeeName || 'Branch Manager';
+
+      const payload = {
+        jobMetadataId: selectedJob?.id || undefined,
+        branchName: activeBranch,
+        clientName: activeClient,
+        personOfContact: activePoc,
+        reportDate,
+        expenseData: expenseSections,
+        progressData: progressSections,
+        totalExpenseAmount: totalExpense,
+        overallProgressPercent: overallProgress,
+        attachments,
+        paidBy,
+        status: statusToSet,
+      };
+
+      const res = await apiFetch('/api/project-reports', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      setExistingReport(res.report);
+      setActionMessage({
+        type: 'success',
+        text: isSubmitting
+          ? '🎉 Project Daily Progress & Expense reports submitted successfully! Routed to office management.'
+          : '💾 Draft successfully saved on server.',
+      });
+
+      await loadData();
+      if (isSubmitting) {
+        setActiveTab('history');
+      }
+    } catch (err) {
+      console.error('Submission failed:', err);
+      setActionMessage({
+        type: 'error',
+        text: 'Failed to submit: ' + (err.message || 'Network error'),
+      });
+    } finally {
+      setSubmitting(false);
+      setSavingDraft(false);
     }
   };
 
@@ -692,24 +788,25 @@ export default function FieldPortalPage() {
             type="button"
             className="nexus-btn"
             style={{
-              padding: '8px 14px',
+              padding: '8px 16px',
               fontSize: 12,
-              background: 'linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%)',
+              background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
               color: '#ffffff',
-              fontWeight: 600,
+              fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
               gap: 6,
               border: 'none',
-              boxShadow: '0 2px 8px rgba(14, 165, 233, 0.3)',
+              boxShadow: '0 2px 10px rgba(16, 185, 129, 0.4)',
+              cursor: 'pointer',
             }}
             onClick={() => {
-              setActiveTab('project-categories');
+              handleAutoOpenProjectScreen();
             }}
-            title="Open 9-Category Progress & 11-Category Expense Report Studio"
+            title="Open 9-Category Progress & 11-Category Expense Report Entry Screen"
           >
-            <HardHat size={14} />
-            <span>⭐ Project Reports (9 &amp; 11 Categories)</span>
+            <HardHat size={15} />
+            <span>⭐ Fill Project Categories (9 &amp; 11 Categories)</span>
           </button>
           <button
             type="button"
@@ -1458,7 +1555,30 @@ export default function FieldPortalPage() {
                             <span>POC: {job.personOfContact || '—'}</span>
                             <span>Date: {job.ticket?.exactDate ? new Date(job.ticket.exactDate).toLocaleDateString() : '—'}</span>
                           </div>
-                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              className="nexus-btn"
+                              style={{
+                                padding: '5px 12px',
+                                fontSize: 11,
+                                background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                                color: '#ffffff',
+                                fontWeight: 700,
+                                border: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)',
+                                cursor: 'pointer',
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openProjectReportModalForJob(job);
+                              }}
+                            >
+                              <HardHat size={12} /> ⭐ Fill Project Categories (9 &amp; 11)
+                            </button>
                             <button
                               type="button"
                               className="nexus-btn nexus-btn-ghost"
@@ -1589,7 +1709,13 @@ export default function FieldPortalPage() {
                         className="nexus-select"
                         required
                         value={intakeForm.workNature}
-                        onChange={(e) => setIntakeForm({ ...intakeForm, workNature: e.target.value })}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setIntakeForm((prev) => ({ ...prev, workNature: val }));
+                          if (val === 'PROJECT') {
+                            handleAutoOpenProjectScreen(intakeForm.branchName, intakeForm.clientName);
+                          }
+                        }}
                       >
                         <option value="">— Select Work Nature —</option>
                         <option value="ELECTRICAL">⚡ Electrical</option>
@@ -1838,165 +1964,558 @@ export default function FieldPortalPage() {
               </div>
             </div>
           ) : activeTab === 'project-categories' ? (
-            /* ── VIEW 4: DEDICATED PROJECT CATEGORIES STUDIO ────────────────── */
-            <div>
-              <div className="glass-card" style={{ marginBottom: 20, padding: 22, border: '1px solid rgba(16, 185, 129, 0.35)', background: 'rgba(16, 185, 129, 0.04)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+            /* ── VIEW 4: DEDICATED PROJECT PROGRESS (9) & EXPENSE (11) ENTRY SCREEN ── */
+            <div className="project-categories-container">
+              {/* Top Configuration Card */}
+              <div
+                className="glass-card"
+                style={{
+                  marginBottom: 20,
+                  padding: 22,
+                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                  background: 'rgba(16, 185, 129, 0.05)',
+                  boxShadow: '0 4px 25px rgba(0, 0, 0, 0.35)',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                    <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <HardHat size={28} color="#34d399" />
+                    <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(16, 185, 129, 0.4)' }}>
+                      <HardHat size={26} color="#34d399" />
                     </div>
                     <div>
                       <h2 style={{ fontSize: 18, color: '#f8fafc', margin: 0, fontWeight: 700 }}>
-                        Project Digital Reports &amp; Expense Categories
+                        ⭐ Project Daily Progress &amp; Expense Entry Screen
                       </h2>
                       <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#94a3b8' }}>
-                        Official 9-Category Daily Progress Inspection Sheet &amp; 11-Category Site Expense Sheet
+                        Fill in all <strong>9 Progress Categories</strong> &amp; <strong>11 Expense Categories</strong> manually, then click Submit below.
                       </p>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    className="nexus-btn nexus-btn-primary"
-                    style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', fontWeight: 600 }}
-                    onClick={handleOpenReportStudioForIntake}
-                  >
-                    <FileText size={16} /> 🚀 Launch Full Report &amp; PDF Studio
-                  </button>
+
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="nexus-btn nexus-btn-ghost"
+                      style={{ padding: '8px 14px', fontSize: 12 }}
+                      onClick={handleDownloadProgressPdf}
+                      disabled={downloadingPdf}
+                    >
+                      <Download size={13} /> Export Progress PDF
+                    </button>
+                    <button
+                      type="button"
+                      className="nexus-btn nexus-btn-ghost"
+                      style={{ padding: '8px 14px', fontSize: 12 }}
+                      onClick={handleDownloadExpensePdf}
+                      disabled={downloadingPdf}
+                    >
+                      <Download size={13} /> Export Expense PDF
+                    </button>
+                    <button
+                      type="button"
+                      className="nexus-btn"
+                      style={{
+                        background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                        color: '#fff',
+                        fontWeight: 700,
+                        fontSize: 13,
+                        padding: '9px 20px',
+                        border: 'none',
+                        boxShadow: '0 2px 10px rgba(16, 185, 129, 0.4)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => handleStudioSubmit('SUBMITTED')}
+                      disabled={submitting}
+                    >
+                      <Send size={15} /> {submitting ? 'Submitting...' : 'Submit Report & Expenses'}
+                    </button>
+                  </div>
                 </div>
 
-                {/* Switcher between Progress and Expense */}
-                <div style={{ display: 'flex', gap: 12, marginTop: 20, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 16, flexWrap: 'wrap' }}>
+                {/* Project Inputs Bar */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, paddingTop: 14, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                  <div>
+                    <label className="field-label" style={{ fontSize: 11, color: '#34d399' }}>Link Existing Job (Optional)</label>
+                    <select
+                      className="nexus-select"
+                      style={{ width: '100%', fontSize: 12 }}
+                      value={selectedJob?.id || ''}
+                      onChange={(e) => {
+                        const jId = e.target.value;
+                        if (!jId) {
+                          setSelectedJob(null);
+                        } else {
+                          const found = jobs.find((j) => String(j.id) === String(jId));
+                          if (found) {
+                            setSelectedJob(found);
+                            setStudioProjectBranch(found.branchName);
+                            setStudioProjectClient(found.clientName);
+                            setStudioProjectPoc(found.personOfContact);
+                            const matched = mySubmissions.find((r) => r.jobMetadataId === found.id);
+                            initTemplates(matched || null);
+                          }
+                        }
+                      }}
+                    >
+                      <option value="">— Direct Site Project (No Ticket Required) —</option>
+                      {jobs.map((j) => (
+                        <option key={j.id} value={j.id}>
+                          #{j.ticket?.serialNo || j.id} — {j.branchName} ({j.clientName})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="field-label" style={{ fontSize: 11 }}>Branch / Site Name</label>
+                    <input
+                      className="nexus-input"
+                      placeholder="e.g. UBL Bank Mall Road Branch"
+                      value={studioProjectBranch}
+                      onChange={(e) => setStudioProjectBranch(e.target.value)}
+                      style={{ width: '100%', fontSize: 12 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="field-label" style={{ fontSize: 11 }}>Client Name</label>
+                    <input
+                      className="nexus-input"
+                      placeholder="e.g. UBL Bank"
+                      value={studioProjectClient}
+                      onChange={(e) => setStudioProjectClient(e.target.value)}
+                      style={{ width: '100%', fontSize: 12 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="field-label" style={{ fontSize: 11 }}>Person of Contact</label>
+                    <input
+                      className="nexus-input"
+                      placeholder="e.g. Branch Manager"
+                      value={studioProjectPoc}
+                      onChange={(e) => setStudioProjectPoc(e.target.value)}
+                      style={{ width: '100%', fontSize: 12 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="field-label" style={{ fontSize: 11 }}>Report Date</label>
+                    <input
+                      type="date"
+                      className="nexus-input"
+                      value={reportDate}
+                      onChange={(e) => setReportDate(e.target.value)}
+                      style={{ width: '100%', fontSize: 12 }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="field-label" style={{ fontSize: 11 }}>Expenses Paid By</label>
+                    <select
+                      className="nexus-select"
+                      value={paidBy}
+                      onChange={(e) => setPaidBy(e.target.value)}
+                      style={{ width: '100%', fontSize: 12 }}
+                    >
+                      <option value="FES">FES</option>
+                      <option value="Client">Client</option>
+                      <option value="Subcontractor">Subcontractor</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Sub Tab Switcher */}
+                <div style={{ display: 'flex', gap: 10, marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255, 255, 255, 0.08)', flexWrap: 'wrap' }}>
                   <button
                     type="button"
-                    className={`nexus-btn ${studioCategoryTab === 'progress' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
-                    style={{
-                      fontSize: 13,
-                      padding: '8px 18px',
-                      background: studioCategoryTab === 'progress' ? 'rgba(16, 185, 129, 0.25)' : 'transparent',
-                      borderColor: studioCategoryTab === 'progress' ? '#34d399' : 'rgba(52, 211, 153, 0.3)',
-                      color: studioCategoryTab === 'progress' ? '#34d399' : '#cbd5e1',
-                      fontWeight: 700,
-                    }}
+                    className={`tab-segment-btn ${studioCategoryTab === 'progress' ? 'active-field' : ''}`}
+                    style={{ padding: '8px 18px', fontSize: 13, borderRadius: 8 }}
                     onClick={() => setStudioCategoryTab('progress')}
                   >
-                    📋 Daily Progress Report (9 Categories)
+                    📋 1. Daily Progress Report (9 Categories)
                   </button>
                   <button
                     type="button"
-                    className={`nexus-btn ${studioCategoryTab === 'expense' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
-                    style={{
-                      fontSize: 13,
-                      padding: '8px 18px',
-                      background: studioCategoryTab === 'expense' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
-                      borderColor: studioCategoryTab === 'expense' ? '#38bdf8' : 'rgba(56, 189, 248, 0.3)',
-                      color: studioCategoryTab === 'expense' ? '#38bdf8' : '#cbd5e1',
-                      fontWeight: 700,
-                    }}
+                    className={`tab-segment-btn ${studioCategoryTab === 'expense' ? 'active-field' : ''}`}
+                    style={{ padding: '8px 18px', fontSize: 13, borderRadius: 8 }}
                     onClick={() => setStudioCategoryTab('expense')}
                   >
-                    💰 Project Expense Report (11 Categories)
+                    💰 2. Project Expense Report (11 Categories)
+                  </button>
+                  <button
+                    type="button"
+                    className={`tab-segment-btn ${studioCategoryTab === 'attachments' ? 'active-field' : ''}`}
+                    style={{ padding: '8px 18px', fontSize: 13, borderRadius: 8 }}
+                    onClick={() => setStudioCategoryTab('attachments')}
+                  >
+                    📎 3. Bills &amp; Receipts ({attachments.length})
                   </button>
                 </div>
               </div>
 
-              {/* Progress 9 Categories Cards */}
+              {/* ── 9 PROGRESS CATEGORIES (FILLABLE TABLES) ───────────────────── */}
               {studioCategoryTab === 'progress' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                     <div style={{ fontSize: 14, color: '#34d399', fontWeight: 700 }}>
                       📋 9 Official Daily Progress Inspection Categories
                     </div>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>
-                      Recreation of official site inspection sheet
+                    <div style={{ background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', padding: '4px 12px', borderRadius: 6, fontWeight: 700, fontSize: 13 }}>
+                      Overall Progress: {calculateOverallProgress()}%
                     </div>
                   </div>
-                  {PROJECT_PROGRESS_TEMPLATE.map((cat, idx) => (
-                    <div key={cat.id || idx} className="glass-card" style={{ padding: 16 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(52, 211, 153, 0.2)', color: '#34d399', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 'bold' }}>
-                            {idx + 1}
-                          </span>
-                          <div>
-                            <span style={{ fontWeight: 700, fontSize: 15, color: '#f8fafc' }}>{cat.title}</span>
-                            <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 8 }}>— {cat.subtitle}</span>
+
+                  {progressSections.map((sec, secIdx) => {
+                    let secTotal = 0;
+                    let count = 0;
+                    (sec.items || []).forEach((it) => {
+                      const p = parseFloat(it.workPercent);
+                      if (!isNaN(p)) {
+                        secTotal += p;
+                        count++;
+                      }
+                    });
+                    const secAvg = count > 0 ? Math.round(secTotal / count) : 0;
+
+                    return (
+                      <div key={sec.id || secIdx} className="glass-card" style={{ padding: 16, background: 'rgba(0, 0, 0, 0.35)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(52, 211, 153, 0.2)', color: '#34d399', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 'bold' }}>
+                              {sec.id || secIdx + 1}
+                            </span>
+                            <div>
+                              <span style={{ fontWeight: 700, fontSize: 15, color: '#f8fafc' }}>{sec.title}</span>
+                              <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 8 }}>— {sec.subtitle}</span>
+                            </div>
                           </div>
-                        </div>
-                        <span style={{ background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
-                          {cat.items?.length || 0} Inspection Items
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                        {cat.items?.map((item, itemIdx) => (
-                          <span
-                            key={item.code || itemIdx}
-                            style={{
-                              padding: '3px 8px',
-                              background: 'rgba(255, 255, 255, 0.03)',
-                              border: '1px solid rgba(255, 255, 255, 0.08)',
-                              borderRadius: 4,
-                              fontSize: 11,
-                              color: item.name ? '#e2e8f0' : '#64748b',
-                            }}
-                          >
-                            <strong>{item.code}.</strong> {item.name || '(Custom Line Item)'} {item.unit ? `(${item.unit})` : ''}
+                          <span style={{ fontSize: 12, color: secAvg > 0 ? '#34d399' : '#64748b', fontWeight: 700 }}>
+                            Section Avg: {secAvg}%
                           </span>
-                        ))}
+                        </div>
+
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr style={{ color: '#64748b', borderBottom: '1px solid rgba(255,255,255,0.08)', textAlign: 'left' }}>
+                                <th style={{ width: 32, padding: 6 }}>Sr</th>
+                                <th style={{ padding: 6 }}>Type of Work / Item</th>
+                                <th style={{ width: 70, padding: 6 }}>Unit</th>
+                                <th style={{ width: 85, padding: 6 }}>Work %</th>
+                                <th style={{ padding: 6 }}>Remark</th>
+                                <th style={{ padding: 6 }}>Others</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {sec.items?.map((item, itIdx) => (
+                                <tr key={itIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                  <td style={{ color: '#64748b', padding: 6, fontFamily: 'monospace', fontWeight: 600 }}>{item.code}</td>
+                                  <td style={{ padding: 6, color: '#cbd5e1' }}>
+                                    {item.isCustom ? (
+                                      <input
+                                        className="nexus-input"
+                                        style={{ padding: '3px 8px', fontSize: 12, height: 28 }}
+                                        placeholder="Custom work description..."
+                                        value={item.name}
+                                        onChange={(e) => handleProgressChange(secIdx, itIdx, 'name', e.target.value)}
+                                      />
+                                    ) : item.name}
+                                  </td>
+                                  <td style={{ padding: 6 }}>
+                                    <input
+                                      className="nexus-input"
+                                      style={{ padding: '3px 8px', fontSize: 12, height: 28, width: '100%' }}
+                                      value={item.unit}
+                                      onChange={(e) => handleProgressChange(secIdx, itIdx, 'unit', e.target.value)}
+                                    />
+                                  </td>
+                                  <td style={{ padding: 6 }}>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      className="nexus-input"
+                                      style={{ padding: '3px 8px', fontSize: 12, height: 28, width: '100%', color: item.workPercent ? '#34d399' : 'inherit', fontWeight: 700 }}
+                                      placeholder="0"
+                                      value={item.workPercent}
+                                      onChange={(e) => handleProgressChange(secIdx, itIdx, 'workPercent', e.target.value)}
+                                    />
+                                  </td>
+                                  <td style={{ padding: 6 }}>
+                                    <input
+                                      className="nexus-input"
+                                      style={{ padding: '3px 8px', fontSize: 12, height: 28, width: '100%' }}
+                                      placeholder="Remark..."
+                                      value={item.remark}
+                                      onChange={(e) => handleProgressChange(secIdx, itIdx, 'remark', e.target.value)}
+                                    />
+                                  </td>
+                                  <td style={{ padding: 6 }}>
+                                    <input
+                                      className="nexus-input"
+                                      style={{ padding: '3px 8px', fontSize: 12, height: 28, width: '100%' }}
+                                      placeholder="Others..."
+                                      value={item.others}
+                                      onChange={(e) => handleProgressChange(secIdx, itIdx, 'others', e.target.value)}
+                                    />
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => addProgressCustomRow(secIdx)}
+                          style={{ background: 'transparent', border: 'none', color: '#38bdf8', fontSize: 12, marginTop: 8, cursor: 'pointer', padding: 0, fontWeight: 600 }}
+                        >
+                          + Add Custom Row in {sec.title}
+                        </button>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
-              {/* Expense 11 Categories Cards */}
+              {/* ── 11 EXPENSE CATEGORIES (FILLABLE TABLES) ───────────────────── */}
               {studioCategoryTab === 'expense' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                     <div style={{ fontSize: 14, color: '#38bdf8', fontWeight: 700 }}>
                       💰 11 Official Construction Expense Categories
                     </div>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>
-                      Exact UBL Bank branch expense sheet reproduction
+                    <div style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '4px 12px', borderRadius: 6, fontWeight: 700, fontSize: 13 }}>
+                      Total Expense: Rs. {calculateTotalExpenses().toLocaleString()}
                     </div>
                   </div>
-                  {PROJECT_EXPENSE_TEMPLATE.map((cat, idx) => (
-                    <div key={cat.id || idx} className="glass-card" style={{ padding: 16 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 'bold' }}>
-                            {idx + 1}
-                          </span>
-                          <div>
-                            <span style={{ fontWeight: 700, fontSize: 15, color: '#f8fafc' }}>{cat.title}</span>
-                            <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 8 }}>— {cat.subtitle}</span>
+
+                  {expenseSections.map((sec, secIdx) => {
+                    let secSum = 0;
+                    (sec.items || []).forEach((it) => {
+                      const v = parseFloat(it.amount);
+                      if (!isNaN(v) && v > 0) secSum += v;
+                    });
+
+                    return (
+                      <div key={sec.id || secIdx} className="glass-card" style={{ padding: 16, background: 'rgba(0, 0, 0, 0.35)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 'bold' }}>
+                              {sec.id || secIdx + 1}
+                            </span>
+                            <div>
+                              <span style={{ fontWeight: 700, fontSize: 15, color: '#f8fafc' }}>{sec.title}</span>
+                              <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 8 }}>— {sec.subtitle}</span>
+                            </div>
                           </div>
-                        </div>
-                        <span style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
-                          {cat.items?.length || 0} Cost Items
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                        {cat.items?.map((item, itemIdx) => (
-                          <span
-                            key={item.code || itemIdx}
-                            style={{
-                              padding: '3px 8px',
-                              background: 'rgba(255, 255, 255, 0.03)',
-                              border: '1px solid rgba(255, 255, 255, 0.08)',
-                              borderRadius: 4,
-                              fontSize: 11,
-                              color: item.name ? '#e2e8f0' : '#64748b',
-                            }}
-                          >
-                            <strong>{item.code}.</strong> {item.name || '(Custom Line Item)'}
+                          <span style={{ fontSize: 13, color: secSum > 0 ? '#38bdf8' : '#64748b', fontWeight: 700 }}>
+                            Subtotal: Rs. {secSum.toLocaleString()}
                           </span>
-                        ))}
+                        </div>
+
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr style={{ color: '#64748b', borderBottom: '1px solid rgba(255,255,255,0.08)', textAlign: 'left' }}>
+                                <th style={{ width: 32, padding: 6 }}>Sr</th>
+                                <th style={{ padding: 6 }}>Expense Item Description</th>
+                                <th style={{ width: 90, padding: 6 }}>Qty</th>
+                                <th style={{ width: 120, padding: 6 }}>Amount (Rs.)</th>
+                                <th style={{ padding: 6 }}>Others</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {sec.items?.map((item, itIdx) => (
+                                <tr key={itIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                  <td style={{ color: '#64748b', padding: 6, fontFamily: 'monospace', fontWeight: 600 }}>{item.code}</td>
+                                  <td style={{ padding: 6, color: '#cbd5e1' }}>
+                                    {item.isCustom ? (
+                                      <input
+                                        className="nexus-input"
+                                        style={{ padding: '3px 8px', fontSize: 12, height: 28 }}
+                                        placeholder="Custom expense description..."
+                                        value={item.name}
+                                        onChange={(e) => handleExpenseChange(secIdx, itIdx, 'name', e.target.value)}
+                                      />
+                                    ) : item.name}
+                                  </td>
+                                  <td style={{ padding: 6 }}>
+                                    <input
+                                      className="nexus-input"
+                                      style={{ padding: '3px 8px', fontSize: 12, height: 28, width: '100%' }}
+                                      placeholder="Qty..."
+                                      value={item.qty}
+                                      onChange={(e) => handleExpenseChange(secIdx, itIdx, 'qty', e.target.value)}
+                                    />
+                                  </td>
+                                  <td style={{ padding: 6 }}>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      className="nexus-input"
+                                      style={{ padding: '3px 8px', fontSize: 12, height: 28, width: '100%', color: item.amount ? '#38bdf8' : 'inherit', fontWeight: 700 }}
+                                      placeholder="0"
+                                      value={item.amount}
+                                      onChange={(e) => handleExpenseChange(secIdx, itIdx, 'amount', e.target.value)}
+                                    />
+                                  </td>
+                                  <td style={{ padding: 6 }}>
+                                    <input
+                                      className="nexus-input"
+                                      style={{ padding: '3px 8px', fontSize: 12, height: 28, width: '100%' }}
+                                      placeholder="Others..."
+                                      value={item.others}
+                                      onChange={(e) => handleExpenseChange(secIdx, itIdx, 'others', e.target.value)}
+                                    />
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => addExpenseCustomRow(secIdx)}
+                          style={{ background: 'transparent', border: 'none', color: '#38bdf8', fontSize: 12, marginTop: 8, cursor: 'pointer', padding: 0, fontWeight: 600 }}
+                        >
+                          + Add Custom Row in {sec.title}
+                        </button>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
+
+              {/* ── BILLS & RECEIPTS ATTACHMENTS ──────────────────────────────── */}
+              {studioCategoryTab === 'attachments' && (
+                <div className="glass-card" style={{ padding: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: 15, color: '#f8fafc' }}>
+                        Bills &amp; Progress Attachments ({attachments.length})
+                      </h3>
+                      <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#94a3b8' }}>
+                        Upload invoices, physical expense receipts, and progress photos
+                      </p>
+                    </div>
+                    <div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        accept="image/*,application/pdf"
+                        onChange={handleFileUpload}
+                        style={{ display: 'none' }}
+                      />
+                      <button
+                        type="button"
+                        className="nexus-btn nexus-btn-primary"
+                        style={{ background: 'linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%)', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', fontSize: 12 }}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Camera size={14} /> Upload Bills / Photos
+                      </button>
+                    </div>
+                  </div>
+
+                  {attachments.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px 20px', border: '2px dashed rgba(255,255,255,0.1)', borderRadius: 10, color: '#64748b' }}>
+                      <Camera size={36} color="#64748b" style={{ margin: '0 auto 8px auto' }} />
+                      <div style={{ fontSize: 14, color: '#cbd5e1' }}>No receipts attached yet</div>
+                      <div style={{ fontSize: 11, marginTop: 4 }}>Click "Upload Bills / Photos" to attach camera shots or files.</div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
+                      {attachments.map((att, idx) => (
+                        <div key={idx} style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, overflow: 'hidden' }}>
+                          {att.url && att.url.startsWith('data:image') ? (
+                            <img src={att.url} alt={att.name} style={{ width: '100%', height: 120, objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <FileText size={36} color="#38bdf8" />
+                            </div>
+                          )}
+                          <div style={{ padding: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 130 }}>{att.name || `File #${idx + 1}`}</span>
+                            <button type="button" onClick={() => removeAttachment(idx)} style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer', padding: 2 }}>
+                              <X size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── STICKY SUMMARY & BOTTOM ACTION BAR ────────────────────────── */}
+              <div
+                style={{
+                  position: 'sticky',
+                  bottom: 16,
+                  zIndex: 40,
+                  marginTop: 24,
+                  padding: '14px 20px',
+                  background: 'rgba(15, 23, 42, 0.95)',
+                  backdropFilter: 'blur(16px)',
+                  borderRadius: 12,
+                  border: '1px solid rgba(52, 211, 153, 0.35)',
+                  boxShadow: '0 10px 30px rgba(0, 0, 0, 0.6)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 12,
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 11, color: '#94a3b8' }}>Live Report Summary:</div>
+                  <div style={{ fontSize: 14, fontWeight: 'bold', color: '#f8fafc' }}>
+                    Overall Progress: <span style={{ color: '#34d399' }}>{calculateOverallProgress()}%</span>
+                    <span style={{ color: '#64748b', margin: '0 10px' }}>|</span>
+                    Total Project Expense: <span style={{ color: '#38bdf8' }}>Rs. {calculateTotalExpenses().toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    type="button"
+                    className="nexus-btn nexus-btn-ghost"
+                    onClick={() => handleStudioSubmit('IN_PROGRESS')}
+                    disabled={savingDraft || submitting}
+                    style={{ padding: '10px 16px', fontSize: 13 }}
+                  >
+                    <Save size={15} /> {savingDraft ? 'Saving...' : 'Save Draft'}
+                  </button>
+                  <button
+                    type="button"
+                    className="nexus-btn"
+                    onClick={() => handleStudioSubmit('SUBMITTED')}
+                    disabled={submitting || savingDraft}
+                    style={{
+                      padding: '10px 22px',
+                      fontSize: 13,
+                      background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                      color: '#fff',
+                      fontWeight: 700,
+                      border: 'none',
+                      boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Send size={15} /> {submitting ? 'Submitting...' : '🚀 Submit Report & Expenses to Office'}
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
             /* ── SUBMITTED REPORTS & EXPENSES HISTORY ─────────────────────── */

@@ -36,7 +36,15 @@ export default function ProjectReportModal({ job, existingReport = null, onClose
     if (existingReport && existingReport.progressData) {
       try {
         const parsed = JSON.parse(existingReport.progressData);
-        setProgressSections(Array.isArray(parsed) && parsed.length > 0 ? parsed : JSON.parse(JSON.stringify(PROJECT_PROGRESS_TEMPLATE)));
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const normalized = parsed.map((sec) => ({
+            ...sec,
+            items: (sec.items || []).map((it) => (it.unit === 'Jop' ? { ...it, unit: 'Job' } : it)),
+          }));
+          setProgressSections(normalized);
+        } else {
+          setProgressSections(JSON.parse(JSON.stringify(PROJECT_PROGRESS_TEMPLATE)));
+        }
       } catch {
         setProgressSections(JSON.parse(JSON.stringify(PROJECT_PROGRESS_TEMPLATE)));
       }
@@ -131,7 +139,7 @@ export default function ProjectReportModal({ job, existingReport = null, onClose
       const clone = JSON.parse(JSON.stringify(prev));
       const items = clone[secIndex].items;
       const nextLetter = String.fromCharCode(97 + items.length);
-      items.push({ code: nextLetter, name: '', unit: 'Jop', workPercent: '', remark: '', others: '', isCustom: true });
+      items.push({ code: nextLetter, name: '', unit: 'Job', workPercent: '', remark: '', others: '', isCustom: true });
       return clone;
     });
   };

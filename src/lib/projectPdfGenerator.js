@@ -170,7 +170,7 @@ export async function downloadProgressReportPdf({ job, reportDate, sections, ove
         <tr style="border-bottom: 1px solid #cbd5e1;">
           <td style="padding: 4px 6px; text-align: center; width: 35px; border-right: 1px solid #cbd5e1;">${itemCode}</td>
           <td style="padding: 4px 8px; border-right: 1px solid #cbd5e1;">${itemName}</td>
-          <td style="padding: 4px 6px; text-align: center; width: 50px; border-right: 1px solid #cbd5e1;">${item.unit || '—'}</td>
+          <td style="padding: 4px 6px; text-align: center; width: 50px; border-right: 1px solid #cbd5e1;">${(item.unit === 'Jop' ? 'Job' : item.unit) || '—'}</td>
           <td style="padding: 4px 8px; text-align: center; width: 70px; border-right: 1px solid #cbd5e1; font-weight: 600; color: ${pct > 0 ? '#059669' : '#64748b'};">${!isNaN(pct) ? `${pct}%` : '—'}</td>
           <td style="padding: 4px 8px; border-right: 1px solid #cbd5e1;">${item.remark || '—'}</td>
           <td style="padding: 4px 8px; color: #475569;">${item.others || '—'}</td>

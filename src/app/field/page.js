@@ -93,7 +93,11 @@ export default function FieldPortalPage() {
       try {
         const parsed = JSON.parse(report.progressData);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setProgressSections(parsed);
+          const normalized = parsed.map((sec) => ({
+            ...sec,
+            items: (sec.items || []).map((it) => (it.unit === 'Jop' ? { ...it, unit: 'Job' } : it)),
+          }));
+          setProgressSections(normalized);
         } else {
           setProgressSections(JSON.parse(JSON.stringify(PROJECT_PROGRESS_TEMPLATE)));
         }
@@ -713,7 +717,7 @@ export default function FieldPortalPage() {
       items.push({
         code: nextLetter,
         name: '',
-        unit: 'Jop',
+        unit: 'Job',
         workPercent: '',
         remark: '',
         others: '',

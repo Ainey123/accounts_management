@@ -85,7 +85,7 @@ export default function Sidebar() {
           <div style={{ marginBottom: 16, padding: '0 4px' }}>
             <span className="field-label">Session</span>
             <div style={{ fontSize: 13, fontWeight: 600, color: user.role === 'ADMIN' ? '#a78bfa' : '#00f2fe' }}>
-              {user.employeeName || user.role}
+              {user.role === 'EMPLOYEE' && user.batchLabel ? user.batchLabel : (user.employeeName || user.role)}
             </div>
           </div>
         )}

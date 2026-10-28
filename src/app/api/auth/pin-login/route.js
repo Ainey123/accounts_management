@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, withDbRetry } from '@/lib/prisma';
 import { hashPin } from '@/lib/pinHash';
 import { verifyPassword } from '@/lib/password';
+import { sortAndAssignOfficeBatches } from '@/lib/batches';
 
 export async function POST(request) {
   const body = await request.json();
-  const { pin, role, employeeName } = body;
+  const { pin, role, employeeId, batchLabel, employeeName } = body;
 
   const pinStr = String(pin || '').trim();
   const normalizedRole = String(role || '').toUpperCase();
@@ -27,39 +28,76 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Invalid admin PIN' }, { status: 401 });
   }
 
-  // ── EMPLOYEE login ───────────────────────────────────────────────────────
+  // ── EMPLOYEE (Office Batch) login ─────────────────────────────────────────
   if (normalizedRole === 'EMPLOYEE') {
-    if (!employeeName) {
-      return NextResponse.json({ error: 'Please select your name' }, { status: 400 });
+    const parsedId = employeeId ? Number(employeeId) : null;
+    const rawIdentifier = String(batchLabel || employeeName || '').trim();
+
+    if (!parsedId && !rawIdentifier) {
+      return NextResponse.json({ error: 'Please select your batch' }, { status: 400 });
     }
 
     let employee = null;
+    let resolvedBatchLabel = null;
+
     try {
-      employee = await prisma.user.findFirst({
-        where: {
-          employeeName: { equals: employeeName.trim(), mode: 'insensitive' },
-          role: 'EMPLOYEE',
-        },
-      });
+      const officeUsers = await withDbRetry(() =>
+        prisma.user.findMany({
+          where: { role: 'EMPLOYEE', activeStatus: true },
+          include: {
+            _count: {
+              select: {
+                assignedJobs: true,
+                createdJobs: true,
+                createdTickets: true,
+              },
+            },
+          },
+          orderBy: { id: 'asc' },
+        })
+      );
+
+      const rankedBatches = sortAndAssignOfficeBatches(officeUsers);
+
+      if (parsedId && !Number.isNaN(parsedId)) {
+        employee = rankedBatches.find((u) => u.id === parsedId) || null;
+      }
+
+      if (!employee && rawIdentifier) {
+        const batchMatch = rawIdentifier.match(/^batch\s*0*(\d+)$/i);
+        if (batchMatch) {
+          const targetBatchNum = parseInt(batchMatch[1], 10);
+          employee = rankedBatches.find((u) => u.batchNumber === targetBatchNum) || null;
+        } else {
+          employee =
+            rankedBatches.find(
+              (u) => (u.employeeName || '').toLowerCase().trim() === rawIdentifier.toLowerCase()
+            ) || null;
+        }
+      }
+
+      if (employee) {
+        resolvedBatchLabel = employee.batchLabel;
+      }
     } catch (err) {
       console.error('Employee lookup error:', err);
       return NextResponse.json({ error: 'Database error during login' }, { status: 500 });
     }
 
     if (!employee) {
-      return NextResponse.json({ error: 'Employee not found. Contact admin.' }, { status: 401 });
+      return NextResponse.json({ error: 'Office batch not found. Contact admin.' }, { status: 401 });
     }
 
     // Verify PIN — support both hashed (new) and plain-text (legacy) comparison
     const hashedInput = hashPin(pinStr);
     const storedPin = employee.password || '';
-    
+
     let isMatch = storedPin === hashedInput || storedPin === pinStr;
-    
+
     if (!isMatch) {
       try {
         isMatch = verifyPassword(pinStr, storedPin);
-      } catch(e) {
+      } catch (e) {
         // Ignore verifyPassword errors (e.g. if storedPin is not a valid scrypt format)
       }
     }
@@ -73,6 +111,7 @@ export async function POST(request) {
         id: employee.id,
         email: employee.email,
         employeeName: employee.employeeName,
+        batchLabel: resolvedBatchLabel || 'Batch 1',
         role: 'EMPLOYEE',
         tempPassword: 'temp-user123',
       },
@@ -81,19 +120,23 @@ export async function POST(request) {
 
   // ── FIELD EMPLOYEE login ──────────────────────────────────────────────────
   if (normalizedRole === 'FIELD_EMPLOYEE' || normalizedRole === 'FIELD') {
-    if (!employeeName) {
+    if (!employeeName && !employeeId) {
       return NextResponse.json({ error: 'Please select your name' }, { status: 400 });
     }
 
     let employee = null;
     try {
-      // Find employee by name - strictly FIELD_EMPLOYEE only
-      employee = await prisma.user.findFirst({
-        where: {
-          employeeName: { equals: employeeName.trim(), mode: 'insensitive' },
-          role: 'FIELD_EMPLOYEE',
-        },
-      });
+      employee = await withDbRetry(() =>
+        prisma.user.findFirst({
+          where: employeeId
+            ? { id: Number(employeeId), role: 'FIELD_EMPLOYEE', activeStatus: true }
+            : {
+                employeeName: { equals: String(employeeName).trim(), mode: 'insensitive' },
+                role: 'FIELD_EMPLOYEE',
+                activeStatus: true,
+              },
+        })
+      );
     } catch (err) {
       console.error('Field employee lookup error:', err);
       return NextResponse.json({ error: 'Database error during login' }, { status: 500 });
@@ -106,7 +149,7 @@ export async function POST(request) {
     // Verify PIN
     const hashedInput = hashPin(pinStr);
     const storedPin = employee.password || '';
-    
+
     let isMatch = storedPin === hashedInput || storedPin === pinStr;
     if (!isMatch) {
       try {

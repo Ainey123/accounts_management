@@ -42,6 +42,21 @@ export default function AdminCommandCenter() {
   const [changingPassword, setChangingPassword] = useState(false);
   const [currentEmail, setCurrentEmail] = useState('');
 
+  // Edit Employee Name & Details Modal State
+  const [editEmployeeModalOpen, setEditEmployeeModalOpen] = useState(false);
+  const [editEmployeeForm, setEditEmployeeForm] = useState({
+    id: null,
+    oldName: '',
+    employeeName: '',
+    pin: '',
+    currentPin: '',
+    role: 'EMPLOYEE',
+    batchLabel: '',
+    gmailCount: 0,
+    activeStatus: true,
+  });
+  const [savingEmployeeEdit, setSavingEmployeeEdit] = useState(false);
+
   // User Comments State
   const [selectedUserForComments, setSelectedUserForComments] = useState(null);
   const [userComments, setUserComments] = useState([]);
@@ -334,6 +349,84 @@ export default function AdminCommandCenter() {
     }
   };
 
+  const openEditEmployeeModal = (u) => {
+    setEditEmployeeForm({
+      id: u.id,
+      oldName: u.employeeName || '',
+      employeeName: u.employeeName || '',
+      pin: '',
+      currentPin: u.pin || '',
+      role: u.role || 'EMPLOYEE',
+      batchLabel: u.batchLabel || '',
+      gmailCount: u.gmailCount ?? 0,
+      activeStatus: u.activeStatus !== false,
+    });
+    setEditEmployeeModalOpen(true);
+  };
+
+  const handleSaveEmployeeEdit = async (e) => {
+    e.preventDefault();
+    if (!editEmployeeForm.id) return;
+    const trimmedName = (editEmployeeForm.employeeName || '').trim();
+    if (!trimmedName) {
+      setMessage('Employee name cannot be empty.');
+      return;
+    }
+    if (editEmployeeForm.pin && !/^\d{4,6}$/.test(editEmployeeForm.pin.trim())) {
+      setMessage('PIN must be 4 to 6 numeric digits.');
+      return;
+    }
+
+    setSavingEmployeeEdit(true);
+    try {
+      const payload = {
+        employeeName: trimmedName,
+      };
+      if (editEmployeeForm.role !== 'ADMIN') {
+        payload.activeStatus = Boolean(editEmployeeForm.activeStatus);
+      }
+      if (editEmployeeForm.pin && editEmployeeForm.pin.trim()) {
+        payload.pin = editEmployeeForm.pin.trim();
+      }
+
+      await apiFetch(`/api/users/${editEmployeeForm.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      });
+
+      // Keep progress/report aliases synchronized if employee name changed
+      const prevName = (editEmployeeForm.oldName || '').trim();
+      if (prevName && prevName !== trimmedName) {
+        const nextAliases = { ...employeeAliases };
+        const batchSuffix = editEmployeeForm.batchLabel
+          ? `(${editEmployeeForm.batchLabel})`
+          : prevName && nextAliases[prevName]?.match(/\(Batch\s*\d+\)/i)?.[0] || '';
+        const newAliasTarget = batchSuffix ? `${trimmedName} ${batchSuffix}` : trimmedName;
+        nextAliases[prevName] = newAliasTarget;
+        nextAliases[trimmedName] = newAliasTarget;
+        setEmployeeAliases(nextAliases);
+        setEditingAliases(nextAliases);
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('nexus_employee_aliases', JSON.stringify(nextAliases));
+          } catch {}
+        }
+      }
+
+      setEditEmployeeModalOpen(false);
+      setMessage(
+        prevName && prevName !== trimmedName
+          ? `Employee name updated: "${prevName}" → "${trimmedName}"`
+          : `Employee "${trimmedName}" updated successfully.`
+      );
+      await loadAll();
+    } catch (err) {
+      setMessage(err.message || 'Failed to update employee');
+    } finally {
+      setSavingEmployeeEdit(false);
+    }
+  };
+
   const handleDelete = async (id, role) => {
     if (role === 'ADMIN') return;
     if (!confirm('Revoke this user\'s system access?')) return;
@@ -367,6 +460,7 @@ export default function AdminCommandCenter() {
     const matchingUsers = users.filter((u) => {
       if (u.role === 'ADMIN') return false;
       if (selectedBatchForRole === 'all') return true;
+      if (u.batchLabel && u.batchLabel.toLowerCase() === selectedBatchForRole.toLowerCase()) return true;
       const b = getMappedBatch(u.employeeName);
       return b.includes(selectedBatchForRole) || b === selectedBatchForRole;
     });
@@ -813,7 +907,16 @@ export default function AdminCommandCenter() {
                   <tbody>
                     {employeeMatrix.map((emp) => (
                       <tr key={emp.employeeId}>
-                        <td style={{ fontWeight: 600 }}>{emp.employeeName}</td>
+                        <td style={{ fontWeight: 600 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            {emp.batchLabel && (
+                              <span style={{ background: 'rgba(0,242,254,0.14)', color: '#00f2fe', border: '1px solid rgba(0,242,254,0.3)', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
+                                {emp.batchLabel}
+                              </span>
+                            )}
+                            <span>{emp.employeeName}</span>
+                          </div>
+                        </td>
                         <td style={{ textAlign: 'center' }}>
                           <span style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', padding: '2px 10px', borderRadius: 8, fontWeight: 700, fontSize: 14 }}>
                             {stats?.totalNotEntered ?? '—'}
@@ -1041,20 +1144,30 @@ export default function AdminCommandCenter() {
                 <h2 style={{ fontSize: 20, margin: 0, fontWeight: 700 }}>Employees Management</h2>
               </div>
               <p style={{ fontSize: 13, color: '#94a3b8', margin: '6px 0 0' }}>
-                Create employee accounts, assign them as <strong>Office Employee</strong> or <strong>Field Employee</strong>, and manage login PINs.
+                Edit employee names, assign <strong>Office Employee</strong> or <strong>Field Employee</strong> roles, and manage PINs. Office Login shows <strong>Batch 1, Batch 2, Batch 3, Batch 4...</strong> ordered by highest Gmails (personal names stay private here in Admin).
               </p>
             </div>
-            <button
-              type="button"
-              className="nexus-btn nexus-btn-primary"
-              onClick={() => {
-                setForm({ employeeName: '', pin: '', role: 'EMPLOYEE', batch: 'Ali Shehzad (Batch 1)' });
-                setIsModalOpen(true);
-              }}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', fontSize: 14, fontWeight: 600 }}
-            >
-              <UserPlus size={16} /> + Create Employee
-            </button>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="nexus-btn nexus-btn-ghost"
+                onClick={() => setAliasModalOpen(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', fontSize: 13, color: '#c4b5fd', borderColor: 'rgba(167,139,250,0.35)' }}
+              >
+                <Edit3 size={15} /> Report Batch Aliases
+              </button>
+              <button
+                type="button"
+                className="nexus-btn nexus-btn-primary"
+                onClick={() => {
+                  setForm({ employeeName: '', pin: '', role: 'EMPLOYEE', batch: 'Ali Shehzad (Batch 1)' });
+                  setIsModalOpen(true);
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', fontSize: 14, fontWeight: 600 }}
+              >
+                <UserPlus size={16} /> + Create Employee
+              </button>
+            </div>
           </div>
 
           {/* Quick Metrics Bar */}
@@ -1132,10 +1245,14 @@ export default function AdminCommandCenter() {
                 onChange={(e) => setSelectedBatchForRole(e.target.value)}
               >
                 <option value="all">All Employees</option>
-                <option value="Batch 1">Batch 1 (Ali Shehzad)</option>
-                <option value="Batch 2">Batch 2 (Muhammad Ibrahim)</option>
-                <option value="Batch 3">Batch 3 (Shah Zaib)</option>
-                <option value="Batch 4">Batch 4 (Sarmad Islam)</option>
+                {[...officeEmployees]
+                  .filter((u) => u.batchLabel)
+                  .sort((a, b) => (a.batchNumber ?? 999) - (b.batchNumber ?? 999))
+                  .map((u) => (
+                    <option key={u.id} value={u.batchLabel}>
+                      {u.batchLabel} ({u.employeeName})
+                    </option>
+                  ))}
               </select>
               <button
                 type="button"
@@ -1206,10 +1323,10 @@ export default function AdminCommandCenter() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Name</th>
+                <th>Office Batch / Gmails</th>
+                <th>Employee Name</th>
                 <th>Role / Type</th>
                 <th>Portal Access</th>
-                <th>Batch</th>
                 <th>Login Type</th>
                 <th>PIN</th>
                 <th>Status</th>
@@ -1217,16 +1334,70 @@ export default function AdminCommandCenter() {
               </tr>
             </thead>
             <tbody>
-              {users
+              {[...users]
                 .filter((u) => {
                   if (employeeTabFilter === 'EMPLOYEE') return u.role === 'EMPLOYEE';
                   if (employeeTabFilter === 'FIELD_EMPLOYEE') return u.role === 'FIELD_EMPLOYEE';
                   return true;
                 })
+                .sort((a, b) => {
+                  const roleRank = (u) => (u.role === 'EMPLOYEE' ? 1 : u.role === 'FIELD_EMPLOYEE' ? 2 : 3);
+                  if (roleRank(a) !== roleRank(b)) return roleRank(a) - roleRank(b);
+                  if (a.role === 'EMPLOYEE' && b.role === 'EMPLOYEE') {
+                    const bA = a.batchNumber ?? 9999;
+                    const bB = b.batchNumber ?? 9999;
+                    if (bA !== bB) return bA - bB;
+                    return (b.gmailCount ?? 0) - (a.gmailCount ?? 0);
+                  }
+                  return (a.employeeName || '').localeCompare(b.employeeName || '');
+                })
                 .map((u) => {
                   return (
                     <tr key={u.id}>
-                      <td style={{ fontWeight: 600 }}>{u.employeeName}</td>
+                      <td>
+                        {u.role === 'EMPLOYEE' ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <span
+                              style={{
+                                fontSize: 12,
+                                color: u.batchLabel ? '#00f2fe' : '#94a3b8',
+                                background: u.batchLabel ? 'rgba(0,242,254,0.14)' : 'rgba(148,163,184,0.12)',
+                                border: `1px solid ${u.batchLabel ? 'rgba(0,242,254,0.35)' : 'rgba(148,163,184,0.25)'}`,
+                                padding: '3px 10px',
+                                borderRadius: 6,
+                                fontWeight: 700,
+                              }}
+                            >
+                              {u.batchLabel || 'Inactive'}
+                            </span>
+                            <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>
+                              {u.gmailCount ?? 0} {(u.gmailCount ?? 0) === 1 ? 'Gmail' : 'Gmails'}
+                            </span>
+                          </div>
+                        ) : u.role === 'FIELD_EMPLOYEE' ? (
+                          <span style={{ fontSize: 11, color: '#34d399', background: 'rgba(16,185,129,0.12)', padding: '3px 8px', borderRadius: 6, fontWeight: 600 }}>
+                            Field Portal
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: 11, color: '#a78bfa', background: 'rgba(167,139,250,0.12)', padding: '3px 8px', borderRadius: 6, fontWeight: 600 }}>
+                            Master Admin
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ fontWeight: 600 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span>{u.employeeName}</span>
+                          <button
+                            type="button"
+                            className="nexus-btn nexus-btn-ghost"
+                            onClick={() => openEditEmployeeModal(u)}
+                            style={{ padding: '3px 6px', color: '#00f2fe', borderColor: 'rgba(0,242,254,0.25)' }}
+                            title={`Edit name for ${u.employeeName}`}
+                          >
+                            <Edit3 size={12} />
+                          </button>
+                        </div>
+                      </td>
                       <td>
                         <span
                           className={`status-pill ${u.role === 'ADMIN' ? 'active' : ''}`}
@@ -1250,12 +1421,9 @@ export default function AdminCommandCenter() {
                           <span style={{ color: '#a78bfa' }}>Master Admin Command Center</span>
                         )}
                       </td>
-                      <td>
-                        <span style={{ fontSize: 11, color: '#c4b5fd', background: 'rgba(167,139,250,0.1)', padding: '2px 8px', borderRadius: 4, fontWeight: 500 }}>
-                          {getMappedBatch(u.employeeName)}
-                        </span>
+                      <td style={{ fontSize: 12, color: '#64748b' }}>
+                        {u.role === 'ADMIN' ? u.email : u.role === 'EMPLOYEE' ? `${u.batchLabel || 'Batch'} + PIN` : 'PIN Login'}
                       </td>
-                      <td style={{ fontSize: 12, color: '#64748b' }}>{u.role === 'ADMIN' ? u.email : 'PIN Login'}</td>
                       <td style={{ fontSize: 13, fontWeight: 600, color: '#f59e0b', letterSpacing: 2 }}>{u.role !== 'ADMIN' ? (u.pin || '—') : '—'}</td>
                       <td>
                         <span className={`status-pill ${u.activeStatus ? 'active' : 'inactive'}`}>
@@ -1263,7 +1431,25 @@ export default function AdminCommandCenter() {
                         </span>
                       </td>
                       <td>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            className="nexus-btn nexus-btn-ghost"
+                            onClick={() => openEditEmployeeModal(u)}
+                            style={{
+                              padding: '4px 10px',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              color: '#00f2fe',
+                              border: '1px solid rgba(0,242,254,0.4)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                            }}
+                            title="Edit Employee Name & Details"
+                          >
+                            <Edit3 size={12} /> Edit Name
+                          </button>
                           <button
                             type="button"
                             className="nexus-btn nexus-btn-ghost"
@@ -1957,6 +2143,136 @@ export default function AdminCommandCenter() {
                   ? '+ Create / Save Field Employee'
                   : '+ Create / Save Office Employee'}
               </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT EMPLOYEE NAME & DETAILS MODAL */}
+      {editEmployeeModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 115,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0,0,0,0.72)',
+            backdropFilter: 'blur(4px)',
+            padding: 16,
+          }}
+          onClick={() => setEditEmployeeModalOpen(false)}
+        >
+          <div className="glass-card" style={{ width: '100%', maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(0, 242, 254, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Edit3 size={20} color="#00f2fe" />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Edit Employee Name</h3>
+                  <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                    Update employee display name in Admin Console &amp; reports
+                  </div>
+                </div>
+              </div>
+              <button type="button" className="nexus-btn nexus-btn-ghost" onClick={() => setEditEmployeeModalOpen(false)} style={{ padding: 8 }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {editEmployeeForm.role === 'EMPLOYEE' && (
+              <div
+                style={{
+                  background: 'rgba(0, 242, 254, 0.08)',
+                  border: '1px solid rgba(0, 242, 254, 0.25)',
+                  borderRadius: 8,
+                  padding: '10px 14px',
+                  marginBottom: 16,
+                  fontSize: 12,
+                  color: '#cbd5e1',
+                  lineHeight: 1.5,
+                }}
+              >
+                🏢 <strong>Office Login Slot:</strong>{' '}
+                <span style={{ color: '#00f2fe', fontWeight: 700 }}>
+                  {editEmployeeForm.batchLabel || 'Inactive'}
+                </span>{' '}
+                ({editEmployeeForm.gmailCount ?? 0} Gmails). Personal names remain hidden on the Office Login page and are visible only to Admin.
+              </div>
+            )}
+
+            <form onSubmit={handleSaveEmployeeEdit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label className="field-label">Employee Name</label>
+                <input
+                  className="nexus-input"
+                  required
+                  autoFocus
+                  placeholder="Enter employee name"
+                  value={editEmployeeForm.employeeName}
+                  onChange={(e) => setEditEmployeeForm({ ...editEmployeeForm, employeeName: e.target.value })}
+                />
+              </div>
+
+              {editEmployeeForm.role !== 'ADMIN' && (
+                <>
+                  <div>
+                    <label className="field-label">
+                      Update Login PIN (Optional — Current: {editEmployeeForm.currentPin || '—'})
+                    </label>
+                    <input
+                      className="nexus-input"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Leave blank to keep current PIN"
+                      value={editEmployeeForm.pin}
+                      maxLength={6}
+                      onChange={(e) =>
+                        setEditEmployeeForm({
+                          ...editEmployeeForm,
+                          pin: e.target.value.replace(/\D/g, '').slice(0, 6),
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#f8fafc' }}>Active Login Access</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                        Disable to hide this account from login dropdowns without deleting data
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(editEmployeeForm.activeStatus)}
+                      onChange={(e) => setEditEmployeeForm({ ...editEmployeeForm, activeStatus: e.target.checked })}
+                      style={{ width: 18, height: 18, accentColor: '#00f2fe', cursor: 'pointer' }}
+                    />
+                  </div>
+                </>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+                <button
+                  type="button"
+                  className="nexus-btn nexus-btn-ghost"
+                  onClick={() => setEditEmployeeModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="nexus-btn nexus-btn-primary"
+                  disabled={savingEmployeeEdit}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}
+                >
+                  <Save size={15} />
+                  {savingEmployeeEdit ? 'Saving...' : 'Save Name'}
+                </button>
+              </div>
             </form>
           </div>
         </div>

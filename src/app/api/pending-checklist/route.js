@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma, withDbRetry } from '@/lib/prisma';
+import { sortAndAssignOfficeBatches } from '@/lib/batches';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,10 +20,10 @@ const MONTH_NAMES = {
 function mapToBatchName(name) {
   if (!name) return 'Unassigned';
   const l = name.toLowerCase().trim();
-  if (l.includes('rizwan') || l.includes('ali shehzad') || l.includes('ali shezad') || l.includes('batch 1')) return 'Batch No. 01';
-  if (l.includes('ibrahim') || l.includes('batch 2')) return 'Batch No. 02';
-  if (l.includes('shahzaib') || l.includes('shah zaib') || l.includes('batch 3')) return 'Batch No. 03';
-  if (l.includes('sermad') || l.includes('sarmad') || l.includes('batch 4')) return 'Batch No. 04';
+  if (l.includes('rizwan') || l.includes('ali shehzad') || l.includes('ali shezad') || /batch\s*(?:no\.?\s*)?0*1\b/.test(l)) return 'Batch No. 01';
+  if (l.includes('ibrahim') || /batch\s*(?:no\.?\s*)?0*2\b/.test(l)) return 'Batch No. 02';
+  if (l.includes('shahzaib') || l.includes('shah zaib') || /batch\s*(?:no\.?\s*)?0*3\b/.test(l)) return 'Batch No. 03';
+  if (l.includes('sermad') || l.includes('sarmad') || /batch\s*(?:no\.?\s*)?0*4\b/.test(l)) return 'Batch No. 04';
   return 'Unassigned';
 }
 
@@ -61,19 +62,43 @@ export async function GET(request) {
     const fromDateParam = searchParams.get('fromDate');
     const toDateParam = searchParams.get('toDate');
 
-    const jobs = await withDbRetry(async () => {
-      return await prisma.jobMetadata.findMany({
-        include: {
-          ticket: true,
-          assignedEmployee: true,
-          createdBy: true,
-          quotationInvoices: true,
-          payments: true,
-          workCompletion: true,
-          bankApproval: true,
-        },
-        orderBy: { createdAt: 'asc' }
-      });
+    const { jobs, officeEmployees } = await withDbRetry(async () => {
+      const [fetchedJobs, fetchedOffice] = await Promise.all([
+        prisma.jobMetadata.findMany({
+          include: {
+            ticket: true,
+            assignedEmployee: true,
+            createdBy: true,
+            quotationInvoices: true,
+            payments: true,
+            workCompletion: true,
+            bankApproval: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        }),
+        prisma.user.findMany({
+          where: { role: 'EMPLOYEE' },
+          select: {
+            id: true,
+            employeeName: true,
+            _count: {
+              select: {
+                assignedJobs: true,
+                createdJobs: true,
+                createdTickets: true,
+              },
+            },
+          },
+          orderBy: { id: 'asc' },
+        }),
+      ]);
+      return { jobs: fetchedJobs, officeEmployees: fetchedOffice };
+    });
+
+    const rankedOffice = sortAndAssignOfficeBatches(officeEmployees);
+    const idToBatchNoMap = new Map();
+    rankedOffice.slice(0, 4).forEach((emp) => {
+      idToBatchNoMap.set(emp.id, `Batch No. 0${emp.batchNumber}`);
     });
 
     const batchNames = ['Batch No. 01', 'Batch No. 02', 'Batch No. 03', 'Batch No. 04'];
@@ -116,9 +141,14 @@ export async function GET(request) {
     const tenureCardsMap = {};
 
     for (const j of jobs) {
-      // Check batch
+      // Check batch (support renamed employees seamlessly via ID rank + legacy string fallback)
       const rawEmp = j.ticket?.statusLastChangedBy || j.assignedEmployee?.employeeName || j.manualEnteredBy || j.createdBy?.employeeName;
-      const bName = mapToBatchName(rawEmp);
+      let bName = mapToBatchName(rawEmp);
+      if (bName === 'Unassigned') {
+        const byAssignedId = j.assignedEmployeeId ? idToBatchNoMap.get(j.assignedEmployeeId) : null;
+        const byCreatedId = j.createdById ? idToBatchNoMap.get(j.createdById) : null;
+        bName = byAssignedId || byCreatedId || 'Unassigned';
+      }
 
       // Do not consider unassigned or admin batch complaints in the operational audit
       if (!batchNames.includes(bName)) {

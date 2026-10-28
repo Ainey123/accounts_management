@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma, withDbRetry } from '@/lib/prisma';
+import { sortAndAssignOfficeBatches } from '@/lib/batches';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,12 +34,25 @@ export async function GET() {
       });
       const totalTickets = await prisma.ticket.count();
 
-      // ── Per-employee Business Card Matrix ────────────────────────────────────
-      const employees = await prisma.user.findMany({
+      // ── Per-employee Business Card Matrix (Ordered by Highest Gmails = Batch 1) ──
+      const rawEmployees = await prisma.user.findMany({
         where: { role: 'EMPLOYEE' },
-        select: { id: true, employeeName: true },
-        orderBy: { employeeName: 'asc' },
+        select: {
+          id: true,
+          employeeName: true,
+          activeStatus: true,
+          _count: {
+            select: {
+              assignedJobs: true,
+              createdJobs: true,
+              createdTickets: true,
+            },
+          },
+        },
+        orderBy: { id: 'asc' },
       });
+
+      const employees = sortAndAssignOfficeBatches(rawEmployees);
 
       const allJobs = await prisma.jobMetadata.findMany({
         select: {
@@ -65,6 +79,8 @@ export async function GET() {
         return {
           employeeId: emp.id,
           employeeName: emp.employeeName,
+          batchNumber: emp.batchNumber,
+          batchLabel: emp.batchLabel,
           entered,
           cancelled,
           relevant,

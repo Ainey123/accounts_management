@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, KeyRound, Briefcase, Settings, User, ChevronDown, HardHat, AlertCircle } from 'lucide-react';
+import { ShieldCheck, KeyRound, Briefcase, Settings, Layers, ChevronDown, HardHat, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { apiFetch } from '@/lib/api';
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState('EMPLOYEE');
   const [pin, setPin] = useState('');
+  const [selectedBatchId, setSelectedBatchId] = useState('');
   const [selectedName, setSelectedName] = useState('');
   const [employees, setEmployees] = useState([]);
   const [error, setError] = useState('');
@@ -15,11 +16,11 @@ export default function LoginPage() {
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const { login } = useAuth();
 
-  // Fetch employee list for dropdowns
+  // Fetch office batches & field employee list for dropdowns
   useEffect(() => {
     if (activeTab === 'ADMIN') return;
     setLoadingEmployees(true);
-    fetch('/api/employees?all=true')
+    fetch(`/api/employees?all=true&t=${Date.now()}`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((data) => {
         setEmployees(data.employees || []);
@@ -28,7 +29,7 @@ export default function LoginPage() {
       .finally(() => setLoadingEmployees(false));
   }, [activeTab]);
 
-  // Strict separation: Office staff vs Field staff
+  // Strict separation: Office batches (already ranked by highest Gmails) vs Field staff
   const officeEmployees = employees.filter((e) => e.role === 'EMPLOYEE');
   const fieldEmployees = employees.filter((e) => e.role === 'FIELD_EMPLOYEE');
 
@@ -48,23 +49,26 @@ export default function LoginPage() {
     }
 
     if (activeTab === 'EMPLOYEE') {
-      if (!selectedName) {
-        setError('Please select your name from the office employee list.');
+      if (!selectedBatchId) {
+        setError('Please select your batch from the office batch list.');
         return;
       }
     }
 
     setLoading(true);
     try {
+      const selectedOfficeBatch = officeEmployees.find((emp) => String(emp.id) === String(selectedBatchId));
       const { user } = await apiFetch('/api/auth/pin-login', {
         method: 'POST',
         body: JSON.stringify({
           pin: String(pin).trim(),
           role: activeTab,
-          employeeName: activeTab !== 'ADMIN' ? selectedName : undefined,
+          employeeId: activeTab === 'EMPLOYEE' ? Number(selectedBatchId) : undefined,
+          batchLabel: activeTab === 'EMPLOYEE' ? selectedOfficeBatch?.batchLabel : undefined,
+          employeeName: activeTab === 'FIELD_EMPLOYEE' ? selectedName : undefined,
         }),
       });
-      // Store full user info (including id and employeeName) in cookie via AuthProvider
+      // Store full user info (including id, batchLabel, and employeeName) in cookie via AuthProvider
       await login(user.email, user.tempPassword, user.role, user);
     } catch (err) {
       setError(err.message || 'Access denied.');
@@ -76,6 +80,7 @@ export default function LoginPage() {
   const switchTab = (tab) => {
     setActiveTab(tab);
     setPin('');
+    setSelectedBatchId('');
     setSelectedName('');
     setError('');
   };
@@ -99,7 +104,7 @@ export default function LoginPage() {
           {activeTab === 'FIELD_EMPLOYEE'
             ? 'Field staff assigned jobs & project reports access'
             : activeTab === 'EMPLOYEE'
-            ? 'Select your name and enter PIN to access office operations'
+            ? 'Select your batch and enter PIN to access office operations'
             : 'Enter master admin PIN to access command center'}
         </p>
       </div>
@@ -131,29 +136,36 @@ export default function LoginPage() {
       {error && <div className="alert-error" style={{ marginBottom: 20 }}>{error}</div>}
 
       <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        {/* OFFICE EMPLOYEE DROPDOWN */}
+        {/* OFFICE BATCH DROPDOWN (No Employee Personal Names) */}
         {activeTab === 'EMPLOYEE' && (
           <div>
             <label className="field-label">
-              <User size={13} style={{ display: 'inline', marginRight: 4 }} />
-              Office Employee Name
+              <Layers size={13} style={{ display: 'inline', marginRight: 4, color: '#00f2fe' }} />
+              Office Batch
             </label>
             <div style={{ position: 'relative' }}>
               <select
                 className="nexus-input"
                 style={{ paddingLeft: 14, paddingRight: 36, appearance: 'none' }}
-                value={selectedName}
-                onChange={(e) => setSelectedName(e.target.value)}
+                value={selectedBatchId}
+                onChange={(e) => setSelectedBatchId(e.target.value)}
                 required
               >
                 <option value="">
-                  {loadingEmployees ? 'Loading...' : officeEmployees.length === 0 ? 'No office employees found — contact admin' : '— Select your name —'}
+                  {loadingEmployees
+                    ? 'Loading batches...'
+                    : officeEmployees.length === 0
+                    ? 'No office batches found — contact admin'
+                    : '— Select your batch —'}
                 </option>
-                {officeEmployees.map((emp) => (
-                  <option key={emp.id} value={emp.employeeName}>
-                    {emp.employeeName}
-                  </option>
-                ))}
+                {officeEmployees.map((emp, idx) => {
+                  const label = emp.batchLabel || `Batch ${idx + 1}`;
+                  return (
+                    <option key={emp.id} value={String(emp.id)}>
+                      {label}
+                    </option>
+                  );
+                })}
               </select>
               <ChevronDown size={16} style={{ position: 'absolute', right: 12, top: 13, color: '#64748b', pointerEvents: 'none' }} />
             </div>

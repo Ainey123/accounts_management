@@ -63,7 +63,7 @@ export async function apiFetch(path, options = {}, retries = 2) {
 export function sanitizeUser(user) {
   if (!user) return null;
   const { password, ...safe } = user;
-  if (user.role === 'EMPLOYEE') {
+  if ((user.role === 'EMPLOYEE' || user.role === 'FIELD_EMPLOYEE') && password && !String(password).includes(':')) {
     safe.pin = password;
   }
   return safe;

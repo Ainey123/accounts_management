@@ -30,6 +30,8 @@ import { apiFetch } from '@/lib/api';
 import {
   FES_PROJECT_SITES,
   PROJECT_STATUS_OPTIONS,
+  DEMAND_TYPE_OPTIONS,
+  DEMAND_STATUS_OPTIONS,
   cloneFreshProgressTemplate,
   normalizeProgressSections,
 } from '@/lib/projectReportTemplates';
@@ -73,10 +75,16 @@ export default function FieldPortalPage() {
   const [attachments, setAttachments] = useState([]);
   const [reportStatus, setReportStatus] = useState(null);
   const [reviewerNotes, setReviewerNotes] = useState(null);
+  const [demandsList, setDemandsList] = useState([]);
 
   // Dashboard UI controls
   const [activePageFilter, setActivePageFilter] = useState('ALL'); // 'ALL' or 0..8
   const [expensePanelOpen, setExpensePanelOpen] = useState(false);
+  const [demandsPanelOpen, setDemandsPanelOpen] = useState(false);
+  const [activeDemandType, setActiveDemandType] = useState('MATERIAL'); // 'MATERIAL' | 'PAYMENT'
+  const [demandAmount, setDemandAmount] = useState('');
+  const [demandDescription, setDemandDescription] = useState('');
+  const [submittingDemand, setSubmittingDemand] = useState(false);
   const [newExpenseForm, setNewExpenseForm] = useState({
     type: 'MATERIAL',
     name: '',
@@ -89,6 +97,8 @@ export default function FieldPortalPage() {
   });
 
   const receiptInputRef = useRef(null);
+  const demandsSectionRef = useRef(null);
+  const demandAmountInputRef = useRef(null);
 
   const fetchProjectsData = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -148,10 +158,15 @@ export default function FieldPortalPage() {
     setProgressSections(normalizeProgressSections(projData?.progressSections));
     setExpenseEntries(Array.isArray(projData?.expenseEntries) ? projData.expenseEntries : []);
     setAttachments(Array.isArray(projData?.attachments) ? projData.attachments : []);
+    setDemandsList(Array.isArray(projData?.demands) ? projData.demands : []);
     setReportStatus(projData?.reportStatus || null);
     setReviewerNotes(projData?.reviewerNotes || null);
     setActivePageFilter('ALL');
     setExpensePanelOpen(false);
+    setDemandsPanelOpen(false);
+    setActiveDemandType('MATERIAL');
+    setDemandAmount('');
+    setDemandDescription('');
     setBanner({ type: '', text: '' });
   };
 
@@ -313,6 +328,9 @@ export default function FieldPortalPage() {
       if (res.project) {
         setJobMetadataId(res.project.jobMetadataId);
         setReportStatus(res.project.reportStatus);
+        if (Array.isArray(res.project.demands)) {
+          setDemandsList(res.project.demands);
+        }
         setProjectsMap((prev) => ({
           ...prev,
           [selectedProjectKey || 'manawala']: res.project,
@@ -429,6 +447,92 @@ export default function FieldPortalPage() {
       overrideEntries: updated,
       successText: 'Expense entry removed and totals updated.',
     });
+  };
+
+  // Demands Feature Handlers (Material Demand & Payment Demand)
+  const handleOpenDemandsSection = () => {
+    setDemandsPanelOpen(true);
+    setTimeout(() => {
+      demandsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 60);
+  };
+
+  const handleSelectDemandOption = (type) => {
+    setActiveDemandType(type);
+    setTimeout(() => {
+      demandAmountInputRef.current?.focus();
+    }, 50);
+  };
+
+  const handleSubmitDemand = async (e) => {
+    e.preventDefault();
+    const amt = parseFloat(demandAmount);
+    if (isNaN(amt) || amt <= 0) {
+      setBanner({ type: 'error', text: 'Please enter a valid demand amount greater than 0.' });
+      return;
+    }
+
+    setSubmittingDemand(true);
+    setBanner({ type: '', text: '' });
+    try {
+      const res = await apiFetch('/api/field-projects', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          action: 'CREATE_DEMAND',
+          projectKey: selectedProjectKey || 'manawala',
+          jobMetadataId,
+          branchName: branchSite.trim() || 'Project Site',
+          demandType: activeDemandType,
+          amount: amt,
+          description: demandDescription.trim(),
+          siteSupervisor: siteSupervisor || user?.employeeName || '',
+        }),
+      });
+
+      if (res.project) {
+        setJobMetadataId(res.project.jobMetadataId);
+        setDemandsList(Array.isArray(res.project.demands) ? res.project.demands : []);
+        setProjectsMap((prev) => ({
+          ...prev,
+          [selectedProjectKey || 'manawala']: res.project,
+        }));
+      } else if (res.demand) {
+        setDemandsList((prev) => [res.demand, ...prev]);
+      }
+
+      setDemandAmount('');
+      setDemandDescription('');
+      await fetchProjectsData(true);
+
+      setBanner({
+        type: 'success',
+        text: `${
+          activeDemandType === 'PAYMENT' ? 'Payment Demand' : 'Material Demand'
+        } of Rs. ${amt.toLocaleString()} submitted! Current status: Hold (awaiting Admin review).`,
+      });
+    } catch (err) {
+      setBanner({
+        type: 'error',
+        text: 'Failed to submit demand: ' + (err.message || 'Network error'),
+      });
+    } finally {
+      setSubmittingDemand(false);
+    }
+  };
+
+  const handleRefreshDemands = async () => {
+    const { map, otherList } = await fetchProjectsData(true);
+    if (selectedProjectKey === 'other' && jobMetadataId) {
+      const matchedOther = otherList.find((p) => Number(p.jobMetadataId) === Number(jobMetadataId));
+      if (matchedOther && Array.isArray(matchedOther.demands)) {
+        setDemandsList(matchedOther.demands);
+        return;
+      }
+    }
+    const latest = map[selectedProjectKey || 'manawala'];
+    if (latest && Array.isArray(latest.demands)) {
+      setDemandsList(latest.demands);
+    }
   };
 
   // Progress Sheet Edit Handlers
@@ -1011,7 +1115,7 @@ export default function FieldPortalPage() {
                     )}
                   </div>
                   <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
-                    Project Status, Expense Summary Cards &amp; Editable Progress Sheet
+                    Project Status, Expense Summary Cards, Editable Progress Sheet &amp; Demands
                   </div>
                 </div>
               </div>
@@ -1050,6 +1154,27 @@ export default function FieldPortalPage() {
                 >
                   <Plus size={14} />
                   <span>Add Expense</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleOpenDemandsSection}
+                  className="nexus-btn"
+                  style={{
+                    padding: '8px 14px',
+                    fontSize: 12,
+                    background: 'rgba(251, 191, 36, 0.16)',
+                    border: '1px solid rgba(251, 191, 36, 0.45)',
+                    color: '#fbbf24',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <DollarSign size={14} />
+                  <span>Demands ({demandsList.length})</span>
                 </button>
 
                 <button
@@ -2374,6 +2499,483 @@ export default function FieldPortalPage() {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* ══════════════════════════════════════════════════════════════ */}
+            {/* FEATURE AFTER PROGRESS SHEET: DEMANDS                          */}
+            {/* Click -> Material Demand & Payment Demand -> Manual Amount Box */}
+            {/* Submit -> Shows Hold, Accept, Reject                           */}
+            {/* ══════════════════════════════════════════════════════════════ */}
+            <div ref={demandsSectionRef} style={{ marginTop: 28 }}>
+              <div
+                className="glass-card"
+                style={{
+                  padding: 0,
+                  overflow: 'hidden',
+                  border: demandsPanelOpen
+                    ? '1px solid rgba(251, 191, 36, 0.55)'
+                    : '1px solid rgba(251, 191, 36, 0.3)',
+                  background: 'rgba(15, 23, 42, 0.9)',
+                  boxShadow: '0 14px 36px rgba(0,0,0,0.4)',
+                }}
+              >
+                {/* Clickable Demands Header Card */}
+                <button
+                  type="button"
+                  onClick={() => setDemandsPanelOpen((prev) => !prev)}
+                  style={{
+                    width: '100%',
+                    padding: '20px 24px',
+                    background: demandsPanelOpen
+                      ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(15, 23, 42, 0.95) 100%)'
+                      : 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(15, 23, 42, 0.85) 100%)',
+                    border: 'none',
+                    borderBottom: demandsPanelOpen ? '1px solid rgba(251, 191, 36, 0.25)' : 'none',
+                    color: '#f8fafc',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: 14,
+                    textAlign: 'left',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 12,
+                        background: 'rgba(251, 191, 36, 0.18)',
+                        border: '1px solid rgba(251, 191, 36, 0.4)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <DollarSign size={24} color="#fbbf24" />
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 19, fontWeight: 800, color: '#f8fafc' }}>
+                          Demands
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            padding: '3px 10px',
+                            borderRadius: 999,
+                            background: 'rgba(251, 191, 36, 0.18)',
+                            color: '#fbbf24',
+                            border: '1px solid rgba(251, 191, 36, 0.35)',
+                          }}
+                        >
+                          {demandsList.length} Submitted
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 3 }}>
+                        Click here to select <strong>Material Demand</strong> or <strong>Payment Demand</strong>, enter manual amount &amp; track <strong>Hold / Accept / Reject</strong> status
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '9px 16px',
+                      borderRadius: 10,
+                      background: demandsPanelOpen
+                        ? 'rgba(255,255,255,0.08)'
+                        : 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)',
+                      color: '#ffffff',
+                      fontWeight: 700,
+                      fontSize: 13,
+                    }}
+                  >
+                    <span>{demandsPanelOpen ? 'Hide Demands' : 'Open Demands'}</span>
+                    <ChevronRight
+                      size={16}
+                      style={{
+                        transform: demandsPanelOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s ease',
+                      }}
+                    />
+                  </div>
+                </button>
+
+                {/* Expanded Demands Workspace */}
+                {demandsPanelOpen && (
+                  <div style={{ padding: '24px' }}>
+                    {/* 1. TWO DEMAND OPTIONS: MATERIAL DEMAND & PAYMENT DEMAND */}
+                    <div style={{ marginBottom: 18 }}>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: 0.6,
+                          color: '#94a3b8',
+                          marginBottom: 10,
+                        }}
+                      >
+                        1. Select Demand Type
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                          gap: 14,
+                        }}
+                      >
+                        {DEMAND_TYPE_OPTIONS.map((opt) => {
+                          const isSelected = activeDemandType === opt.value;
+                          const IconComp = opt.value === 'MATERIAL' ? Package : DollarSign;
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => handleSelectDemandOption(opt.value)}
+                              style={{
+                                padding: '18px 20px',
+                                borderRadius: 12,
+                                border: isSelected
+                                  ? `2px solid ${opt.color}`
+                                  : '1px solid rgba(255,255,255,0.12)',
+                                background: isSelected
+                                  ? opt.bg
+                                  : 'rgba(255,255,255,0.03)',
+                                color: '#f8fafc',
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 12,
+                                transition: 'all 0.15s ease',
+                                boxShadow: isSelected ? `0 8px 24px ${opt.bg}` : 'none',
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                                <div
+                                  style={{
+                                    width: 44,
+                                    height: 44,
+                                    borderRadius: 10,
+                                    background: isSelected ? opt.bg : 'rgba(255,255,255,0.06)',
+                                    border: `1px solid ${isSelected ? opt.border : 'rgba(255,255,255,0.1)'}`,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                  }}
+                                >
+                                  <IconComp size={22} color={opt.color} />
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 16, fontWeight: 800, color: isSelected ? opt.color : '#f8fafc' }}>
+                                    {opt.label}
+                                  </div>
+                                  <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
+                                    {opt.subtitle}
+                                  </div>
+                                </div>
+                              </div>
+                              {isSelected && <CheckCircle2 size={20} color={opt.color} />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 2. MANUAL AMOUNT INPUT BOX + SUBMIT DEMAND */}
+                    <form
+                      onSubmit={handleSubmitDemand}
+                      style={{
+                        padding: '20px',
+                        borderRadius: 12,
+                        background: 'rgba(2, 6, 23, 0.65)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        marginBottom: 24,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: 0.6,
+                          color: activeDemandType === 'PAYMENT' ? '#38bdf8' : '#fbbf24',
+                          marginBottom: 12,
+                        }}
+                      >
+                        2. Enter {activeDemandType === 'PAYMENT' ? 'Payment Demand' : 'Material Demand'} Amount Manually
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                          gap: 14,
+                          alignItems: 'end',
+                        }}
+                      >
+                        <div>
+                          <label
+                            style={{
+                              display: 'block',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: '#e2e8f0',
+                              marginBottom: 6,
+                            }}
+                          >
+                            Amount (Rs.) *
+                          </label>
+                          <input
+                            ref={demandAmountInputRef}
+                            type="number"
+                            min="1"
+                            step="any"
+                            required
+                            className="nexus-input"
+                            placeholder="Enter demand amount manually (e.g. 25000)"
+                            value={demandAmount}
+                            onChange={(e) => setDemandAmount(e.target.value)}
+                            style={{
+                              width: '100%',
+                              fontSize: 15,
+                              fontWeight: 800,
+                              padding: '11px 14px',
+                              borderColor:
+                                activeDemandType === 'PAYMENT'
+                                  ? 'rgba(56, 189, 248, 0.45)'
+                                  : 'rgba(251, 191, 36, 0.45)',
+                            }}
+                          />
+                        </div>
+
+                        <div>
+                          <label
+                            style={{
+                              display: 'block',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: '#94a3b8',
+                              marginBottom: 6,
+                            }}
+                          >
+                            Details / Purpose (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            className="nexus-input"
+                            placeholder={
+                              activeDemandType === 'PAYMENT'
+                                ? 'e.g. Weekly mason & electrician payment...'
+                                : 'e.g. Cement bags, electrical cable, tiles...'
+                            }
+                            value={demandDescription}
+                            onChange={(e) => setDemandDescription(e.target.value)}
+                            style={{ width: '100%', padding: '11px 14px', fontSize: 13 }}
+                          />
+                        </div>
+
+                        <div>
+                          <button
+                            type="submit"
+                            disabled={submittingDemand}
+                            className="nexus-btn"
+                            style={{
+                              width: '100%',
+                              padding: '12px 20px',
+                              borderRadius: 10,
+                              border: 'none',
+                              fontWeight: 800,
+                              fontSize: 13.5,
+                              color: '#0f172a',
+                              background:
+                                activeDemandType === 'PAYMENT'
+                                  ? 'linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%)'
+                                  : 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                              cursor: submittingDemand ? 'not-allowed' : 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 8,
+                              boxShadow: '0 6px 18px rgba(0,0,0,0.35)',
+                            }}
+                          >
+                            <Send size={15} />
+                            <span>
+                              {submittingDemand
+                                ? 'Submitting Demand...'
+                                : `Submit ${activeDemandType === 'PAYMENT' ? 'Payment' : 'Material'} Demand`}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+                    </form>
+
+                    {/* 3. SUBMITTED DEMANDS LIST (SHOWING HOLD, ACCEPT, REJECT) */}
+                    <div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: 10,
+                          marginBottom: 12,
+                        }}
+                      >
+                        <div style={{ fontSize: 14, fontWeight: 800, color: '#f8fafc' }}>
+                          Submitted Demands &amp; Approval Status ({demandsList.length})
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRefreshDemands}
+                          className="nexus-btn nexus-btn-ghost"
+                          style={{ padding: '6px 12px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
+                        >
+                          <RefreshCw size={13} />
+                          <span>Refresh Status</span>
+                        </button>
+                      </div>
+
+                      {demandsList.length === 0 ? (
+                        <div
+                          style={{
+                            padding: '24px 16px',
+                            borderRadius: 10,
+                            border: '1px dashed rgba(255,255,255,0.12)',
+                            background: 'rgba(255,255,255,0.02)',
+                            textAlign: 'center',
+                            color: '#94a3b8',
+                            fontSize: 13,
+                          }}
+                        >
+                          No demands submitted for <strong>{branchSite}</strong> yet. Select <strong>Material Demand</strong> or <strong>Payment Demand</strong> above, enter an amount, and click Submit.
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          {demandsList.map((dem) => {
+                            const isPayment = dem.type === 'PAYMENT';
+                            const currentStatus = ['HOLD', 'ACCEPT', 'REJECT'].includes(dem.status)
+                              ? dem.status
+                              : 'HOLD';
+
+                            return (
+                              <div
+                                key={dem.id}
+                                style={{
+                                  padding: '16px 18px',
+                                  borderRadius: 12,
+                                  background: 'rgba(255,255,255,0.03)',
+                                  border: '1px solid rgba(255,255,255,0.09)',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  flexWrap: 'wrap',
+                                  gap: 14,
+                                }}
+                              >
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                                    <span
+                                      style={{
+                                        fontSize: 11,
+                                        fontWeight: 800,
+                                        padding: '3px 10px',
+                                        borderRadius: 6,
+                                        background: isPayment
+                                          ? 'rgba(56, 189, 248, 0.16)'
+                                          : 'rgba(251, 191, 36, 0.16)',
+                                        color: isPayment ? '#38bdf8' : '#fbbf24',
+                                        border: `1px solid ${
+                                          isPayment
+                                            ? 'rgba(56, 189, 248, 0.35)'
+                                            : 'rgba(251, 191, 36, 0.35)'
+                                        }`,
+                                      }}
+                                    >
+                                      {isPayment ? 'Payment Demand' : 'Material Demand'}
+                                    </span>
+
+                                    <span style={{ fontSize: 18, fontWeight: 800, color: '#f8fafc' }}>
+                                      Rs. {(parseFloat(dem.amount) || 0).toLocaleString()}
+                                    </span>
+
+                                    <span style={{ fontSize: 11.5, color: '#64748b' }}>
+                                      • {dem.createdAt ? new Date(dem.createdAt).toLocaleString() : 'Just now'}
+                                    </span>
+                                  </div>
+
+                                  {dem.description && (
+                                    <div style={{ fontSize: 13, color: '#cbd5e1' }}>
+                                      {dem.description}
+                                    </div>
+                                  )}
+
+                                  {dem.adminNote && (
+                                    <div style={{ fontSize: 12, color: '#a78bfa' }}>
+                                      <strong>Admin Note:</strong> {dem.adminNote}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* STATUS PILLS: HOLD | ACCEPT | REJECT */}
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                    flexWrap: 'wrap',
+                                  }}
+                                >
+                                  {DEMAND_STATUS_OPTIONS.map((st) => {
+                                    const active = currentStatus === st.value;
+                                    return (
+                                      <span
+                                        key={st.value}
+                                        style={{
+                                          padding: '6px 14px',
+                                          borderRadius: 8,
+                                          fontSize: 12,
+                                          fontWeight: active ? 800 : 600,
+                                          letterSpacing: 0.3,
+                                          background: active ? st.bg : 'rgba(255,255,255,0.03)',
+                                          color: active ? st.color : '#64748b',
+                                          border: active
+                                            ? `1.5px solid ${st.color}`
+                                            : '1px solid rgba(255,255,255,0.08)',
+                                          opacity: active ? 1 : 0.55,
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 5,
+                                          boxShadow: active ? `0 0 14px ${st.bg}` : 'none',
+                                        }}
+                                      >
+                                        {active && st.value === 'HOLD' && <Clock size={13} color={st.color} />}
+                                        {active && st.value === 'ACCEPT' && <CheckCircle2 size={13} color={st.color} />}
+                                        {active && st.value === 'REJECT' && <X size={13} color={st.color} />}
+                                        <span>{st.label}</span>
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -14,6 +14,7 @@ import {
 import { apiFetch } from '@/lib/api';
 import ReconciliationModule from '@/components/ReconciliationModule';
 import PersonProgressSummary from '@/components/PersonProgressSummary';
+import AdminFieldEmployeesModule from '@/components/AdminFieldEmployeesModule';
 
 export default function AdminCommandCenter() {
   const [users, setUsers] = useState([]);
@@ -706,6 +707,7 @@ export default function AdminCommandCenter() {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Activity },
+    { id: 'field-employees', label: 'Field Employees', icon: HardHat },
     { id: 'pending-payments', label: 'Pending Payments', icon: Clock, href: '/pending-payments' },
     { id: 'reconciliation', label: 'Expense Reconciliation', icon: FileSpreadsheet },
     { id: 'employees', label: 'Employees', icon: Users },
@@ -856,7 +858,15 @@ export default function AdminCommandCenter() {
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="nexus-btn nexus-btn-ghost"
+                onClick={() => setActiveTab('field-employees')}
+                style={{ fontSize: 12, padding: '7px 14px', borderColor: 'rgba(52, 211, 153, 0.4)', color: '#34d399' }}
+              >
+                <HardHat size={14} style={{ display: 'inline', marginRight: 4 }} /> Field Employees &amp; Demands
+              </button>
               <button
                 type="button"
                 className="nexus-btn nexus-btn-ghost"
@@ -1123,6 +1133,9 @@ export default function AdminCommandCenter() {
           </section>
         </>
       )}
+
+      {/* FIELD EMPLOYEES DASHBOARD CARDS & DEMANDS MANAGEMENT TAB */}
+      {activeTab === 'field-employees' && <AdminFieldEmployeesModule />}
 
       {/* RECONCILIATION TAB */}
       {activeTab === 'reconciliation' && (

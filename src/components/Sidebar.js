@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
   BarChart2, FileEdit, FileText, Briefcase, Landmark,
   Camera, DollarSign, Settings, LogOut, Receipt, Mail, Download,
-  Users, Eye, FileSearch, ClipboardList, CheckCircle2, Award, Clock
+  Users, Eye, FileSearch, ClipboardList, CheckCircle2, Award, Clock, HardHat
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 
@@ -37,6 +37,7 @@ export default function Sidebar() {
 
   const visibleItems = user?.role === 'ADMIN' ? [
     { name: 'Admin Dashboard', href: '/admin/dashboard', icon: Settings },
+    { name: 'Field Employees', href: '/admin/dashboard?tab=field-employees', icon: HardHat },
     { name: 'Pending Audit Checklist', href: '/pending-checklist', icon: ClipboardList },
     { name: 'Staff Progress & WhatsApp', href: '/progress', icon: Award },
     { name: 'Pending Payments', href: '/pending-payments', icon: Clock },

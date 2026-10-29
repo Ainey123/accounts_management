@@ -45,6 +45,49 @@ export const PROJECT_STATUS_OPTIONS = [
   { value: 'COMPLETED', label: 'Completed', color: '#34d399', bg: 'rgba(52, 211, 153, 0.16)' },
 ];
 
+export const DEMAND_TYPE_OPTIONS = [
+  {
+    value: 'MATERIAL',
+    label: 'Material Demand',
+    subtitle: 'Request funds/approval for construction & site material purchase',
+    color: '#fbbf24',
+    bg: 'rgba(251, 191, 36, 0.14)',
+    border: 'rgba(251, 191, 36, 0.45)',
+  },
+  {
+    value: 'PAYMENT',
+    label: 'Payment Demand',
+    subtitle: 'Request site labour wages, contractor, or operational payment',
+    color: '#38bdf8',
+    bg: 'rgba(56, 189, 248, 0.14)',
+    border: 'rgba(56, 189, 248, 0.45)',
+  },
+];
+
+export const DEMAND_STATUS_OPTIONS = [
+  {
+    value: 'HOLD',
+    label: 'Hold',
+    color: '#fbbf24',
+    bg: 'rgba(251, 191, 36, 0.16)',
+    border: 'rgba(251, 191, 36, 0.45)',
+  },
+  {
+    value: 'ACCEPT',
+    label: 'Accept',
+    color: '#34d399',
+    bg: 'rgba(52, 211, 153, 0.16)',
+    border: 'rgba(52, 211, 153, 0.45)',
+  },
+  {
+    value: 'REJECT',
+    label: 'Reject',
+    color: '#f87171',
+    bg: 'rgba(248, 113, 113, 0.16)',
+    border: 'rgba(248, 113, 113, 0.45)',
+  },
+];
+
 function makeAdditionalRows(count = 4) {
   return Array.from({ length: count }, () => ({
     code: '',

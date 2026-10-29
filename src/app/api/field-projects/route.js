@@ -45,12 +45,13 @@ function normalizeDemandList(rawDemands, siteDef, job, latestReport, sheetMeta) 
     sheetMeta?.siteSupervisor || latestReport?.employee?.employeeName || 'Field Employee';
 
   return rawDemands
-    .filter((d) => d && (d.id || d.amount !== undefined))
+    .filter((d) => d && (d.id || d.amount !== undefined || d.formData))
     .map((d, idx) => ({
       id: d.id || `dem-${latestReport?.id || 0}-${idx}`,
       type: d.type === 'PAYMENT' ? 'PAYMENT' : 'MATERIAL',
       amount: parseFloat(d.amount) || 0,
       description: d.description || '',
+      formData: d.formData || null,
       status: ['HOLD', 'ACCEPT', 'REJECT'].includes(d.status) ? d.status : 'HOLD',
       projectKey: d.projectKey || siteDef?.key || 'manawala',
       branchName: d.branchName || resolvedBranch,
@@ -658,19 +659,63 @@ export async function PATCH(request) {
         amount,
         description = '',
         siteSupervisor,
+        formData = null,
       } = body;
 
-      const parsedAmount = parseFloat(amount);
+      const normalizedType = demandType === 'PAYMENT' ? 'PAYMENT' : 'MATERIAL';
+
+      // Resolve amount from manual input or Payment Demand sheet totals
+      let parsedAmount = parseFloat(amount);
       if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+        const netFromForm = parseFloat(formData?.netAmountDemanded);
+        const totalFromForm = parseFloat(formData?.totalAmountRequired);
+        if (!Number.isNaN(netFromForm) && netFromForm > 0) {
+          parsedAmount = netFromForm;
+        } else if (!Number.isNaN(totalFromForm) && totalFromForm > 0) {
+          parsedAmount = totalFromForm;
+        } else {
+          parsedAmount = 0;
+        }
+      }
+
+      const filledFormItems = Array.isArray(formData?.items)
+        ? formData.items.filter(
+            (it) =>
+              (it.description || '').trim() ||
+              (it.requiredQty || '').toString().trim() ||
+              (parseFloat(it.amount) || 0) > 0
+          )
+        : [];
+
+      if (parsedAmount <= 0 && filledFormItems.length === 0 && !(description || '').trim()) {
         return NextResponse.json(
-          { error: 'Please enter a valid demand amount greater than 0.' },
+          { error: 'Please fill the demand form rows or enter a demand amount greater than 0.' },
           { status: 400 }
         );
       }
 
-      const normalizedType = demandType === 'PAYMENT' ? 'PAYMENT' : 'MATERIAL';
+      const autoSummary =
+        (description || '').trim() ||
+        filledFormItems
+          .slice(0, 3)
+          .map((it) =>
+            normalizedType === 'MATERIAL'
+              ? `${it.description || 'Material'}${it.requiredQty ? ` (${it.requiredQty}${it.unit ? ' ' + it.unit : ''})` : ''}`
+              : `${it.description || 'Payment'}${it.amount ? ` (Rs. ${Number(it.amount).toLocaleString()})` : ''}`
+          )
+          .join(', ') ||
+        formData?.purpose ||
+        formData?.purposeJustification ||
+        '';
+
       const cleanBranch = (branchName || '').trim() || 'Other';
-      const requesterName = (siteSupervisor || user?.employeeName || 'Field Employee').trim();
+      const requesterName = (
+        formData?.requestedBy ||
+        formData?.siteInCharge ||
+        siteSupervisor ||
+        user?.employeeName ||
+        'Field Employee'
+      ).trim();
 
       // Resolve a valid employeeId in DB
       let employeeId = user?.id ? Number(user.id) : null;
@@ -770,7 +815,8 @@ export async function PATCH(request) {
         id: `dem-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         type: normalizedType,
         amount: parsedAmount,
-        description: (description || '').trim(),
+        description: autoSummary,
+        formData: formData || null,
         status: 'HOLD',
         projectKey: projectKey || prevMeta.projectKey || 'manawala',
         branchName: cleanBranch,
@@ -943,9 +989,20 @@ export async function PATCH(request) {
 
       const reviewerLabel = user?.employeeName || 'Admin';
       const nowIso = new Date().toISOString();
+      const prevFormData = existingDemands[targetIndex].formData || null;
+      const nextFormData =
+        prevFormData && status === 'ACCEPT'
+          ? {
+              ...prevFormData,
+              approvedByName: prevFormData.approvedByName || reviewerLabel,
+              approvedBySign: prevFormData.approvedBySign || reviewerLabel,
+            }
+          : prevFormData;
+
       const updatedDemand = {
         ...existingDemands[targetIndex],
         status,
+        formData: nextFormData,
         reviewedBy: reviewerLabel,
         adminNote:
           adminNote !== undefined ? String(adminNote).trim() : existingDemands[targetIndex].adminNote || '',

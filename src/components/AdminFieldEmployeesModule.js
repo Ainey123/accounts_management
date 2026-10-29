@@ -22,11 +22,16 @@ import {
   DEMAND_STATUS_OPTIONS,
   buildExpenseSectionsFromEntries,
   normalizeProgressSections,
+  createDefaultMaterialDemandForm,
+  createDefaultPaymentDemandForm,
 } from '@/lib/projectReportTemplates';
 import {
   downloadProgressReportPdf,
   downloadExpenseReportPdf,
+  downloadMaterialDemandPdf,
+  downloadPaymentDemandPdf,
 } from '@/lib/projectPdfGenerator';
+import DemandFormSheet from '@/components/DemandFormSheet';
 
 export default function AdminFieldEmployeesModule() {
   const [projects, setProjects] = useState([]);
@@ -39,7 +44,37 @@ export default function AdminFieldEmployeesModule() {
   const [adminNotesDraft, setAdminNotesDraft] = useState({});
   const [feedback, setFeedback] = useState({ type: '', text: '' });
   const [inspectingProject, setInspectingProject] = useState(null);
+  const [inspectingDemand, setInspectingDemand] = useState(null);
   const [exportingKey, setExportingKey] = useState(null);
+
+  const handleExportDemandPdf = async (dem) => {
+    setExportingKey(dem.id);
+    try {
+      if (dem.type === 'PAYMENT') {
+        const fallback = createDefaultPaymentDemandForm({
+          branchSite: dem.branchName || dem.projectLabel || 'Site',
+          siteSupervisor: dem.requestedBy || '',
+          reportDate: dem.createdAt ? dem.createdAt.split('T')[0] : '',
+        });
+        fallback.netAmountDemanded = String(dem.amount || '');
+        fallback.totalAmountRequired = String(dem.amount || '');
+        fallback.purposeJustification = dem.description || '';
+        await downloadPaymentDemandPdf(dem.formData || fallback);
+      } else {
+        const fallback = createDefaultMaterialDemandForm({
+          branchSite: dem.branchName || dem.projectLabel || 'Site',
+          siteSupervisor: dem.requestedBy || '',
+          reportDate: dem.createdAt ? dem.createdAt.split('T')[0] : '',
+        });
+        fallback.purpose = dem.description || '';
+        await downloadMaterialDemandPdf(dem.formData || fallback, dem.amount || 0);
+      }
+    } catch (err) {
+      setFeedback({ type: 'error', text: 'Demand PDF export failed: ' + err.message });
+    } finally {
+      setExportingKey(null);
+    }
+  };
 
   const loadFieldData = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -1040,8 +1075,8 @@ export default function AdminFieldEmployeesModule() {
                       )}
                     </div>
 
-                    {/* Optional Admin Remark Input */}
-                    <div style={{ marginTop: 4, maxWidth: 420 }}>
+                    {/* Optional Admin Remark Input + View Form / Download PDF */}
+                    <div style={{ marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                       <input
                         type="text"
                         className="nexus-input"
@@ -1053,8 +1088,29 @@ export default function AdminFieldEmployeesModule() {
                             [dem.id]: e.target.value,
                           }))
                         }
-                        style={{ padding: '6px 10px', fontSize: 12, width: '100%' }}
+                        style={{ padding: '6px 10px', fontSize: 12, flex: '1 1 240px', maxWidth: 380 }}
                       />
+
+                      <button
+                        type="button"
+                        onClick={() => setInspectingDemand(dem)}
+                        className="nexus-btn nexus-btn-ghost"
+                        style={{ padding: '6px 12px', fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                      >
+                        <Eye size={13} />
+                        <span>View Form</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleExportDemandPdf(dem)}
+                        disabled={exportingKey === dem.id}
+                        className="nexus-btn nexus-btn-ghost"
+                        style={{ padding: '6px 12px', fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5, color: '#38bdf8' }}
+                      >
+                        <Download size={13} />
+                        <span>{exportingKey === dem.id ? 'Exporting...' : 'PDF'}</span>
+                      </button>
                     </div>
                   </div>
 
@@ -1100,6 +1156,139 @@ export default function AdminFieldEmployeesModule() {
           </div>
         )}
       </section>
+
+      {/* ── MODAL TO INSPECT A SUBMITTED MATERIAL / PAYMENT DEMAND FORM ── */}
+      {inspectingDemand && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            background: 'rgba(2, 6, 23, 0.85)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setInspectingDemand(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: 900,
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: '20px',
+              borderRadius: 14,
+              background: '#0f172a',
+              border: '1px solid rgba(251, 191, 36, 0.4)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 12,
+                marginBottom: 16,
+                paddingBottom: 12,
+                borderBottom: '1px solid rgba(255,255,255,0.1)',
+              }}
+            >
+              <div>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#f8fafc' }}>
+                  {inspectingDemand.type === 'PAYMENT'
+                    ? 'Site Payment Demand Form'
+                    : 'Material Demand / Requisition Form'}{' '}
+                  — {inspectingDemand.branchName || inspectingDemand.projectLabel}
+                </h3>
+                <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 3 }}>
+                  Requested by: <strong>{inspectingDemand.requestedBy}</strong> · Amount:{' '}
+                  <strong style={{ color: '#fbbf24' }}>
+                    Rs. {(parseFloat(inspectingDemand.amount) || 0).toLocaleString()}
+                  </strong>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                {DEMAND_STATUS_OPTIONS.map((opt) => {
+                  const active = (inspectingDemand.status || 'HOLD') === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      disabled={updatingDemandId === inspectingDemand.id}
+                      onClick={async () => {
+                        await handleAdminDemandStatus(inspectingDemand, opt.value);
+                        setInspectingDemand((prev) =>
+                          prev ? { ...prev, status: opt.value } : null
+                        );
+                      }}
+                      style={{
+                        padding: '7px 14px',
+                        borderRadius: 8,
+                        fontSize: 12,
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        border: active ? `2px solid ${opt.color}` : '1px solid rgba(255,255,255,0.16)',
+                        background: active ? opt.bg : 'rgba(255,255,255,0.04)',
+                        color: active ? opt.color : '#cbd5e1',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  onClick={() => handleExportDemandPdf(inspectingDemand)}
+                  className="nexus-btn nexus-btn-primary"
+                  style={{ padding: '7px 14px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Download size={14} />
+                  <span>Download PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInspectingDemand(null)}
+                  className="nexus-btn nexus-btn-ghost"
+                  style={{ padding: '7px 10px' }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            <DemandFormSheet
+              type={inspectingDemand.type}
+              formData={
+                inspectingDemand.formData ||
+                (inspectingDemand.type === 'PAYMENT'
+                  ? {
+                      ...createDefaultPaymentDemandForm({
+                        branchSite: inspectingDemand.branchName || '',
+                        siteSupervisor: inspectingDemand.requestedBy || '',
+                      }),
+                      netAmountDemanded: String(inspectingDemand.amount || ''),
+                      purposeJustification: inspectingDemand.description || '',
+                    }
+                  : {
+                      ...createDefaultMaterialDemandForm({
+                        branchSite: inspectingDemand.branchName || '',
+                        siteSupervisor: inspectingDemand.requestedBy || '',
+                      }),
+                      purpose: inspectingDemand.description || '',
+                    })
+              }
+              readOnly={true}
+            />
+          </div>
+        </div>
+      )}
 
       {/* ── MODAL TO INSPECT A PROJECT'S 9-PAGE PROGRESS SHEET ── */}
       {inspectingProject && (

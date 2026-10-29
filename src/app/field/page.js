@@ -24,6 +24,7 @@ import {
   X,
   Edit3,
   Layers,
+  Eye,
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { apiFetch } from '@/lib/api';
@@ -34,12 +35,17 @@ import {
   DEMAND_STATUS_OPTIONS,
   cloneFreshProgressTemplate,
   normalizeProgressSections,
+  createDefaultMaterialDemandForm,
+  createDefaultPaymentDemandForm,
 } from '@/lib/projectReportTemplates';
 import {
   downloadProgressReportPdf,
   downloadExpenseReportPdf,
+  downloadMaterialDemandPdf,
+  downloadPaymentDemandPdf,
 } from '@/lib/projectPdfGenerator';
 import { buildExpenseSectionsFromEntries } from '@/lib/projectReportTemplates';
+import DemandFormSheet from '@/components/DemandFormSheet';
 
 export default function FieldPortalPage() {
   const { user, logout } = useAuth();
@@ -82,9 +88,16 @@ export default function FieldPortalPage() {
   const [expensePanelOpen, setExpensePanelOpen] = useState(false);
   const [demandsPanelOpen, setDemandsPanelOpen] = useState(false);
   const [activeDemandType, setActiveDemandType] = useState('MATERIAL'); // 'MATERIAL' | 'PAYMENT'
+  const [materialDemandForm, setMaterialDemandForm] = useState(() =>
+    createDefaultMaterialDemandForm()
+  );
+  const [paymentDemandForm, setPaymentDemandForm] = useState(() =>
+    createDefaultPaymentDemandForm()
+  );
   const [demandAmount, setDemandAmount] = useState('');
   const [demandDescription, setDemandDescription] = useState('');
   const [submittingDemand, setSubmittingDemand] = useState(false);
+  const [viewingSubmittedDemand, setViewingSubmittedDemand] = useState(null);
   const [newExpenseForm, setNewExpenseForm] = useState({
     type: 'MATERIAL',
     name: '',
@@ -155,10 +168,31 @@ export default function FieldPortalPage() {
     setSiteSupervisor(projData?.siteSupervisor || user?.employeeName || '');
     setTargetCompletion(projData?.targetCompletion || '');
     setPaidBy(projData?.paidBy || 'FES');
+    const initSupervisor = projData?.siteSupervisor || user?.employeeName || '';
+    const initDate = projData?.reportDate || new Date().toISOString().split('T')[0];
+    const existingCount = Array.isArray(projData?.demands) ? projData.demands.length : 0;
+
     setProgressSections(normalizeProgressSections(projData?.progressSections));
     setExpenseEntries(Array.isArray(projData?.expenseEntries) ? projData.expenseEntries : []);
     setAttachments(Array.isArray(projData?.attachments) ? projData.attachments : []);
     setDemandsList(Array.isArray(projData?.demands) ? projData.demands : []);
+    setMaterialDemandForm(
+      createDefaultMaterialDemandForm({
+        branchSite: cleanBranch,
+        siteSupervisor: initSupervisor,
+        reportDate: initDate,
+        requisitionNo: `MR-${String(existingCount + 1).padStart(3, '0')}`,
+      })
+    );
+    setPaymentDemandForm(
+      createDefaultPaymentDemandForm({
+        branchSite: cleanBranch,
+        siteSupervisor: initSupervisor,
+        reportDate: initDate,
+        serialNo: projData?.serialNo || '',
+        paymentDemandNo: `PD-${String(existingCount + 1).padStart(3, '0')}`,
+      })
+    );
     setReportStatus(projData?.reportStatus || null);
     setReviewerNotes(projData?.reviewerNotes || null);
     setActivePageFilter('ALL');
@@ -167,6 +201,7 @@ export default function FieldPortalPage() {
     setActiveDemandType('MATERIAL');
     setDemandAmount('');
     setDemandDescription('');
+    setViewingSubmittedDemand(null);
     setBanner({ type: '', text: '' });
   };
 
@@ -459,16 +494,83 @@ export default function FieldPortalPage() {
 
   const handleSelectDemandOption = (type) => {
     setActiveDemandType(type);
-    setTimeout(() => {
-      demandAmountInputRef.current?.focus();
-    }, 50);
+    if (type === 'PAYMENT') {
+      const net = parseFloat(paymentDemandForm?.netAmountDemanded);
+      const tot = parseFloat(paymentDemandForm?.totalAmountRequired);
+      if (!isNaN(net) && net > 0) setDemandAmount(String(net));
+      else if (!isNaN(tot) && tot > 0) setDemandAmount(String(tot));
+    }
+  };
+
+  const handleDownloadActiveDemandPdf = async () => {
+    setDownloadingPdf(true);
+    try {
+      if (activeDemandType === 'PAYMENT') {
+        await downloadPaymentDemandPdf(paymentDemandForm);
+      } else {
+        await downloadMaterialDemandPdf(materialDemandForm, parseFloat(demandAmount) || 0);
+      }
+    } catch (err) {
+      setBanner({ type: 'error', text: 'Demand PDF export failed: ' + err.message });
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
+  const handleDownloadSubmittedDemandPdf = async (dem) => {
+    setDownloadingPdf(true);
+    try {
+      if (dem.type === 'PAYMENT') {
+        const fallbackForm = createDefaultPaymentDemandForm({
+          branchSite: dem.branchName || branchSite,
+          siteSupervisor: dem.requestedBy || siteSupervisor,
+          reportDate: dem.createdAt ? dem.createdAt.split('T')[0] : reportDate,
+        });
+        fallbackForm.netAmountDemanded = String(dem.amount || '');
+        fallbackForm.totalAmountRequired = String(dem.amount || '');
+        fallbackForm.purposeJustification = dem.description || '';
+        await downloadPaymentDemandPdf(dem.formData || fallbackForm);
+      } else {
+        const fallbackForm = createDefaultMaterialDemandForm({
+          branchSite: dem.branchName || branchSite,
+          siteSupervisor: dem.requestedBy || siteSupervisor,
+          reportDate: dem.createdAt ? dem.createdAt.split('T')[0] : reportDate,
+        });
+        fallbackForm.purpose = dem.description || '';
+        await downloadMaterialDemandPdf(dem.formData || fallbackForm, dem.amount || 0);
+      }
+    } catch (err) {
+      setBanner({ type: 'error', text: 'Demand PDF export failed: ' + err.message });
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
   const handleSubmitDemand = async (e) => {
     e.preventDefault();
-    const amt = parseFloat(demandAmount);
-    if (isNaN(amt) || amt <= 0) {
-      setBanner({ type: 'error', text: 'Please enter a valid demand amount greater than 0.' });
+    const activeForm = activeDemandType === 'PAYMENT' ? paymentDemandForm : materialDemandForm;
+    const manualAmt = parseFloat(demandAmount);
+    const resolvedAmt =
+      !isNaN(manualAmt) && manualAmt > 0
+        ? manualAmt
+        : activeDemandType === 'PAYMENT'
+        ? parseFloat(paymentDemandForm.netAmountDemanded) ||
+          parseFloat(paymentDemandForm.totalAmountRequired) ||
+          0
+        : 0;
+
+    const hasFilledRows = (activeForm.items || []).some(
+      (it) =>
+        (it.description || '').trim() ||
+        (it.requiredQty || '').toString().trim() ||
+        (parseFloat(it.amount) || 0) > 0
+    );
+
+    if (resolvedAmt <= 0 && !hasFilledRows && !demandDescription.trim()) {
+      setBanner({
+        type: 'error',
+        text: 'Please fill at least one item in the demand form or enter a manual demand amount.',
+      });
       return;
     }
 
@@ -483,21 +585,49 @@ export default function FieldPortalPage() {
           jobMetadataId,
           branchName: branchSite.trim() || 'Project Site',
           demandType: activeDemandType,
-          amount: amt,
+          amount: resolvedAmt,
           description: demandDescription.trim(),
           siteSupervisor: siteSupervisor || user?.employeeName || '',
+          formData: activeForm,
         }),
       });
 
+      const updatedDemands = Array.isArray(res.project?.demands)
+        ? res.project.demands
+        : res.demand
+        ? [res.demand, ...demandsList]
+        : demandsList;
+
       if (res.project) {
         setJobMetadataId(res.project.jobMetadataId);
-        setDemandsList(Array.isArray(res.project.demands) ? res.project.demands : []);
+        setDemandsList(updatedDemands);
         setProjectsMap((prev) => ({
           ...prev,
           [selectedProjectKey || 'manawala']: res.project,
         }));
       } else if (res.demand) {
-        setDemandsList((prev) => [res.demand, ...prev]);
+        setDemandsList(updatedDemands);
+      }
+
+      const nextSeq = String(updatedDemands.length + 1).padStart(3, '0');
+      if (activeDemandType === 'PAYMENT') {
+        setPaymentDemandForm(
+          createDefaultPaymentDemandForm({
+            branchSite,
+            siteSupervisor: siteSupervisor || user?.employeeName || '',
+            reportDate,
+            paymentDemandNo: `PD-${nextSeq}`,
+          })
+        );
+      } else {
+        setMaterialDemandForm(
+          createDefaultMaterialDemandForm({
+            branchSite,
+            siteSupervisor: siteSupervisor || user?.employeeName || '',
+            reportDate,
+            requisitionNo: `MR-${nextSeq}`,
+          })
+        );
       }
 
       setDemandAmount('');
@@ -507,8 +637,8 @@ export default function FieldPortalPage() {
       setBanner({
         type: 'success',
         text: `${
-          activeDemandType === 'PAYMENT' ? 'Payment Demand' : 'Material Demand'
-        } of Rs. ${amt.toLocaleString()} submitted! Current status: Hold (awaiting Admin review).`,
+          activeDemandType === 'PAYMENT' ? 'Site Payment Demand Form' : 'Material Demand / Requisition Form'
+        }${resolvedAmt > 0 ? ` (Rs. ${resolvedAmt.toLocaleString()})` : ''} submitted! Status: Hold (awaiting Admin review).`,
       });
     } catch (err) {
       setBanner({
@@ -2692,7 +2822,78 @@ export default function FieldPortalPage() {
                       </div>
                     </div>
 
-                    {/* 2. MANUAL AMOUNT INPUT BOX + SUBMIT DEMAND */}
+                    {/* 2. EDITABLE OFFICIAL FES DEMAND FORM (MATERIAL REQUISITION OR SITE PAYMENT) */}
+                    <div style={{ marginBottom: 20 }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: 10,
+                          marginBottom: 10,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            letterSpacing: 0.6,
+                            color: activeDemandType === 'PAYMENT' ? '#38bdf8' : '#fbbf24',
+                          }}
+                        >
+                          2. Editable{' '}
+                          {activeDemandType === 'PAYMENT'
+                            ? 'Site Payment Demand Form'
+                            : 'Material Demand / Requisition Form'}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleDownloadActiveDemandPdf}
+                          disabled={downloadingPdf}
+                          className="nexus-btn nexus-btn-ghost"
+                          style={{
+                            padding: '6px 14px',
+                            fontSize: 12,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            color: '#38bdf8',
+                            borderColor: 'rgba(56, 189, 248, 0.35)',
+                          }}
+                        >
+                          <Download size={13} />
+                          <span>
+                            {downloadingPdf
+                              ? 'Generating PDF...'
+                              : `Download ${
+                                  activeDemandType === 'PAYMENT' ? 'Payment' : 'Material'
+                                } Demand PDF`}
+                          </span>
+                        </button>
+                      </div>
+
+                      {activeDemandType === 'PAYMENT' ? (
+                        <DemandFormSheet
+                          type="PAYMENT"
+                          formData={paymentDemandForm}
+                          onChange={setPaymentDemandForm}
+                          onSuggestedAmountChange={(val) => setDemandAmount(val)}
+                          readOnly={false}
+                        />
+                      ) : (
+                        <DemandFormSheet
+                          type="MATERIAL"
+                          formData={materialDemandForm}
+                          onChange={setMaterialDemandForm}
+                          readOnly={false}
+                        />
+                      )}
+                    </div>
+
+                    {/* 3. MANUAL AMOUNT INPUT BOX + SUBMIT DEMAND */}
                     <form
                       onSubmit={handleSubmitDemand}
                       style={{
@@ -2713,7 +2914,7 @@ export default function FieldPortalPage() {
                           marginBottom: 12,
                         }}
                       >
-                        2. Enter {activeDemandType === 'PAYMENT' ? 'Payment Demand' : 'Material Demand'} Amount Manually
+                        3. Enter Demand Amount Manually &amp; Submit
                       </div>
 
                       <div
@@ -2734,14 +2935,13 @@ export default function FieldPortalPage() {
                               marginBottom: 6,
                             }}
                           >
-                            Amount (Rs.) *
+                            Amount (PKR / Rs.)
                           </label>
                           <input
                             ref={demandAmountInputRef}
                             type="number"
-                            min="1"
+                            min="0"
                             step="any"
-                            required
                             className="nexus-input"
                             placeholder="Enter demand amount manually (e.g. 25000)"
                             value={demandAmount}
@@ -2769,7 +2969,7 @@ export default function FieldPortalPage() {
                               marginBottom: 6,
                             }}
                           >
-                            Details / Purpose (Optional)
+                            Quick Summary / Note (Optional)
                           </label>
                           <input
                             type="text"
@@ -2821,7 +3021,7 @@ export default function FieldPortalPage() {
                       </div>
                     </form>
 
-                    {/* 3. SUBMITTED DEMANDS LIST (SHOWING HOLD, ACCEPT, REJECT) */}
+                    {/* 4. SUBMITTED DEMANDS LIST (SHOWING HOLD, ACCEPT, REJECT + VIEW FORM / PDF) */}
                     <div>
                       <div
                         style={{
@@ -2859,7 +3059,7 @@ export default function FieldPortalPage() {
                             fontSize: 13,
                           }}
                         >
-                          No demands submitted for <strong>{branchSite}</strong> yet. Select <strong>Material Demand</strong> or <strong>Payment Demand</strong> above, enter an amount, and click Submit.
+                          No demands submitted for <strong>{branchSite}</strong> yet. Select <strong>Material Demand</strong> or <strong>Payment Demand</strong> above, fill the form / amount, and click Submit.
                         </div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -2926,6 +3126,28 @@ export default function FieldPortalPage() {
                                       <strong>Admin Note:</strong> {dem.adminNote}
                                     </div>
                                   )}
+
+                                  <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => setViewingSubmittedDemand(dem)}
+                                      className="nexus-btn nexus-btn-ghost"
+                                      style={{ padding: '4px 10px', fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                                    >
+                                      <Eye size={12} />
+                                      <span>View Form</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDownloadSubmittedDemandPdf(dem)}
+                                      disabled={downloadingPdf}
+                                      className="nexus-btn nexus-btn-ghost"
+                                      style={{ padding: '4px 10px', fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5, color: '#38bdf8' }}
+                                    >
+                                      <Download size={12} />
+                                      <span>Download PDF</span>
+                                    </button>
+                                  </div>
                                 </div>
 
                                 {/* STATUS PILLS: HOLD | ACCEPT | REJECT */}
@@ -2978,6 +3200,99 @@ export default function FieldPortalPage() {
                 )}
               </div>
             </div>
+
+            {/* ── MODAL TO VIEW A SUBMITTED DEMAND FORM ── */}
+            {viewingSubmittedDemand && (
+              <div
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  zIndex: 999,
+                  background: 'rgba(2, 6, 23, 0.85)',
+                  backdropFilter: 'blur(8px)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 16,
+                }}
+                onClick={() => setViewingSubmittedDemand(null)}
+              >
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    width: '100%',
+                    maxWidth: 880,
+                    maxHeight: '90vh',
+                    overflowY: 'auto',
+                    background: '#0f172a',
+                    borderRadius: 14,
+                    padding: 20,
+                    border: '1px solid rgba(255,255,255,0.15)',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: 14,
+                      flexWrap: 'wrap',
+                      gap: 10,
+                    }}
+                  >
+                    <div style={{ fontWeight: 800, fontSize: 16, color: '#f8fafc' }}>
+                      {viewingSubmittedDemand.type === 'PAYMENT'
+                        ? 'Site Payment Demand Form'
+                        : 'Material Demand / Requisition Form'}{' '}
+                      — Rs. {(parseFloat(viewingSubmittedDemand.amount) || 0).toLocaleString()}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadSubmittedDemandPdf(viewingSubmittedDemand)}
+                        className="nexus-btn nexus-btn-primary"
+                        style={{ padding: '7px 14px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
+                      >
+                        <Download size={14} />
+                        <span>Download PDF</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setViewingSubmittedDemand(null)}
+                        className="nexus-btn nexus-btn-ghost"
+                        style={{ padding: '7px 10px' }}
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <DemandFormSheet
+                    type={viewingSubmittedDemand.type}
+                    formData={
+                      viewingSubmittedDemand.formData ||
+                      (viewingSubmittedDemand.type === 'PAYMENT'
+                        ? {
+                            ...createDefaultPaymentDemandForm({
+                              branchSite: viewingSubmittedDemand.branchName || branchSite,
+                              siteSupervisor: viewingSubmittedDemand.requestedBy || siteSupervisor,
+                            }),
+                            netAmountDemanded: String(viewingSubmittedDemand.amount || ''),
+                            purposeJustification: viewingSubmittedDemand.description || '',
+                          }
+                        : {
+                            ...createDefaultMaterialDemandForm({
+                              branchSite: viewingSubmittedDemand.branchName || branchSite,
+                              siteSupervisor: viewingSubmittedDemand.requestedBy || siteSupervisor,
+                            }),
+                            purpose: viewingSubmittedDemand.description || '',
+                          })
+                    }
+                    readOnly={true}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* ── STICKY BOTTOM SAVE / SUBMIT BAR ── */}
             <div

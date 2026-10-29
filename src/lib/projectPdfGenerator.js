@@ -386,3 +386,444 @@ export async function downloadProgressReportPdf({
 
   pdf.save(`FES_Progress_Report_${branchName.replace(/\s+/g, '_')}.pdf`);
 }
+
+/**
+ * Generates an official A4 PDF for FES MATERIAL DEMAND / REQUISITION FORM (matching uploaded PDF #1)
+ */
+export async function downloadMaterialDemandPdf(formData = {}, manualAmount = 0) {
+  const logoSrc =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/fes-logo-cropped.png`
+      : '/fes-logo-cropped.png';
+
+  const items =
+    Array.isArray(formData.items) && formData.items.length > 0
+      ? formData.items
+      : Array.from({ length: 8 }, (_, idx) => ({
+          srNo: String(idx + 1),
+          description: '',
+          requiredQty: '',
+          unit: '',
+          availableStock: '',
+        }));
+
+  let rowsHtml = '';
+  items.forEach((it, idx) => {
+    rowsHtml += `
+      <tr style="height: 31px; border-bottom: 1px solid #cbd5e1; background: #ffffff;">
+        <td style="padding: 5px 6px; text-align: center; width: 52px; border-right: 1px solid #cbd5e1;">${escapeHtml(it.srNo || idx + 1)}</td>
+        <td style="padding: 5px 10px; border-right: 1px solid #cbd5e1;">${escapeHtml(it.description || '')}</td>
+        <td style="padding: 5px 8px; text-align: center; width: 105px; border-right: 1px solid #cbd5e1;">${escapeHtml(it.requiredQty || '')}</td>
+        <td style="padding: 5px 8px; text-align: center; width: 78px; border-right: 1px solid #cbd5e1;">${escapeHtml(it.unit || '')}</td>
+        <td style="padding: 5px 8px; text-align: center; width: 112px;">${escapeHtml(it.availableStock || '')}</td>
+      </tr>
+    `;
+  });
+
+  const pageEl = document.createElement('div');
+  pageEl.style.width = '794px';
+  pageEl.style.minHeight = '1123px';
+  pageEl.style.background = '#ffffff';
+  pageEl.style.color = '#0f172a';
+  pageEl.style.fontFamily = 'Arial, Helvetica, sans-serif';
+  pageEl.style.fontSize = '11.5px';
+  pageEl.style.boxSizing = 'border-box';
+  pageEl.style.padding = '34px 48px 28px 48px';
+  pageEl.style.display = 'flex';
+  pageEl.style.flexDirection = 'column';
+  pageEl.style.justifyContent = 'space-between';
+  pageEl.style.position = 'fixed';
+  pageEl.style.top = '-99999px';
+  pageEl.style.left = '-99999px';
+
+  pageEl.innerHTML = `
+    <div>
+      <!-- Official FES Header -->
+      <div style="display: flex; align-items: center; gap: 24px; margin-bottom: 18px;">
+        <div style="width: 115px; height: 115px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+          <img src="${logoSrc}" alt="FES" crossorigin="anonymous" style="width: 112px; height: 112px; object-fit: contain;" />
+        </div>
+        <div style="flex: 1; text-align: center; padding-right: 20px;">
+          <div style="font-size: 25px; font-weight: 800; color: #16325c; letter-spacing: 0.6px;">
+            FAST ENGINEERING SOLUTIONS
+          </div>
+          <div style="font-size: 14.5px; font-weight: 800; color: #cc1f1f; margin-top: 5px; letter-spacing: 0.4px;">
+            MATERIAL DEMAND / REQUISITION FORM
+          </div>
+        </div>
+      </div>
+
+      <!-- Metadata Table -->
+      <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; margin-bottom: 18px; font-size: 11.5px;">
+        <tbody>
+          <tr style="background: #f8fafc; border-bottom: 1px solid #cbd5e1;">
+            <td style="padding: 8px 10px; width: 52%; border-right: 1px solid #cbd5e1;">
+              <strong>Requisition No.:</strong>
+              <span style="display: inline-block; min-width: 190px; border-bottom: 1px solid #475569; padding: 0 6px 1px 6px; margin-left: 4px;">${escapeHtml(formData.requisitionNo || '')}</span>
+            </td>
+            <td style="padding: 8px 10px; width: 48%;">
+              <strong>Date:</strong>
+              <span style="display: inline-block; min-width: 155px; border-bottom: 1px solid #475569; padding: 0 6px 1px 6px; margin-left: 4px;">${escapeHtml(formData.date || '')}</span>
+            </td>
+          </tr>
+          <tr style="background: #ffffff; border-bottom: 1px solid #cbd5e1;">
+            <td colspan="2" style="padding: 8px 10px;">
+              <strong>Project / Branch Name:</strong>
+              <span style="display: inline-block; min-width: 340px; border-bottom: 1px solid #475569; padding: 0 6px 1px 6px; margin-left: 4px;">${escapeHtml(formData.projectBranchName || '')}</span>
+            </td>
+          </tr>
+          <tr style="background: #f8fafc; border-bottom: 1px solid #cbd5e1;">
+            <td colspan="2" style="padding: 8px 10px;">
+              <strong>Site Location:</strong>
+              <span style="display: inline-block; min-width: 390px; border-bottom: 1px solid #475569; padding: 0 6px 1px 6px; margin-left: 4px;">${escapeHtml(formData.siteLocation || '')}</span>
+            </td>
+          </tr>
+          <tr style="background: #ffffff;">
+            <td style="padding: 8px 10px; border-right: 1px solid #cbd5e1;">
+              <strong>Requested By:</strong>
+              <span style="display: inline-block; min-width: 190px; border-bottom: 1px solid #475569; padding: 0 6px 1px 6px; margin-left: 4px;">${escapeHtml(formData.requestedBy || '')}</span>
+            </td>
+            <td style="padding: 8px 10px;">
+              <strong>Required Delivery Date:</strong>
+              <span style="display: inline-block; min-width: 115px; border-bottom: 1px solid #475569; padding: 0 6px 1px 6px; margin-left: 4px;">${escapeHtml(formData.requiredDeliveryDate || '')}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- MATERIAL DETAILS Heading & Table -->
+      <div style="font-size: 13px; font-weight: 800; color: #16325c; margin-bottom: 6px; letter-spacing: 0.3px;">
+        MATERIAL DETAILS
+      </div>
+
+      <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; margin-bottom: 16px; font-size: 11px;">
+        <thead>
+          <tr style="background: #16325c; color: #ffffff; font-weight: 700;">
+            <th style="padding: 8px 6px; text-align: center; width: 52px; border-right: 1px solid #335280;">Sr. No.</th>
+            <th style="padding: 8px 10px; text-align: left; border-right: 1px solid #335280;">Material Description / Specification</th>
+            <th style="padding: 8px 8px; text-align: center; width: 105px; border-right: 1px solid #335280;">Required Qty.</th>
+            <th style="padding: 8px 8px; text-align: center; width: 78px; border-right: 1px solid #335280;">Unit</th>
+            <th style="padding: 8px 8px; text-align: center; width: 112px;">Available Stock</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+
+      <!-- Purpose & Remarks Table -->
+      <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; margin-bottom: 18px; font-size: 11.5px;">
+        <tbody>
+          <tr style="background: #f1f5f9; border-bottom: 1px solid #cbd5e1;">
+            <td style="padding: 6px 10px; font-weight: 700;">Purpose / Work Description:</td>
+          </tr>
+          <tr style="background: #ffffff; border-bottom: 1px solid #cbd5e1; height: 34px;">
+            <td style="padding: 6px 10px;">${escapeHtml(formData.purpose || '')}</td>
+          </tr>
+          <tr style="background: #f1f5f9; border-bottom: 1px solid #cbd5e1;">
+            <td style="padding: 6px 10px; font-weight: 700;">
+              Remarks:${Number(manualAmount) > 0 ? ` &nbsp; (Estimated Material Amount: Rs. ${Number(manualAmount).toLocaleString()})` : ''}
+            </td>
+          </tr>
+          <tr style="background: #ffffff; height: 34px;">
+            <td style="padding: 6px 10px;">${escapeHtml(formData.remarks || '')}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Signatures Table -->
+      <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; font-size: 11.5px;">
+        <thead>
+          <tr style="background: #e8eff7; border-bottom: 1px solid #cbd5e1; color: #0f172a;">
+            <th style="padding: 7px 10px; text-align: left; width: 33.33%; border-right: 1px solid #cbd5e1;">Requested By</th>
+            <th style="padding: 7px 10px; text-align: left; width: 33.33%; border-right: 1px solid #cbd5e1;">Checked By</th>
+            <th style="padding: 7px 10px; text-align: left; width: 33.33%;">Approved By</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="height: 32px; border-bottom: 1px solid #cbd5e1; background: #ffffff;">
+            <td style="padding: 6px 10px; border-right: 1px solid #cbd5e1;">${escapeHtml(formData.requestedByName || '')}</td>
+            <td style="padding: 6px 10px; border-right: 1px solid #cbd5e1;">${escapeHtml(formData.checkedByName || '')}</td>
+            <td style="padding: 6px 10px;">${escapeHtml(formData.approvedByName || '')}</td>
+          </tr>
+          <tr style="height: 30px; background: #ffffff;">
+            <td style="padding: 6px 10px; border-right: 1px solid #cbd5e1;">
+              Signature: <span style="display: inline-block; min-width: 130px; border-bottom: 1px solid #475569;">${escapeHtml(formData.requestedBySign || '')}</span>
+            </td>
+            <td style="padding: 6px 10px; border-right: 1px solid #cbd5e1;">
+              Signature: <span style="display: inline-block; min-width: 130px; border-bottom: 1px solid #475569;">${escapeHtml(formData.checkedBySign || '')}</span>
+            </td>
+            <td style="padding: 6px 10px;">
+              Signature: <span style="display: inline-block; min-width: 130px; border-bottom: 1px solid #475569;">${escapeHtml(formData.approvedBySign || '')}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align: center; font-size: 10.5px; color: #64748b; padding-top: 12px;">
+      Construction &bull; Civil Works &bull; Electrical Works &bull; Maintenance
+    </div>
+  `;
+
+  document.body.appendChild(pageEl);
+  try {
+    const canvas = await html2canvas(pageEl, { scale: 2, useCORS: true });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const renderedHeight = Math.min(pdfHeight, (canvas.height * pdfWidth) / canvas.width);
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, renderedHeight);
+    const branchSlug = (formData.projectBranchName || 'Site').replace(/\s+/g, '_');
+    pdf.save(`FES_Material_Demand_${branchSlug}.pdf`);
+  } finally {
+    document.body.removeChild(pageEl);
+  }
+}
+
+/**
+ * Generates an official A4 PDF for FES SITE PAYMENT DEMAND FORM (matching uploaded PDF #2)
+ */
+export async function downloadPaymentDemandPdf(formData = {}) {
+  const logoSrc =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/fes-logo-cropped.png`
+      : '/fes-logo-cropped.png';
+
+  const items =
+    Array.isArray(formData.items) && formData.items.length > 0
+      ? formData.items
+      : Array.from({ length: 6 }, (_, idx) => ({
+          srNo: String(idx + 1),
+          description: '',
+          amount: '',
+          remarks: '',
+        }));
+
+  let rowsHtml = '';
+  items.forEach((it, idx) => {
+    const amtNum = parseFloat(it.amount);
+    const amtStr = !isNaN(amtNum) && amtNum > 0 ? amtNum.toLocaleString() : escapeHtml(it.amount || '');
+    rowsHtml += `
+      <tr style="height: 30px; border-bottom: 1px solid #cbd5e1; background: #ffffff;">
+        <td style="padding: 5px 6px; text-align: center; width: 48px; border-right: 1px solid #cbd5e1;">${escapeHtml(it.srNo || idx + 1)}</td>
+        <td style="padding: 5px 10px; border-right: 1px solid #cbd5e1;">${escapeHtml(it.description || '')}</td>
+        <td style="padding: 5px 10px; text-align: right; width: 135px; border-right: 1px solid #cbd5e1; font-weight: 700;">${amtStr}</td>
+        <td style="padding: 5px 10px; width: 165px;">${escapeHtml(it.remarks || '')}</td>
+      </tr>
+    `;
+  });
+
+  const docs = formData.supportingDocs || {};
+  const box = (checked) =>
+    checked
+      ? `<span style="display:inline-block;width:11px;height:11px;background:#0f172a;color:#fff;font-size:9px;line-height:11px;text-align:center;margin-right:4px;">&#10003;</span>`
+      : `<span style="display:inline-block;width:11px;height:11px;border:1.2px solid #0f172a;margin-right:4px;vertical-align:middle;"></span>`;
+
+  const fmtAmt = (val) => {
+    const n = parseFloat(val);
+    if (!isNaN(n) && val !== '' && val !== null && val !== undefined) {
+      return `Rs. ${n.toLocaleString()}`;
+    }
+    return escapeHtml(val || '');
+  };
+
+  const pageEl = document.createElement('div');
+  pageEl.style.width = '794px';
+  pageEl.style.minHeight = '1123px';
+  pageEl.style.background = '#ffffff';
+  pageEl.style.color = '#0f172a';
+  pageEl.style.fontFamily = 'Arial, Helvetica, sans-serif';
+  pageEl.style.fontSize = '11.5px';
+  pageEl.style.boxSizing = 'border-box';
+  pageEl.style.padding = '30px 48px 24px 48px';
+  pageEl.style.display = 'flex';
+  pageEl.style.flexDirection = 'column';
+  pageEl.style.justifyContent = 'space-between';
+  pageEl.style.position = 'fixed';
+  pageEl.style.top = '-99999px';
+  pageEl.style.left = '-99999px';
+
+  pageEl.innerHTML = `
+    <div>
+      <!-- Official FES Header -->
+      <div style="display: flex; align-items: center; gap: 24px; margin-bottom: 16px;">
+        <div style="width: 112px; height: 112px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+          <img src="${logoSrc}" alt="FES" crossorigin="anonymous" style="width: 108px; height: 108px; object-fit: contain;" />
+        </div>
+        <div style="flex: 1; text-align: center; padding-right: 20px;">
+          <div style="font-size: 25px; font-weight: 800; color: #16325c; letter-spacing: 0.6px;">
+            FAST ENGINEERING SOLUTIONS
+          </div>
+          <div style="font-size: 14.5px; font-weight: 800; color: #cc1f1f; margin-top: 5px; letter-spacing: 0.4px;">
+            SITE PAYMENT DEMAND FORM
+          </div>
+        </div>
+      </div>
+
+      <!-- Metadata 4x2 Table -->
+      <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; margin-bottom: 16px; font-size: 11.5px;">
+        <tbody>
+          <tr style="background: #f8fafc; border-bottom: 1px solid #cbd5e1;">
+            <td style="padding: 7px 10px; width: 52%; border-right: 1px solid #cbd5e1;">
+              <strong>Payment Demand No.:</strong>
+              <span style="display: inline-block; min-width: 160px; border-bottom: 1px solid #475569; padding: 0 6px 1px 6px; margin-left: 4px;">${escapeHtml(formData.paymentDemandNo || '')}</span>
+            </td>
+            <td style="padding: 7px 10px; width: 48%;">
+              <strong>Date:</strong>
+              <span style="display: inline-block; min-width: 155px; border-bottom: 1px solid #475569; padding: 0 6px 1px 6px; margin-left: 4px;">${escapeHtml(formData.date || '')}</span>
+            </td>
+          </tr>
+          <tr style="background: #ffffff; border-bottom: 1px solid #cbd5e1;">
+            <td style="padding: 7px 10px; border-right: 1px solid #cbd5e1;">
+              <strong>Project / Site Name:</strong>
+              <span style="display: inline-block; min-width: 175px; border-bottom: 1px solid #475569; padding: 0 6px 1px 6px; margin-left: 4px;">${escapeHtml(formData.projectSiteName || '')}</span>
+            </td>
+            <td style="padding: 7px 10px;">
+              <strong>Site Location:</strong>
+              <span style="display: inline-block; min-width: 165px; border-bottom: 1px solid #475569; padding: 0 6px 1px 6px; margin-left: 4px;">${escapeHtml(formData.siteLocation || '')}</span>
+            </td>
+          </tr>
+          <tr style="background: #f8fafc; border-bottom: 1px solid #cbd5e1;">
+            <td style="padding: 7px 10px; border-right: 1px solid #cbd5e1;">
+              <strong>Client / Bank:</strong>
+              <span style="display: inline-block; min-width: 210px; border-bottom: 1px solid #475569; padding: 0 6px 1px 6px; margin-left: 4px;">${escapeHtml(formData.clientBank || '')}</span>
+            </td>
+            <td style="padding: 7px 10px;">
+              <strong>Branch / Ticket No.:</strong>
+              <span style="display: inline-block; min-width: 135px; border-bottom: 1px solid #475569; padding: 0 6px 1px 6px; margin-left: 4px;">${escapeHtml(formData.branchTicketNo || '')}</span>
+            </td>
+          </tr>
+          <tr style="background: #ffffff;">
+            <td style="padding: 7px 10px; border-right: 1px solid #cbd5e1;">
+              <strong>Site In-Charge:</strong>
+              <span style="display: inline-block; min-width: 195px; border-bottom: 1px solid #475569; padding: 0 6px 1px 6px; margin-left: 4px;">${escapeHtml(formData.siteInCharge || '')}</span>
+            </td>
+            <td style="padding: 7px 10px;">
+              <strong>Contact No.:</strong>
+              <span style="display: inline-block; min-width: 170px; border-bottom: 1px solid #475569; padding: 0 6px 1px 6px; margin-left: 4px;">${escapeHtml(formData.contactNo || '')}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- PAYMENT REQUIREMENT DETAILS -->
+      <div style="font-size: 13px; font-weight: 800; color: #16325c; margin-bottom: 6px; letter-spacing: 0.3px;">
+        PAYMENT REQUIREMENT DETAILS
+      </div>
+
+      <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; margin-bottom: 12px; font-size: 11px;">
+        <thead>
+          <tr style="background: #16325c; color: #ffffff; font-weight: 700;">
+            <th style="padding: 8px 6px; text-align: center; width: 48px; border-right: 1px solid #335280;">Sr.</th>
+            <th style="padding: 8px 10px; text-align: left; border-right: 1px solid #335280;">Description / Purpose</th>
+            <th style="padding: 8px 10px; text-align: right; width: 135px; border-right: 1px solid #335280;">Amount (PKR)</th>
+            <th style="padding: 8px 10px; text-align: left; width: 165px;">Remarks</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+
+      <!-- 4-Row Financial Summary Box -->
+      <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; margin-bottom: 12px; font-size: 11.5px;">
+        <tbody>
+          <tr style="background: #f8fafc; border-bottom: 1px solid #cbd5e1;">
+            <td style="padding: 6px 10px;">
+              <strong>Total Amount Required (PKR):</strong> &nbsp; <span>${fmtAmt(formData.totalAmountRequired)}</span>
+            </td>
+          </tr>
+          <tr style="background: #ffffff; border-bottom: 1px solid #cbd5e1;">
+            <td style="padding: 6px 10px;">
+              <strong>Amount Already Issued / Available (PKR):</strong> &nbsp; <span>${fmtAmt(formData.amountAlreadyIssued)}</span>
+            </td>
+          </tr>
+          <tr style="background: #f8fafc; border-bottom: 1px solid #cbd5e1;">
+            <td style="padding: 6px 10px;">
+              <strong>Net Amount Demanded (PKR):</strong> &nbsp; <strong style="color: #16325c;">${fmtAmt(formData.netAmountDemanded)}</strong>
+            </td>
+          </tr>
+          <tr style="background: #ffffff;">
+            <td style="padding: 6px 10px;">
+              <strong>Amount in Words:</strong> &nbsp; <span>${escapeHtml(formData.amountInWords || '')}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Purpose & Supporting Documents -->
+      <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; margin-bottom: 14px; font-size: 11.5px;">
+        <tbody>
+          <tr style="background: #f1f5f9; border-bottom: 1px solid #cbd5e1;">
+            <td style="padding: 6px 10px; font-weight: 700;">Purpose / Justification for Payment:</td>
+          </tr>
+          <tr style="background: #ffffff; border-bottom: 1px solid #cbd5e1; height: 32px;">
+            <td style="padding: 6px 10px;">${escapeHtml(formData.purposeJustification || '')}</td>
+          </tr>
+          <tr style="background: #f8fafc;">
+            <td style="padding: 7px 10px;">
+              <strong>Supporting Documents Attached:</strong> &nbsp;
+              ${box(docs.estimateBoq)} Estimate/BOQ &nbsp;&nbsp;
+              ${box(docs.invoice)} Invoice &nbsp;&nbsp;
+              ${box(docs.receipts)} Receipts &nbsp;&nbsp;
+              ${box(docs.other)} Other:
+              <span style="display: inline-block; min-width: 90px; border-bottom: 1px solid #475569; padding: 0 4px;">${escapeHtml(docs.otherText || '')}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Signatures Table -->
+      <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; font-size: 11.5px;">
+        <thead>
+          <tr style="background: #e8eff7; border-bottom: 1px solid #cbd5e1; color: #0f172a;">
+            <th style="padding: 7px 10px; text-align: left; width: 33.33%; border-right: 1px solid #cbd5e1;">Requested By</th>
+            <th style="padding: 7px 10px; text-align: left; width: 33.33%; border-right: 1px solid #cbd5e1;">Verified By</th>
+            <th style="padding: 7px 10px; text-align: left; width: 33.33%;">Approved By</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="height: 28px; border-bottom: 1px solid #cbd5e1; background: #ffffff;">
+            <td style="padding: 5px 10px; border-right: 1px solid #cbd5e1;">${escapeHtml(formData.requestedByName || '')}</td>
+            <td style="padding: 5px 10px; border-right: 1px solid #cbd5e1;">${escapeHtml(formData.verifiedByName || '')}</td>
+            <td style="padding: 5px 10px;">${escapeHtml(formData.approvedByName || '')}</td>
+          </tr>
+          <tr style="height: 28px; background: #ffffff;">
+            <td style="padding: 5px 10px; border-right: 1px solid #cbd5e1;">
+              Name / Signature: <span style="display: inline-block; min-width: 105px; border-bottom: 1px solid #475569;">${escapeHtml(formData.requestedBySign || '')}</span>
+            </td>
+            <td style="padding: 5px 10px; border-right: 1px solid #cbd5e1;">
+              Name / Signature: <span style="display: inline-block; min-width: 105px; border-bottom: 1px solid #475569;">${escapeHtml(formData.verifiedBySign || '')}</span>
+            </td>
+            <td style="padding: 5px 10px;">
+              Name / Signature: <span style="display: inline-block; min-width: 105px; border-bottom: 1px solid #475569;">${escapeHtml(formData.approvedBySign || '')}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align: center; font-size: 10.5px; color: #64748b; padding-top: 10px;">
+      For site-related material, labour, transport, subcontractor and other project expenses.
+    </div>
+  `;
+
+  document.body.appendChild(pageEl);
+  try {
+    const canvas = await html2canvas(pageEl, { scale: 2, useCORS: true });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const renderedHeight = Math.min(pdfHeight, (canvas.height * pdfWidth) / canvas.width);
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, renderedHeight);
+    const branchSlug = (formData.projectSiteName || 'Site').replace(/\s+/g, '_');
+    pdf.save(`FES_Payment_Demand_${branchSlug}.pdf`);
+  } finally {
+    document.body.removeChild(pageEl);
+  }
+}

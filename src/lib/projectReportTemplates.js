@@ -599,3 +599,163 @@ export const PROJECT_EXPENSE_TEMPLATE = [
     ],
   },
 ];
+
+/**
+ * Official FES Material Demand / Requisition Form default state (8 rows matching PDF #1)
+ */
+export function createDefaultMaterialDemandForm({
+  branchSite = '',
+  siteSupervisor = '',
+  reportDate = '',
+  requisitionNo = '',
+} = {}) {
+  return {
+    requisitionNo: requisitionNo || '',
+    date: reportDate || new Date().toISOString().split('T')[0],
+    projectBranchName: branchSite || '',
+    siteLocation: branchSite || '',
+    requestedBy: siteSupervisor || '',
+    requiredDeliveryDate: '',
+    items: Array.from({ length: 8 }, (_, idx) => ({
+      srNo: String(idx + 1),
+      description: '',
+      requiredQty: '',
+      unit: '',
+      availableStock: '',
+    })),
+    purpose: '',
+    remarks: '',
+    requestedByName: siteSupervisor || '',
+    requestedBySign: '',
+    checkedByName: '',
+    checkedBySign: '',
+    approvedByName: '',
+    approvedBySign: '',
+  };
+}
+
+/**
+ * Official FES Site Payment Demand Form default state (6 rows matching PDF #2)
+ */
+export function createDefaultPaymentDemandForm({
+  branchSite = '',
+  siteSupervisor = '',
+  reportDate = '',
+  serialNo = '',
+  paymentDemandNo = '',
+} = {}) {
+  return {
+    paymentDemandNo: paymentDemandNo || '',
+    date: reportDate || new Date().toISOString().split('T')[0],
+    projectSiteName: branchSite || '',
+    siteLocation: branchSite || '',
+    clientBank: '',
+    branchTicketNo: serialNo ? String(serialNo) : '',
+    siteInCharge: siteSupervisor || '',
+    contactNo: '',
+    items: Array.from({ length: 6 }, (_, idx) => ({
+      srNo: String(idx + 1),
+      description: '',
+      amount: '',
+      remarks: '',
+    })),
+    totalAmountRequired: '',
+    amountAlreadyIssued: '',
+    netAmountDemanded: '',
+    amountInWords: '',
+    purposeJustification: '',
+    supportingDocs: {
+      estimateBoq: false,
+      invoice: false,
+      receipts: false,
+      other: false,
+      otherText: '',
+    },
+    requestedByName: siteSupervisor || '',
+    requestedBySign: '',
+    verifiedByName: '',
+    verifiedBySign: '',
+    approvedByName: '',
+    approvedBySign: '',
+  };
+}
+
+/**
+ * Converts a positive number into PKR words (e.g. 25000 -> "Twenty Five Thousand Rupees Only")
+ */
+export function numberToPkrWords(num) {
+  const n = Math.round(Number(num) || 0);
+  if (n <= 0) return '';
+
+  const ones = [
+    '',
+    'One',
+    'Two',
+    'Three',
+    'Four',
+    'Five',
+    'Six',
+    'Seven',
+    'Eight',
+    'Nine',
+    'Ten',
+    'Eleven',
+    'Twelve',
+    'Thirteen',
+    'Fourteen',
+    'Fifteen',
+    'Sixteen',
+    'Seventeen',
+    'Eighteen',
+    'Nineteen',
+  ];
+  const tens = [
+    '',
+    '',
+    'Twenty',
+    'Thirty',
+    'Forty',
+    'Fifty',
+    'Sixty',
+    'Seventy',
+    'Eighty',
+    'Ninety',
+  ];
+
+  const twoDigits = (val) => {
+    if (val < 20) return ones[val];
+    return `${tens[Math.floor(val / 10)]}${val % 10 ? ' ' + ones[val % 10] : ''}`;
+  };
+
+  const threeDigits = (val) => {
+    if (val < 100) return twoDigits(val);
+    return `${ones[Math.floor(val / 100)]} Hundred${val % 100 ? ' ' + twoDigits(val % 100) : ''}`;
+  };
+
+  const parts = [];
+  let rem = n;
+
+  const crore = Math.floor(rem / 10000000);
+  if (crore > 0) {
+    parts.push(`${threeDigits(crore)} Crore`);
+    rem %= 10000000;
+  }
+
+  const lakh = Math.floor(rem / 100000);
+  if (lakh > 0) {
+    parts.push(`${twoDigits(lakh)} Lakh`);
+    rem %= 100000;
+  }
+
+  const thousand = Math.floor(rem / 1000);
+  if (thousand > 0) {
+    parts.push(`${twoDigits(thousand)} Thousand`);
+    rem %= 1000;
+  }
+
+  if (rem > 0) {
+    parts.push(threeDigits(rem));
+  }
+
+  return `${parts.join(' ')} Rupees Only`;
+}

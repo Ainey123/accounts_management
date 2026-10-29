@@ -102,7 +102,7 @@ export default function LoginPage() {
         </h1>
         <p style={{ fontSize: 13, color: '#64748b', marginTop: 8 }}>
           {activeTab === 'FIELD_EMPLOYEE'
-            ? 'Field staff assigned jobs & project reports access'
+            ? 'Field staff project dashboard & site progress sheet access'
             : activeTab === 'EMPLOYEE'
             ? 'Select your batch and enter PIN to access office operations'
             : 'Enter master admin PIN to access command center'}

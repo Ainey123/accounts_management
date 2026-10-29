@@ -1,408 +1,558 @@
 /**
- * Accurate digital templates recreating:
- * 1. FES_Expens_Report_All_Pages.pdf (Project Expense Report - 11 Sections)
- * 2. progress report UBL Bank branch (Daily / Project Progress Report - 9 Sections)
+ * Official Fast Engineering Solutions (FES) Templates:
+ * 1. FES_PROJECT_SITES — Canonical Field Portal Project Options
+ * 2. PROJECT_PROGRESS_TEMPLATE — Exact 9-Page Construction Site / Bank Branch Progress Report
+ * 3. PROJECT_EXPENSE_TEMPLATE — Construction Expense Categories (retained for office/modal compatibility)
  */
 
-export const PROJECT_EXPENSE_TEMPLATE = [
+export const FES_PROJECT_SITES = [
   {
-    id: 1,
-    title: 'Type of work',
-    subtitle: 'Civil & Structural Works',
-    items: [
-      { code: 'a', name: 'Cement', qty: '', amount: '', others: '' },
-      { code: 'b', name: 'sand', qty: '', amount: '', others: '' },
-      { code: 'c', name: 'Agerid', qty: '', amount: '', others: '' },
-      { code: 'd', name: 'Rainforsment', qty: '', amount: '', others: '' },
-      { code: 'e', name: 'Bitumen', qty: '', amount: '', others: '' },
-      { code: 'f', name: 'Tile Bound', qty: '', amount: '', others: '' },
-      { code: 'g', name: 'Tuff pavers', qty: '', amount: '', others: '' },
-      { code: 'h', name: 'Marble of Branch', qty: '', amount: '', others: '' },
-      { code: 'l', name: 'Layber cost', qty: '', amount: '', others: '' },
-      { code: 'j', name: '*Others Expens*', qty: '', amount: '', others: '' },
-      { code: 'k', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'l_custom', label: 'l', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'm', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'n', name: '', qty: '', amount: '', others: '', isCustom: true },
-    ],
+    key: 'manawala',
+    label: 'Manawala',
+    branchName: 'Manawala',
+    subtitle: 'Construction Site / Branch Project',
   },
   {
-    id: 2,
-    title: 'Electric work',
-    subtitle: 'Electrical Wiring & Power Fittings',
-    items: [
-      { code: 'a', name: 'Main Cable', qty: '', amount: '', others: '' },
-      { code: 'b', name: 'D.P,s of Branch', qty: '', amount: '', others: '' },
-      { code: 'c', name: 'Material of Conduit pipe', qty: '', amount: '', others: '' },
-      { code: 'd', name: 'Light Expens', qty: '', amount: '', others: '' },
-      { code: 'e', name: 'Layber cost', qty: '', amount: '', others: '' },
-      { code: 'f', name: 'Switch plates Expens', qty: '', amount: '', others: '' },
-      { code: 'g', name: 'Tecnohnology Boxes', qty: '', amount: '', others: '' },
-      { code: 'h', name: 'wires Expens', qty: '', amount: '', others: '' },
-      { code: 'i', name: 'Rent Cost', qty: '', amount: '', others: '' },
-      { code: 'j', name: 'Others Expens', qty: '', amount: '', others: '' },
-      { code: 'k', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'L', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'M', name: '', qty: '', amount: '', others: '', isCustom: true },
-    ],
+    key: 'kanjwahl',
+    label: 'Kanjwahl',
+    branchName: 'Kanjwahl',
+    subtitle: 'Construction Site / Branch Project',
   },
   {
-    id: 3,
-    title: 'plumbing work',
-    subtitle: 'PPRC & Sanitary Installations',
-    items: [
-      { code: 'a', name: 'pprc pipe', qty: '', amount: '', others: '' },
-      { code: 'b', name: 'water Tank', qty: '', amount: '', others: '' },
-      { code: 'c', name: 'pprc Fiting', qty: '', amount: '', others: '' },
-      { code: 'd', name: 'santariy items', qty: '', amount: '', others: '' },
-      { code: 'e', name: 'water pump', qty: '', amount: '', others: '' },
-      { code: 'f', name: 'Layber cost', qty: '', amount: '', others: '' },
-      { code: 'g', name: 'Others Expens', qty: '', amount: '', others: '' },
-      { code: 'h', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'i', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'j', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'k', name: '', qty: '', amount: '', others: '', isCustom: true },
-    ],
+    key: 'muradshah',
+    label: 'Muradshah',
+    branchName: 'Muradshah',
+    subtitle: 'Construction Site / Branch Project',
   },
   {
-    id: 4,
-    title: 'HVAC system',
-    subtitle: 'Air Conditioning & Ventilation',
-    items: [
-      { code: 'a', name: 'Copper pipe', qty: '', amount: '', others: '' },
-      { code: 'b', name: 'Wires of control', qty: '', amount: '', others: '' },
-      { code: 'c', name: 'Layber cost', qty: '', amount: '', others: '' },
-      { code: 'd', name: 'water Drain piping', qty: '', amount: '', others: '' },
-      { code: 'e', name: 'Braketcket of AC units', qty: '', amount: '', others: '' },
-      { code: 'f', name: 'Others Expens', qty: '', amount: '', others: '' },
-      { code: 'g', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'h', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'i', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'j', name: '', qty: '', amount: '', others: '', isCustom: true },
-    ],
+    key: 'tordywala',
+    label: 'Tordywala',
+    branchName: 'Tordywala',
+    subtitle: 'Construction Site / Branch Project',
   },
   {
-    id: 5,
-    title: 'IT work',
-    subtitle: 'Networking, Rack & Cabling',
-    items: [
-      { code: 'a', name: 'Cate 6 Cable', qty: '', amount: '', others: '' },
-      { code: 'b', name: 'IT Rack', qty: '', amount: '', others: '' },
-      { code: 'c', name: 'I/o Rj 45', qty: '', amount: '', others: '' },
-      { code: 'd', name: 'p d.u', qty: '', amount: '', others: '' },
-      { code: 'e', name: 'patch Panel', qty: '', amount: '', others: '' },
-      { code: 'f', name: 'others Expens', qty: '', amount: '', others: '' },
-      { code: 'g', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'h', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'I', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'j', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'k', name: '', qty: '', amount: '', others: '', isCustom: true },
-    ],
-  },
-  {
-    id: 6,
-    title: 'Wood work',
-    subtitle: 'Counters, Cabinets & Partitions',
-    items: [
-      { code: 'a', name: 'Sheets Al-Noor', qty: '', amount: '', others: '' },
-      { code: 'b', name: 'Headwear of Branch', qty: '', amount: '', others: '' },
-      { code: 'c', name: 'Layber cost', qty: '', amount: '', others: '' },
-      { code: 'd', name: 'Rent Cost', qty: '', amount: '', others: '' },
-      { code: 'e', name: 'partel Wood 2"', qty: '', amount: '', others: '' },
-      { code: 'f', name: 'others Expens', qty: '', amount: '', others: '' },
-      { code: 'g', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'h', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'I', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'j', name: '', qty: '', amount: '', others: '', isCustom: true },
-    ],
-  },
-  {
-    id: 7,
-    title: 'Ceiling work',
-    subtitle: 'Gypsum & Cement Board False Ceilings',
-    items: [
-      { code: 'a', name: 'Gaysam ceiling', qty: '', amount: '', others: '' },
-      { code: 'b', name: "2'x 2' penel", qty: '', amount: '', others: '' },
-      { code: 'c', name: 'Cement board Ceiling', qty: '', amount: '', others: '' },
-      { code: 'd', name: 'Layber cost', qty: '', amount: '', others: '' },
-      { code: 'e', name: 'Rent Cost', qty: '', amount: '', others: '' },
-      { code: 'f', name: 'others Expens', qty: '', amount: '', others: '' },
-      { code: 'g', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'h', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'I', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'j', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'k', name: '', qty: '', amount: '', others: '', isCustom: true },
-    ],
-  },
-  {
-    id: 8,
-    title: 'Glass work',
-    subtitle: 'Tempered Glass Doors & Windows',
-    items: [
-      { code: 'a', name: 'Locking mirror', qty: '', amount: '', others: '' },
-      { code: 'b', name: 'Doors of Branch', qty: '', amount: '', others: '' },
-      { code: 'c', name: 'Front Window', qty: '', amount: '', others: '' },
-      { code: 'd', name: 'glass Fixed', qty: '', amount: '', others: '' },
-      { code: 'e', name: 'layLayber cost', qty: '', amount: '', others: '' },
-      { code: 'f', name: 'others Expens', qty: '', amount: '', others: '' },
-      { code: 'g', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'h', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'I', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'j', name: '', qty: '', amount: '', others: '', isCustom: true },
-    ],
-  },
-  {
-    id: 9,
-    title: 'Security work',
-    subtitle: 'CCTV & Alarm Cabling',
-    items: [
-      { code: 'a', name: '5 pair cable', qty: '', amount: '', others: '' },
-      { code: 'b', name: '2 pair Cable', qty: '', amount: '', others: '' },
-      { code: 'c', name: 'cate 6 Cable', qty: '', amount: '', others: '' },
-      { code: 'd', name: '12"by 12" D.p', qty: '', amount: '', others: '' },
-      { code: 'e', name: 'pipe 3/4 Conduit', qty: '', amount: '', others: '' },
-      { code: 'f', name: 'others Expens', qty: '', amount: '', others: '' },
-      { code: 'g', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'h', name: '', qty: '', amount: '', others: '', isCustom: true },
-    ],
-  },
-  {
-    id: 10,
-    title: 'pint work',
-    subtitle: 'Wall Primer & Paint Coating',
-    items: [
-      { code: 'a', name: 'Ici pint Expens', qty: '', amount: '', others: '' },
-      { code: 'b', name: 'Rent Cost', qty: '', amount: '', others: '' },
-      { code: 'c', name: 'Layber cost', qty: '', amount: '', others: '' },
-      { code: 'd', name: 'others Expens', qty: '', amount: '', others: '' },
-      { code: 'e', name: '', qty: '', amount: '', others: '', isCustom: true },
-    ],
-  },
-  {
-    id: 11,
-    title: 'ACP Penal',
-    subtitle: 'Exterior ACP Cladding & Scaffolding',
-    items: [
-      { code: 'a', name: 'Material cost', qty: '', amount: '', others: '' },
-      { code: 'b', name: 'Layber cost', qty: '', amount: '', others: '' },
-      { code: 'c', name: 'Rent Cost', qty: '', amount: '', others: '' },
-      { code: 'd', name: 'Folding cost', qty: '', amount: '', others: '' },
-      { code: 'e', name: 'others Expens', qty: '', amount: '', others: '' },
-      { code: 'f', name: '', qty: '', amount: '', others: '', isCustom: true },
-      { code: 'g', name: '', qty: '', amount: '', others: '', isCustom: true },
-    ],
+    key: 'other',
+    label: 'Other',
+    branchName: 'Other',
+    subtitle: 'Custom / Additional Site Project',
   },
 ];
+
+export const PROJECT_STATUS_OPTIONS = [
+  { value: 'NOT_STARTED', label: 'Not Started', color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.16)' },
+  { value: 'IN_PROGRESS', label: 'In Progress', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.16)' },
+  { value: 'ON_HOLD', label: 'Pending / Delayed', color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.16)' },
+  { value: 'COMPLETED', label: 'Completed', color: '#34d399', bg: 'rgba(52, 211, 153, 0.16)' },
+];
+
+function makeAdditionalRows(count = 4) {
+  return Array.from({ length: count }, () => ({
+    code: '',
+    name: '',
+    unit: '',
+    workPercent: '',
+    remark: '',
+    others: '',
+    isCustom: true,
+  }));
+}
 
 export const PROJECT_PROGRESS_TEMPLATE = [
   {
     id: 1,
-    title: 'Type of work',
-    subtitle: 'Civil Works',
+    sectionCode: '01',
+    title: 'CIVIL & FINISHING WORK',
+    subtitle: 'Civil & Finishing Work',
+    overallSectionProgress: '',
+    pendingItems: '',
+    siteIssues: '',
+    supervisorSignature: '',
+    verifiedBy: '',
     items: [
-      { code: 'a', name: 'Dismenteling work', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'b', name: 'Excavation work', unit: 'cft', workPercent: '', remark: '', others: '' },
-      { code: 'c', name: 'Back Filing', unit: 'cft', workPercent: '', remark: '', others: '' },
-      { code: 'd', name: 'p.c.c Floor', unit: 'cft', workPercent: '', remark: '', others: '' },
-      { code: 'e', name: 'R.c.c wall,s', unit: 'sft', workPercent: '', remark: '', others: '' },
-      { code: 'f', name: 'Genset patt', unit: 'sft', workPercent: '', remark: '', others: '' },
-      { code: 'g', name: '4" Brick work', unit: 'sft', workPercent: '', remark: '', others: '' },
-      { code: 'h', name: '9" Brick work', unit: 'sft', workPercent: '', remark: '', others: '' },
-      { code: 'I', name: 'plaster work', unit: 'sft', workPercent: '', remark: '', others: '' },
-      { code: 'j', name: 'Tile work', unit: 'sft', workPercent: '', remark: '', others: '' },
-      { code: 'k', name: 'ACP cading work', unit: 'sft', workPercent: '', remark: '', others: '' },
-      { code: 'l', name: 'laminate wood flooring', unit: 'sft', workPercent: '', remark: '', others: '' },
-      { code: 'm', name: 'Marble work', unit: 'sft', workPercent: '', remark: '', others: '' },
-      { code: 'n', name: 'pint work', unit: 'sft', workPercent: '', remark: '', others: '' },
-      { code: 'o', name: 'others Work', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'p', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'q', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'r', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 's', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
+      { code: '1', name: 'Dismantling work', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '2', name: 'Excavation work', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '3', name: 'Back filling', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '4', name: 'P.C.C. floor', unit: 'sft', workPercent: '', remark: '', others: '' },
+      { code: '5', name: 'R.C.C. walls', unit: 'sft', workPercent: '', remark: '', others: '' },
+      { code: '6', name: 'Genset platform', unit: 'sft', workPercent: '', remark: '', others: '' },
+      { code: '7', name: '4-inch brick work', unit: 'sft', workPercent: '', remark: '', others: '' },
+      { code: '8', name: '9-inch brick work', unit: 'sft', workPercent: '', remark: '', others: '' },
+      { code: '9', name: 'Plaster work', unit: 'sft', workPercent: '', remark: '', others: '' },
+      { code: '10', name: 'Tile work', unit: 'sft', workPercent: '', remark: '', others: '' },
+      { code: '11', name: 'ACP cladding', unit: 'sft', workPercent: '', remark: '', others: '' },
+      { code: '12', name: 'Laminate wood flooring', unit: 'sft', workPercent: '', remark: '', others: '' },
+      { code: '13', name: 'Marble work', unit: 'sft', workPercent: '', remark: '', others: '' },
+      { code: '14', name: 'Paint work', unit: 'sft', workPercent: '', remark: '', others: '' },
+      ...makeAdditionalRows(4),
     ],
   },
   {
     id: 2,
-    title: 'Electric work',
-    subtitle: 'Electrical Installations',
+    sectionCode: '02',
+    title: 'ELECTRICAL WORK',
+    subtitle: 'Electrical Work',
+    overallSectionProgress: '',
+    pendingItems: '',
+    siteIssues: '',
+    supervisorSignature: '',
+    verifiedBy: '',
     items: [
-      { code: 'a', name: 'Roof Slap Conduit pipeing', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'b', name: 'Floor pipeing', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'c', name: 'wall Cutting', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'd', name: 'D.P,s Fiting', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'e', name: 'Main Cable', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'f', name: 'Wires of Lights', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'g', name: 'Circuit Wires', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'h', name: 'Box Fiting', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'I', name: 'Light Fiting', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'j', name: 'Others', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'k', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'l', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'm', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'n', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'o', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'p', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
+      { code: '1', name: 'Roof slab conduit piping', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '2', name: 'Floor conduit piping', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '3', name: 'Wall cutting / chasing', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '4', name: 'Distribution panels fitting', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '5', name: 'Main cable installation', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '6', name: 'Lighting wires', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '7', name: 'Circuit wiring', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '8', name: 'Electrical boxes fitting', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '9', name: 'Light fixtures installation', unit: 'Job', workPercent: '', remark: '', others: '' },
+      ...makeAdditionalRows(4),
     ],
   },
   {
     id: 3,
-    title: 'HVAC system',
-    subtitle: 'HVAC Works',
+    sectionCode: '03',
+    title: 'HVAC SYSTEM',
+    subtitle: 'HVAC System',
+    overallSectionProgress: '',
+    pendingItems: '',
+    siteIssues: '',
+    supervisorSignature: '',
+    verifiedBy: '',
     items: [
-      { code: 'a', name: 'wall Cutting of Copper pipe', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'b', name: 'Copper pipeing', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'c', name: 'water Drain piping', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'd', name: 'Check of AC units', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'e', name: 'Fiting of AC units', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'f', name: 'Leak check Properly', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'g', name: 'Outdoor Braket,s', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'h', name: 'inDoor,s Braket,s', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'I', name: 'Commission of AC units', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'j', name: 'Others', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'k', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'l', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'm', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'n', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'o', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'p', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
+      { code: '1', name: 'Wall cutting for copper pipes', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '2', name: 'Copper piping', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '3', name: 'Condensate drain piping', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '4', name: 'AC units inspection', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '5', name: 'AC units installation', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '6', name: 'Leakage testing', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '7', name: 'Outdoor brackets', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '8', name: 'Indoor brackets', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '9', name: 'AC commissioning', unit: 'Job', workPercent: '', remark: '', others: '' },
+      ...makeAdditionalRows(4),
     ],
   },
   {
     id: 4,
-    title: 'Plambing work',
-    subtitle: 'Plumbing Works',
+    sectionCode: '04',
+    title: 'PLUMBING WORK',
+    subtitle: 'Plumbing Work',
+    overallSectionProgress: '',
+    pendingItems: '',
+    siteIssues: '',
+    supervisorSignature: '',
+    verifiedBy: '',
     items: [
-      { code: 'a', name: 'Kitchen Sink pprc pipeing', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'b', name: 'Wash room pprc pipeing', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'c', name: 'proper pprc pipeing Rote,s', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'd', name: 'kitchen Sefriage 4" pipe', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'e', name: 'wash room Sefriage piping', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'f', name: 'Roof Top Water Tank Fiting', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'g', name: 'All Types of Santariy items', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'h', name: 'Fiting of porta items', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'I', name: 'Pprc pipe+ PVC pipe Checking', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'j', name: 'Others', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'k', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'l', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'm', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'n', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'o', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'p', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
+      { code: '1', name: 'Kitchen sink PPRC piping', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '2', name: 'Washroom PPRC piping', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '3', name: 'Pipe route inspection', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '4', name: 'Kitchen 4-inch sewerage pipe', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '5', name: 'Washroom sewerage piping', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '6', name: 'Roof water tank installation', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '7', name: 'Sanitary fittings', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '8', name: 'Porta fittings', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '9', name: 'PPRC / PVC pipe testing', unit: 'Job', workPercent: '', remark: '', others: '' },
+      ...makeAdditionalRows(4),
     ],
   },
   {
     id: 5,
-    title: 'IT Work',
-    subtitle: 'IT Network Infrastructure',
+    sectionCode: '05',
+    title: 'IT & NETWORKING WORK',
+    subtitle: 'IT & Networking Work',
+    overallSectionProgress: '',
+    pendingItems: '',
+    siteIssues: '',
+    supervisorSignature: '',
+    verifiedBy: '',
     items: [
-      { code: 'a', name: 'It Rack 27U', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'b', name: 'All Types of Networking point', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'c', name: 'inspection of Rote,s', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'd', name: 'All Types of Telephone point', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'e', name: 'Installed 2 No,s of Black Tary', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'f', name: 'Installed 2 No,s of P.D.U', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'g', name: 'Tacking of Every Cable', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'h', name: 'installed Cable Mangcher', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'I', name: 'patch Panel instal properly', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'j', name: 'Others', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'k', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'l', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'm', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'n', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'o', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'p', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
+      { code: '1', name: '27U IT rack', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '2', name: 'Network points', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '3', name: 'Conduit route inspection', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '4', name: 'Telephone points', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '5', name: 'Cable trays', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '6', name: 'Power distribution units (PDU)', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '7', name: 'Cable dressing / tagging', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '8', name: 'Cable managers', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '9', name: 'Patch panel installation', unit: 'Job', workPercent: '', remark: '', others: '' },
+      ...makeAdditionalRows(4),
     ],
   },
   {
     id: 6,
-    title: 'wood work',
-    subtitle: 'Wood & Furniture Works',
+    sectionCode: '06',
+    title: 'WOOD & JOINERY WORK',
+    subtitle: 'Wood & Joinery Work',
+    overallSectionProgress: '',
+    pendingItems: '',
+    siteIssues: '',
+    supervisorSignature: '',
+    verifiedBy: '',
     items: [
-      { code: 'a', name: 'Cash Counter back Logo', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'b', name: 'Kitchen Cabint,s', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'c', name: 'Counter top Cabint,s', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'd', name: 'Doors Fiting', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'e', name: 'M.S Doors', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'f', name: 'p.v.c Doors', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'g', name: 'Rafter Ceiling', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'h', name: 'Store Cabint,s', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'I', name: 'Latak Beams', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'j', name: 'Others', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'k', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'l', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'm', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'n', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'o', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'p', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
+      { code: '1', name: 'Cash counter back logo', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '2', name: 'Kitchen cabinets', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '3', name: 'Countertop cabinets', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '4', name: 'Door fitting', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '5', name: 'M.S. doors', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '6', name: 'PVC doors', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '7', name: 'Rafter ceiling', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '8', name: 'Store cabinets', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '9', name: 'Wooden beams', unit: 'Job', workPercent: '', remark: '', others: '' },
+      ...makeAdditionalRows(4),
     ],
   },
   {
     id: 7,
-    title: 'Ceiling work',
-    subtitle: 'False Ceiling Works',
+    sectionCode: '07',
+    title: 'CEILING WORK',
+    subtitle: 'Ceiling Work',
+    overallSectionProgress: '',
+    pendingItems: '',
+    siteIssues: '',
+    supervisorSignature: '',
+    verifiedBy: '',
     items: [
-      { code: 'a', name: 'Gaysam ceiling 12mm Arish', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'b', name: "2'x 2' Panel Ceiling", unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'c', name: 'Cement board Ceiling', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'd', name: 'Check Level properly', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'e', name: 'All Side of Gurof Angel', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'f', name: 'Colum,s of Cement board', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'g', name: "Mixcimam Level 9'", unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'h', name: 'Properly Fiting of Ceiling', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'I', name: 'Properly Fiting Rood,s 2 mm', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'j', name: 'Others', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'k', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'l', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'm', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'n', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'o', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'p', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
+      { code: '1', name: '12 mm gypsum ceiling', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '2', name: '2 x 2 panel ceiling', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '3', name: 'Cement board ceiling', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '4', name: 'Level checking', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '5', name: 'Perimeter angles', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '6', name: 'Cement board columns', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '7', name: 'Ceiling height checking', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '8', name: 'Ceiling installation', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '9', name: 'Suspension rods', unit: 'Job', workPercent: '', remark: '', others: '' },
+      ...makeAdditionalRows(4),
     ],
   },
   {
     id: 8,
-    title: 'glass work',
-    subtitle: 'Glass & Glazing Works',
+    sectionCode: '08',
+    title: 'GLASS & ALUMINIUM WORK',
+    subtitle: 'Glass & Aluminium Work',
+    overallSectionProgress: '',
+    pendingItems: '',
+    siteIssues: '',
+    supervisorSignature: '',
+    verifiedBy: '',
     items: [
-      { code: 'a', name: '12 MM Tempered glass Used', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'b', name: 'All Doors Handl,s 30" Used', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'c', name: 'All Doors Tempered glass', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'd', name: 'Front Window 4" HD Section', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'e', name: 'Moter S.A Used', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'f', name: 'All Types of glass Clear Withe', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'g', name: 'Black Patch top and Bottom', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'h', name: 'Locking mirror at Wash room', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'I', name: '8mm glass for RM Wall', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'j', name: 'Others', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'k', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'l', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'm', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'n', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'o', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'p', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
+      { code: '1', name: '12 mm tempered glass', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '2', name: 'Door handles', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '3', name: 'Tempered glass doors', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '4', name: 'Front window aluminium section', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '5', name: 'Glass door motor', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '6', name: 'Clear / white glass', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '7', name: 'Black top and bottom patch', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '8', name: 'Washroom mirror', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '9', name: '8 mm glass partition', unit: 'Job', workPercent: '', remark: '', others: '' },
+      ...makeAdditionalRows(4),
     ],
   },
   {
     id: 9,
-    title: 'Pint work',
-    subtitle: 'Painting & Finishing',
+    sectionCode: '09',
+    title: 'PAINTING WORK',
+    subtitle: 'Painting Work',
+    overallSectionProgress: '',
+    pendingItems: '',
+    siteIssues: '',
+    supervisorSignature: '',
+    verifiedBy: '',
     items: [
-      { code: 'a', name: 'Ici Pint Used', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'b', name: 'All Types of wall Light Gery', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'c', name: '3 Cote,s of Pint All wall', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'd', name: 'others', unit: 'Job', workPercent: '', remark: '', others: '' },
-      { code: 'e', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'f', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'g', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'h', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'I', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'j', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'k', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'l', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'm', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'n', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'o', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
-      { code: 'p', name: '', unit: '', workPercent: '', remark: '', others: '', isCustom: true },
+      { code: '1', name: 'ICI paint application', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '2', name: 'Light grey wall paint', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '3', name: 'Three coats of wall paint', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '4', name: 'Surface preparation / putty', unit: 'Job', workPercent: '', remark: '', others: '' },
+      { code: '5', name: 'Primer / undercoat', unit: 'Job', workPercent: '', remark: '', others: '' },
+      ...makeAdditionalRows(4),
+    ],
+  },
+];
+
+export function cloneFreshProgressTemplate() {
+  return JSON.parse(JSON.stringify(PROJECT_PROGRESS_TEMPLATE));
+}
+
+/**
+ * Merges saved progressData (including legacy formats) onto the official 9-page template
+ * so no progress values are lost while always preserving the official FES layout.
+ */
+export function normalizeProgressSections(rawProgressData) {
+  const base = cloneFreshProgressTemplate();
+  if (!rawProgressData) return base;
+
+  let parsed = rawProgressData;
+  if (typeof rawProgressData === 'string') {
+    try {
+      parsed = JSON.parse(rawProgressData);
+    } catch {
+      return base;
+    }
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) return base;
+
+  return base.map((templateSec, secIdx) => {
+    const savedSec = parsed.find((s) => Number(s.id) === Number(templateSec.id)) || parsed[secIdx];
+    if (!savedSec) return templateSec;
+
+    const savedStandard = (savedSec.items || []).filter((it) => !it.isCustom);
+    const savedCustom = (savedSec.items || []).filter((it) => it.isCustom);
+    const templateStandard = templateSec.items.filter((it) => !it.isCustom);
+
+    const mergedStandard = templateStandard.map((tItem, idx) => {
+      const match = savedStandard[idx];
+      if (!match) return tItem;
+      return {
+        ...tItem,
+        unit: match.unit === 'Jop' ? 'Job' : (match.unit || tItem.unit),
+        workPercent: match.workPercent ?? '',
+        remark: match.remark ?? '',
+        others: match.others ?? '',
+      };
+    });
+
+    let mergedCustom = makeAdditionalRows(4);
+    if (savedCustom.length > 0) {
+      const filledOrNeeded = Math.max(4, savedCustom.length);
+      mergedCustom = Array.from({ length: filledOrNeeded }, (_, idx) => {
+        const sc = savedCustom[idx];
+        return {
+          code: '',
+          name: sc?.name || '',
+          unit: sc?.unit === 'Jop' ? 'Job' : (sc?.unit || ''),
+          workPercent: sc?.workPercent ?? '',
+          remark: sc?.remark ?? '',
+          others: sc?.others ?? '',
+          isCustom: true,
+        };
+      });
+    }
+
+    return {
+      ...templateSec,
+      sheetMeta: savedSec.sheetMeta || undefined,
+      overallSectionProgress: savedSec.overallSectionProgress ?? '',
+      pendingItems: savedSec.pendingItems ?? '',
+      siteIssues: savedSec.siteIssues ?? '',
+      supervisorSignature: savedSec.supervisorSignature ?? '',
+      verifiedBy: savedSec.verifiedBy ?? '',
+      items: [...mergedStandard, ...mergedCustom],
+    };
+  });
+}
+
+/**
+ * Extracts Material, Labour, and Other expense items + totals from saved expenseData & job expenses.
+ */
+export function extractProjectExpenses(rawExpenseData, jobExpenses = [], linkedExpenseId = null) {
+  const entries = [];
+
+  if (rawExpenseData) {
+    let parsed = rawExpenseData;
+    if (typeof rawExpenseData === 'string') {
+      try {
+        parsed = JSON.parse(rawExpenseData);
+      } catch {
+        parsed = [];
+      }
+    }
+
+    if (Array.isArray(parsed)) {
+      parsed.forEach((sec) => {
+        const secType = sec.categoryType || '';
+        (sec.items || []).forEach((it, idx) => {
+          const amt = parseFloat(it.amount);
+          if ((isNaN(amt) || amt <= 0) && !it.qty && !it.others && !it.entryId) return;
+          if (!secType && it.isCustom && !it.name && (isNaN(amt) || amt <= 0)) return;
+
+          const lowerName = (it.name || '').toLowerCase();
+          let resolvedType = secType;
+          if (!resolvedType) {
+            if (lowerName.includes('layber') || lowerName.includes('labour') || lowerName.includes('labor')) {
+              resolvedType = 'LABOUR';
+            } else {
+              resolvedType = 'MATERIAL';
+            }
+          }
+
+          entries.push({
+            id: it.entryId || `${sec.id || 0}-${idx}-${resolvedType}`,
+            type: resolvedType, // 'MATERIAL' | 'LABOUR' | 'OTHER'
+            name: it.name || (resolvedType === 'LABOUR' ? 'Labour Work' : 'Site Material'),
+            qty: it.qty || '',
+            amount: !isNaN(amt) && amt > 0 ? amt : 0,
+            date: it.date || '',
+            paidBy: it.paidBy || 'FES',
+            remarks: it.others || it.remark || '',
+            receiptUrl: it.receiptUrl || '',
+          });
+        });
+      });
+    }
+  }
+
+  // Also include standalone job expenses that were logged outside the report's linkedExpenseId
+  if (Array.isArray(jobExpenses)) {
+    jobExpenses.forEach((exp) => {
+      if (linkedExpenseId && Number(exp.id) === Number(linkedExpenseId)) return;
+      if ((exp.summaryNotes || '').includes('[Project Report #')) return;
+      const amt = parseFloat(exp.amount) || 0;
+      if (amt <= 0) return;
+      const catLower = `${exp.category || ''} ${exp.summaryNotes || ''}`.toLowerCase();
+      let type = 'MATERIAL';
+      if (catLower.includes('labour') || catLower.includes('labor') || catLower.includes('layber')) {
+        type = 'LABOUR';
+      } else if (catLower.includes('material')) {
+        type = 'MATERIAL';
+      }
+      entries.push({
+        id: `db-exp-${exp.id}`,
+        dbExpenseId: exp.id,
+        type,
+        name: exp.summaryNotes?.replace(/^\[Field Work\]\s*/i, '') || exp.category || 'Site Expense',
+        qty: '',
+        amount: amt,
+        date: exp.expenseDate ? new Date(exp.expenseDate).toISOString().split('T')[0] : '',
+        paidBy: exp.paidBy || 'FES',
+        remarks: '',
+        receiptUrl: exp.imageUrl || '',
+        fromStandaloneExpense: true,
+      });
+    });
+  }
+
+  let materialExpense = 0;
+  let labourExpense = 0;
+  let otherExpense = 0;
+
+  entries.forEach((e) => {
+    const val = parseFloat(e.amount) || 0;
+    if (e.type === 'LABOUR') labourExpense += val;
+    else if (e.type === 'MATERIAL') materialExpense += val;
+    else otherExpense += val;
+  });
+
+  const projectExpense = materialExpense + labourExpense + otherExpense;
+
+  return {
+    entries,
+    materialExpense,
+    labourExpense,
+    otherExpense,
+    projectExpense,
+  };
+}
+
+/**
+ * Serializes flat expense entries back into sections compatible with ProjectReportReviewer & PDF export.
+ */
+export function buildExpenseSectionsFromEntries(entries = []) {
+  const cleanEntries = entries.filter((e) => !e.fromStandaloneExpense);
+  const materialItems = cleanEntries
+    .filter((e) => e.type === 'MATERIAL')
+    .map((e, i) => ({
+      entryId: e.id,
+      code: String(i + 1),
+      name: e.name || 'Material Item',
+      qty: e.qty || '',
+      amount: String(parseFloat(e.amount) || 0),
+      date: e.date || '',
+      paidBy: e.paidBy || 'FES',
+      others: e.remarks || '',
+      receiptUrl: e.receiptUrl || '',
+      isCustom: false,
+    }));
+
+  const labourItems = cleanEntries
+    .filter((e) => e.type === 'LABOUR')
+    .map((e, i) => ({
+      entryId: e.id,
+      code: String(i + 1),
+      name: e.name || 'Labour Cost',
+      qty: e.qty || '',
+      amount: String(parseFloat(e.amount) || 0),
+      date: e.date || '',
+      paidBy: e.paidBy || 'FES',
+      others: e.remarks || '',
+      receiptUrl: e.receiptUrl || '',
+      isCustom: false,
+    }));
+
+  const otherItems = cleanEntries
+    .filter((e) => e.type !== 'MATERIAL' && e.type !== 'LABOUR')
+    .map((e, i) => ({
+      entryId: e.id,
+      code: String(i + 1),
+      name: e.name || 'Project Expense',
+      qty: e.qty || '',
+      amount: String(parseFloat(e.amount) || 0),
+      date: e.date || '',
+      paidBy: e.paidBy || 'FES',
+      others: e.remarks || '',
+      receiptUrl: e.receiptUrl || '',
+      isCustom: false,
+    }));
+
+  const sections = [
+    {
+      id: 1,
+      title: 'Material Expenses',
+      subtitle: 'Construction & Site Materials',
+      categoryType: 'MATERIAL',
+      items: materialItems,
+    },
+    {
+      id: 2,
+      title: 'Labour Expenses',
+      subtitle: 'Site Workforce & Wages',
+      categoryType: 'LABOUR',
+      items: labourItems,
+    },
+  ];
+
+  if (otherItems.length > 0) {
+    sections.push({
+      id: 3,
+      title: 'Other Project Expenses',
+      subtitle: 'Transport, Fuel & Site Operations',
+      categoryType: 'OTHER',
+      items: otherItems,
+    });
+  }
+
+  return sections;
+}
+
+export const PROJECT_EXPENSE_TEMPLATE = [
+  {
+    id: 1,
+    title: 'Material Expenses',
+    subtitle: 'Construction & Site Materials',
+    categoryType: 'MATERIAL',
+    items: [
+      { code: '1', name: 'Cement', qty: '', amount: '', others: '' },
+      { code: '2', name: 'Sand & Crush / Aggregate', qty: '', amount: '', others: '' },
+      { code: '3', name: 'Steel Reinforcement / Bricks', qty: '', amount: '', others: '' },
+      { code: '4', name: 'Tiles, Marble & Flooring Material', qty: '', amount: '', others: '' },
+      { code: '5', name: 'Electrical Cables, Conduits & Panels', qty: '', amount: '', others: '' },
+      { code: '6', name: 'PPRC / PVC Plumbing & Sanitary Fittings', qty: '', amount: '', others: '' },
+      { code: '7', name: 'HVAC Copper Piping & Brackets', qty: '', amount: '', others: '' },
+      { code: '8', name: 'IT Networking Cables, Rack & Patch Panel', qty: '', amount: '', others: '' },
+      { code: '9', name: 'Wood Sheets, Doors & Joinery Material', qty: '', amount: '', others: '' },
+      { code: '10', name: 'Gypsum / 2x2 Ceiling & Glass / Aluminium', qty: '', amount: '', others: '' },
+      { code: '11', name: 'ICI Paint, Putty & Primer Material', qty: '', amount: '', others: '' },
+    ],
+  },
+  {
+    id: 2,
+    title: 'Labour Expenses',
+    subtitle: 'Site Workforce & Wages',
+    categoryType: 'LABOUR',
+    items: [
+      { code: '1', name: 'Civil & Masonry Labour', qty: '', amount: '', others: '' },
+      { code: '2', name: 'Electrical Installation Labour', qty: '', amount: '', others: '' },
+      { code: '3', name: 'Plumbing & HVAC Labour', qty: '', amount: '', others: '' },
+      { code: '4', name: 'Wood, Ceiling & Glass Labour', qty: '', amount: '', others: '' },
+      { code: '5', name: 'Painting & Finishing Labour', qty: '', amount: '', others: '' },
     ],
   },
 ];

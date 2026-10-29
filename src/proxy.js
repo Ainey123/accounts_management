@@ -26,6 +26,13 @@ export default function middleware(request) {
   try {
     const user = JSON.parse(authCookie.value);
 
+    if (user.role === 'FIELD_EMPLOYEE') {
+      if (!pathname.startsWith('/field') && !pathname.startsWith('/api/')) {
+        return NextResponse.redirect(new URL('/field', request.url));
+      }
+      return NextResponse.next();
+    }
+
     if (pathname.startsWith('/admin') && user.role !== 'ADMIN') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }

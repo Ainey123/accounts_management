@@ -409,13 +409,28 @@ export async function downloadMaterialDemandPdf(formData = {}, manualAmount = 0)
 
   let rowsHtml = '';
   items.forEach((it, idx) => {
+    const isSelfBuy = (it.sourcingMode || '').toLowerCase().includes('self');
+    const sourcingLabel = isSelfBuy ? 'Self Buy' : 'Store Issue';
+    const matTypeLabel = it.materialType
+      ? it.materialType.replace(' Material', '')
+      : 'Consumable';
     rowsHtml += `
       <tr style="height: 31px; border-bottom: 1px solid #cbd5e1; background: #ffffff;">
-        <td style="padding: 5px 6px; text-align: center; width: 52px; border-right: 1px solid #cbd5e1;">${escapeHtml(it.srNo || idx + 1)}</td>
-        <td style="padding: 5px 10px; border-right: 1px solid #cbd5e1;">${escapeHtml(it.description || '')}</td>
-        <td style="padding: 5px 8px; text-align: center; width: 105px; border-right: 1px solid #cbd5e1;">${escapeHtml(it.requiredQty || '')}</td>
-        <td style="padding: 5px 8px; text-align: center; width: 78px; border-right: 1px solid #cbd5e1;">${escapeHtml(it.unit || '')}</td>
-        <td style="padding: 5px 8px; text-align: center; width: 112px;">${escapeHtml(it.availableStock || '')}</td>
+        <td style="padding: 5px 4px; text-align: center; width: 38px; border-right: 1px solid #cbd5e1;">${escapeHtml(it.srNo || idx + 1)}</td>
+        <td style="padding: 5px 8px; border-right: 1px solid #cbd5e1; font-weight: 600;">${escapeHtml(it.description || '')}</td>
+        <td style="padding: 5px 6px; text-align: center; width: 92px; border-right: 1px solid #cbd5e1; font-size: 9.5px;">
+          <span style="background: ${matTypeLabel === 'Fixed' ? '#f3e8ff' : matTypeLabel === 'Returnable' ? '#e0f2fe' : '#ecfdf5'}; color: ${matTypeLabel === 'Fixed' ? '#6b21a8' : matTypeLabel === 'Returnable' ? '#0369a1' : '#047857'}; padding: 2px 6px; border-radius: 4px; font-weight: 700;">
+            ${escapeHtml(matTypeLabel)}
+          </span>
+        </td>
+        <td style="padding: 5px 6px; text-align: center; width: 92px; border-right: 1px solid #cbd5e1; font-size: 9.5px;">
+          <span style="background: ${isSelfBuy ? '#fef3c7' : '#e0f2fe'}; color: ${isSelfBuy ? '#92400e' : '#075985'}; padding: 2px 6px; border-radius: 4px; font-weight: 700;">
+            ${escapeHtml(sourcingLabel)}
+          </span>
+        </td>
+        <td style="padding: 5px 6px; text-align: center; width: 75px; border-right: 1px solid #cbd5e1; font-weight: 700;">${escapeHtml(it.requiredQty || '')}</td>
+        <td style="padding: 5px 6px; text-align: center; width: 55px; border-right: 1px solid #cbd5e1;">${escapeHtml(it.unit || '')}</td>
+        <td style="padding: 5px 6px; text-align: center; width: 85px;">${escapeHtml(it.availableStock || '')}</td>
       </tr>
     `;
   });
@@ -496,14 +511,16 @@ export async function downloadMaterialDemandPdf(formData = {}, manualAmount = 0)
         MATERIAL DETAILS
       </div>
 
-      <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; margin-bottom: 16px; font-size: 11px;">
+      <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; margin-bottom: 16px; font-size: 10.5px;">
         <thead>
           <tr style="background: #16325c; color: #ffffff; font-weight: 700;">
-            <th style="padding: 8px 6px; text-align: center; width: 52px; border-right: 1px solid #335280;">Sr. No.</th>
-            <th style="padding: 8px 10px; text-align: left; border-right: 1px solid #335280;">Material Description / Specification</th>
-            <th style="padding: 8px 8px; text-align: center; width: 105px; border-right: 1px solid #335280;">Required Qty.</th>
-            <th style="padding: 8px 8px; text-align: center; width: 78px; border-right: 1px solid #335280;">Unit</th>
-            <th style="padding: 8px 8px; text-align: center; width: 112px;">Available Stock</th>
+            <th style="padding: 7px 4px; text-align: center; width: 38px; border-right: 1px solid #335280;">Sr.</th>
+            <th style="padding: 7px 8px; text-align: left; border-right: 1px solid #335280;">Material Description / Specification</th>
+            <th style="padding: 7px 6px; text-align: center; width: 92px; border-right: 1px solid #335280;">Classification</th>
+            <th style="padding: 7px 6px; text-align: center; width: 92px; border-right: 1px solid #335280;">Sourcing</th>
+            <th style="padding: 7px 6px; text-align: center; width: 75px; border-right: 1px solid #335280;">Req. Qty</th>
+            <th style="padding: 7px 6px; text-align: center; width: 55px; border-right: 1px solid #335280;">Unit</th>
+            <th style="padding: 7px 6px; text-align: center; width: 85px;">Store Stock</th>
           </tr>
         </thead>
         <tbody>

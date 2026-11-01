@@ -3121,6 +3121,21 @@ export default function FieldPortalPage() {
                                     </div>
                                   )}
 
+                                  {Array.isArray(dem.formData?.items) && !isPayment && (
+                                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 3 }}>
+                                      {dem.formData.items.filter((i) => (i.sourcingMode || 'Buy from Store') === 'Buy from Store').length > 0 && (
+                                        <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(56,189,248,0.15)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.3)' }}>
+                                          🏪 Store Issue: {dem.formData.items.filter((i) => (i.sourcingMode || 'Buy from Store') === 'Buy from Store').length} items
+                                        </span>
+                                      )}
+                                      {dem.formData.items.filter((i) => (i.sourcingMode || '') === 'Self Buy').length > 0 && (
+                                        <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)' }}>
+                                          🛒 Self Buy: {dem.formData.items.filter((i) => (i.sourcingMode || '') === 'Self Buy').length} items
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+
                                   {dem.adminNote && (
                                     <div style={{ fontSize: 12, color: '#a78bfa' }}>
                                       <strong>Admin Note:</strong> {dem.adminNote}

@@ -5,12 +5,13 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
   BarChart2, FileEdit, FileText, Briefcase, Landmark,
   Camera, DollarSign, Settings, LogOut, Receipt, Mail, Download,
-  Users, Eye, FileSearch, ClipboardList, CheckCircle2, Award, Clock, HardHat
+  Users, Eye, FileSearch, ClipboardList, CheckCircle2, Award, Clock, HardHat, Package
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 
 const NAV_ITEMS = [
   { name: 'Operations Feed', href: '/dashboard', icon: BarChart2 },
+  { name: 'Store & Materials', href: '/materials', icon: Package },
   { name: 'Staff Progress & WhatsApp', href: '/progress', icon: Award, adminOnly: true },
   { name: 'Pending Audit Checklist', href: '/pending-checklist', icon: ClipboardList, adminOnly: true },
   { name: 'Expense Reconciliation', href: '/admin/dashboard?tab=reconciliation', icon: Receipt, adminOnly: true },
@@ -38,6 +39,7 @@ export default function Sidebar() {
   const visibleItems = user?.role === 'ADMIN' ? [
     { name: 'Admin Dashboard', href: '/admin/dashboard', icon: Settings },
     { name: 'Field Employees', href: '/admin/dashboard?tab=field-employees', icon: HardHat },
+    { name: 'Store & Materials', href: '/materials', icon: Package },
     { name: 'Pending Audit Checklist', href: '/pending-checklist', icon: ClipboardList },
     { name: 'Staff Progress & WhatsApp', href: '/progress', icon: Award },
     { name: 'Pending Payments', href: '/pending-payments', icon: Clock },

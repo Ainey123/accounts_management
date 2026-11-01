@@ -622,6 +622,8 @@ export function createDefaultMaterialDemandForm({
       requiredQty: '',
       unit: '',
       availableStock: '',
+      materialType: 'Consumable Material',
+      sourcingMode: 'Buy from Store',
     })),
     purpose: '',
     remarks: '',

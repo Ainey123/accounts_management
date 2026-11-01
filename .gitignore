@@ -46,6 +46,7 @@ prisma/prisma/dev.db
 /backups/
 scripts/nexus-daemon.log
 .kilo/
+scratch/
 
 # typescript
 *.tsbuildinfo

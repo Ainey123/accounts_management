@@ -1061,6 +1061,21 @@ export default function AdminFieldEmployeesModule() {
                       </div>
                     )}
 
+                    {Array.isArray(dem.formData?.items) && !isPayment && (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+                        {dem.formData.items.filter((i) => (i.sourcingMode || 'Buy from Store') === 'Buy from Store').length > 0 && (
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(56,189,248,0.15)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.3)' }}>
+                            🏪 Store Issue: {dem.formData.items.filter((i) => (i.sourcingMode || 'Buy from Store') === 'Buy from Store').length} items
+                          </span>
+                        )}
+                        {dem.formData.items.filter((i) => (i.sourcingMode || '') === 'Self Buy').length > 0 && (
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)' }}>
+                            🛒 Self Buy: {dem.formData.items.filter((i) => (i.sourcingMode || '') === 'Self Buy').length} items
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     <div style={{ fontSize: 12, color: '#94a3b8', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                       <span>
                         Requested by: <strong style={{ color: '#cbd5e1' }}>{dem.requestedBy || 'Field Employee'}</strong>

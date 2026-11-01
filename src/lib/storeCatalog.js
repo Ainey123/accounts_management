@@ -36,9 +36,12 @@ export const GROUND_FLOOR_STORE_CATALOG = [
   { id: 'FIX-015', name: 'Solar Pump', category: 'Electrical & Electronics', type: MATERIAL_TYPES.FIXED, stock: '4 Pic', unit: 'Pic', location: 'Heavy Motor Bay', minStock: 1, desc: 'Submersible Solar Pump' },
   { id: 'FIX-016', name: 'Glass Door Machine', category: 'Hardware & Carpentry', type: MATERIAL_TYPES.FIXED, stock: '3 Pic', unit: 'Pic', location: 'Hardware Bin 1', minStock: 1, desc: 'Floor Spring Glass Machine' },
   { id: 'FIX-017', name: 'LCD Genarator', category: 'Electrical & Electronics', type: MATERIAL_TYPES.FIXED, stock: '1 Pic', unit: 'Pic', location: 'IT Shelf', minStock: 1, desc: 'Generator Control Panel Display' },
+  { id: 'FIX-018', name: 'Panasonic Phone / Phone Set', category: 'Office & Facility', type: MATERIAL_TYPES.FIXED, stock: '2 Pic', unit: 'Pic', location: 'Office Storage', minStock: 1, desc: 'Office Landline Telephone Sets' },
+  { id: 'FIX-019', name: 'Insect Killer / Iron', category: 'Office & Facility', type: MATERIAL_TYPES.FIXED, stock: '3 Pic', unit: 'Pic', location: 'Office Storage', minStock: 1, desc: 'Facility Appliances' },
+  { id: 'FIX-020', name: 'WAPDA Meter / Safe Guard Meter', category: 'Electrical & Electronics', type: MATERIAL_TYPES.FIXED, stock: '2 Pic', unit: 'Pic', location: 'Store Power Corner', minStock: 1, desc: 'Energy & Protection Meters' },
 
   // ─── 2. RETURNABLE MATERIAL (Temporary Field Tools & Reusable Equipment) ───
-  { id: 'RET-001', name: 'Gas Cylinder', category: 'Tools & Machinery', type: MATERIAL_TYPES.RETURNABLE, stock: '2 Pic', unit: 'Pic', location: 'Gas Storage Cage', minStock: 1, desc: 'LPG / Refrigerant Cylinder' },
+  { id: 'RET-001', name: 'Gas Cylinder', category: 'Tools & Machinery', type: MATERIAL_TYPES.RETURNABLE, stock: '4 Pic', unit: 'Pic', location: 'Gas Storage Cage', minStock: 1, desc: 'LPG / Refrigerant Cylinder' },
   { id: 'RET-002', name: 'Oxygen Cylinder', category: 'Tools & Machinery', type: MATERIAL_TYPES.RETURNABLE, stock: '1 Pic', unit: 'Pic', location: 'Gas Storage Cage', minStock: 1, desc: 'Welding Oxygen Cylinder' },
   { id: 'RET-003', name: 'Clamp Meter', category: 'Tools & Machinery', type: MATERIAL_TYPES.RETURNABLE, stock: '7 Pic', unit: 'Pic', location: 'Testing Safe', minStock: 2, desc: 'Digital AC/DC Amp Meter' },
   { id: 'RET-004', name: 'Cable Traser', category: 'Tools & Machinery', type: MATERIAL_TYPES.RETURNABLE, stock: '1 Pic', unit: 'Pic', location: 'Network Tool Box', minStock: 1, desc: 'Cat6 & Wire Tracer' },
@@ -52,10 +55,12 @@ export const GROUND_FLOOR_STORE_CATALOG = [
   { id: 'RET-012', name: 'Ribtor Gun', category: 'Tools & Machinery', type: MATERIAL_TYPES.RETURNABLE, stock: '1 Pic', unit: 'Pic', location: 'Hand Tool Rack', minStock: 1, desc: 'Hand Rivet Gun' },
   { id: 'RET-013', name: 'Ranch / Pluge Spiner / Presure Line', category: 'Tools & Machinery', type: MATERIAL_TYPES.RETURNABLE, stock: '5 Pic', unit: 'Pic', location: 'HVAC Tool Rack', minStock: 1, desc: 'Adjustable Wrench & Charging Line' },
   { id: 'RET-014', name: 'Hexca (Ari) / Kandy / Garmanda', category: 'Tools & Machinery', type: MATERIAL_TYPES.RETURNABLE, stock: '13 Pic', unit: 'Pic', location: 'Masonry Rack', minStock: 2, desc: 'Hacksaw Frame, Trowel & Float' },
-  { id: 'RET-015', name: 'Water Level', category: 'Tools & Machinery', type: MATERIAL_TYPES.RETURNABLE, stock: '1 Roll', unit: 'Roll', location: 'Measurement Bin', minStock: 1, desc: 'Transparent Level Tube' },
+  { id: 'RET-015', name: 'Water Level / Meter Tap', category: 'Tools & Machinery', type: MATERIAL_TYPES.RETURNABLE, stock: '1 Roll + 2 Pic', unit: 'Pic', location: 'Measurement Bin', minStock: 1, desc: 'Level Tube & Measuring Tape' },
   { id: 'RET-016', name: 'Spray Tank', category: 'Tools & Machinery', type: MATERIAL_TYPES.RETURNABLE, stock: '1 Pic', unit: 'Pic', location: 'Plumbing Bay', minStock: 1, desc: 'Pressure Water / Chemical Tank' },
-  { id: 'RET-017', name: 'Hammer', category: 'Tools & Machinery', type: MATERIAL_TYPES.RETURNABLE, stock: '1 Pic', unit: 'Pic', location: 'Hand Tool Rack', minStock: 1, desc: 'Ball Peen / Claw Hammer' },
-  { id: 'RET-018', name: 'Tin Man Snab / Goat Rod', category: 'Tools & Machinery', type: MATERIAL_TYPES.RETURNABLE, stock: '2 Pic', unit: 'Pic', location: 'Hand Tool Rack', minStock: 1, desc: 'Sheet Metal Shears & Rod' },
+  { id: 'RET-017', name: 'Hammer / Wood Holsa 35mm', category: 'Tools & Machinery', type: MATERIAL_TYPES.RETURNABLE, stock: '2 Pic', unit: 'Pic', location: 'Hand Tool Rack', minStock: 1, desc: 'Claw Hammer & 35mm Hole Saw' },
+  { id: 'RET-018', name: 'Tin Man Snab / Goat Rod / Cutter', category: 'Tools & Machinery', type: MATERIAL_TYPES.RETURNABLE, stock: '4 Pic', unit: 'Pic', location: 'Hand Tool Rack', minStock: 1, desc: 'Sheet Metal Shears, Cutter & Rod' },
+  { id: 'RET-019', name: 'Glue Gun', category: 'Tools & Machinery', type: MATERIAL_TYPES.RETURNABLE, stock: '3 Pic', unit: 'Pic', location: 'Electrical Drawer', minStock: 1, desc: 'Hot Melt Glue Guns' },
+  { id: 'RET-020', name: 'Volt Meter', category: 'Tools & Machinery', type: MATERIAL_TYPES.RETURNABLE, stock: '2 Pic', unit: 'Pic', location: 'Testing Safe', minStock: 1, desc: 'Portable Voltage Tester' },
 
   // ─── 3. CONSUMABLE MATERIAL (Direct Site Installation & Consumption) ───
   // Electrical & Lighting
@@ -108,9 +113,65 @@ export const GROUND_FLOOR_STORE_CATALOG = [
   { id: 'CON-039', name: 'Tile (Floor / Wall)', category: 'Civil & Tiles', type: MATERIAL_TYPES.CONSUMABLE, stock: '128 Box', unit: 'Box', location: 'Ground Floor Yard', minStock: 10, desc: 'Ceramic / Porcelain Tiles' },
   { id: 'CON-040', name: 'Tile Filling & Tile Bond', category: 'Civil & Tiles', type: MATERIAL_TYPES.CONSUMABLE, stock: '6.5 Packs', unit: 'Pack', location: 'Ground Floor Yard', minStock: 2, desc: 'Grout Filler & Tile Adhesive' },
 
-  // Auto / Facility
+  // Auto / Facility & Remaining Ground Floor Items
   { id: 'CON-041', name: 'Oil Filter Car / Brake Shoe Set / Wheel Cover', category: 'Auto & Facility', type: MATERIAL_TYPES.CONSUMABLE, stock: '12 Pic', unit: 'Pic', location: 'Vehicle Spares Bin', minStock: 2, desc: 'Company Fleet Vehicle Maintenance' },
-  { id: 'CON-042', name: 'Mobil Oil 1 LTR / Bike Tube / Shooks', category: 'Auto & Facility', type: MATERIAL_TYPES.CONSUMABLE, stock: '4 Pic', unit: 'Pic', location: 'Vehicle Spares Bin', minStock: 1, desc: 'Field Motorcycle Maintenance' }
+  { id: 'CON-042', name: 'Mobil Oil 1 LTR / Bike Tube / Shooks / Speed Meter', category: 'Auto & Facility', type: MATERIAL_TYPES.CONSUMABLE, stock: '5 Pic', unit: 'Pic', location: 'Vehicle Spares Bin', minStock: 1, desc: 'Field Motorcycle Maintenance' },
+  { id: 'CON-043', name: 'AVR Card', category: 'Electrical & Electronics', type: MATERIAL_TYPES.CONSUMABLE, stock: '14 Pic', unit: 'Pic', location: 'Generator Spares Shelf', minStock: 3, desc: 'Automatic Voltage Regulator Cards' },
+  { id: 'CON-044', name: 'WAPDA D FUSE / Fuse Breaker / Fuse', category: 'Electrical & Electronics', type: MATERIAL_TYPES.CONSUMABLE, stock: '3 Boxes + 8 Pic', unit: 'Box', location: 'Switchgear Rack C', minStock: 2, desc: 'Heavy Duty D-Fuses & Holders' },
+  { id: 'CON-045', name: 'Industrial Socket / Industrial Shoe 63 Amp', category: 'Electrical & Electronics', type: MATERIAL_TYPES.CONSUMABLE, stock: '21 Pic', unit: 'Pic', location: 'Industrial Plugs Bin', minStock: 4, desc: '3-Phase Industrial Plugs & Sockets' },
+  { id: 'CON-046', name: 'Patch Panal / Cable Manager / IO / Cat Six Connector', category: 'Electrical & Electronics', type: MATERIAL_TYPES.CONSUMABLE, stock: '4 Pic + 10 Packs', unit: 'Pack', location: 'Data Rack Shelf', minStock: 2, desc: 'Networking Rack Accessories & RJ45' },
+  { id: 'CON-047', name: 'AC Out Door Stand / Solar Plate Stand Hardware', category: 'Hardware & Carpentry', type: MATERIAL_TYPES.CONSUMABLE, stock: '9 Sets', unit: 'Set', location: 'Heavy Bracket Bay', minStock: 2, desc: 'Outdoor Mounting Brackets' },
+  { id: 'CON-048', name: '85 Watt Energy Savor / Bulbe Holders / Tube Light', category: 'Electrical & Electronics', type: MATERIAL_TYPES.CONSUMABLE, stock: '12 Pic + 3 Boxes', unit: 'Pic', location: 'Lighting Shelf B1', minStock: 4, desc: 'Bulbs, Tube Lights & Holders' },
+  { id: 'CON-049', name: 'Flexible Pipe / Hockey Pipe / Water Pump Bend', category: 'Plumbing & Sanitary', type: MATERIAL_TYPES.CONSUMABLE, stock: '2 Rolls + 4 Pic', unit: 'Roll', location: 'Plumbing Bay', minStock: 1, desc: 'Flexible Conduit & Plumbing Pipes' },
+  { id: 'CON-050', name: 'LCD Bracket / LCD Stand / Curtian Rod / Roller Blinder', category: 'Office & Facility', type: MATERIAL_TYPES.CONSUMABLE, stock: '15 Pic', unit: 'Pic', location: 'Office Hardware Bin', minStock: 2, desc: 'Wall Mounts, Curtain Rods & Blinds' },
+  { id: 'CON-051', name: 'Chair Weel / Chair Machine / Exaust Jali / Patch Fitting', category: 'Office & Facility', type: MATERIAL_TYPES.CONSUMABLE, stock: '10 Pic', unit: 'Pic', location: 'Office Hardware Bin', minStock: 2, desc: 'Chair Castors, Mechanisms & Fittings' },
+];
+
+export const INITIAL_RETURNABLE_TOOL_LOANS = [
+  {
+    id: 'RET-LOAN-001',
+    toolName: 'Gas Cylinder (LPG 15kg)',
+    issuedTo: 'Ali Shehzad',
+    site: 'Manawala',
+    issueDate: '2026-10-28',
+    dueDate: '2026-11-03',
+    returnDate: null,
+    status: 'IN_FIELD',
+    condition: 'Active at Site',
+  },
+  {
+    id: 'RET-LOAN-002',
+    toolName: 'Clamp Meter (Fluke 302+)',
+    issuedTo: 'Shah Zaib',
+    site: 'Kanjwahl',
+    issueDate: '2026-10-29',
+    dueDate: '2026-11-01',
+    returnDate: '2026-11-01',
+    status: 'RETURNED',
+    condition: 'Verified Good Condition',
+  },
+  {
+    id: 'RET-LOAN-003',
+    toolName: 'PSI Presure Gage',
+    issuedTo: 'Ali Shehzad',
+    site: 'Manawala',
+    issueDate: '2026-11-01',
+    dueDate: '2026-11-04',
+    returnDate: null,
+    status: 'IN_FIELD',
+    condition: 'Testing Compressor Pressure',
+  },
+  {
+    id: 'RET-LOAN-004',
+    toolName: 'Drill Machine (Bosch Impact 13mm)',
+    issuedTo: 'Muhammad Ibrahim',
+    site: 'Muradshah',
+    issueDate: '2026-11-02',
+    dueDate: '2026-11-05',
+    returnDate: null,
+    status: 'IN_FIELD',
+    condition: 'Anchor Fixing on Trays',
+  },
 ];
 
 export function searchStoreItems(query = '', category = 'ALL', type = 'ALL') {

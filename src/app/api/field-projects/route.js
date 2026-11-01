@@ -7,6 +7,7 @@ import {
   extractProjectExpenses,
   buildExpenseSectionsFromEntries,
 } from '@/lib/projectReportTemplates';
+import { INITIAL_RETURNABLE_TOOL_LOANS } from '@/lib/storeCatalog';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,11 +81,26 @@ function extractDemandsFromReport(report) {
   return [];
 }
 
+function extractToolLoansFromReport(report) {
+  if (!report?.progressData) return [];
+  try {
+    const parsed =
+      typeof report.progressData === 'string'
+        ? JSON.parse(report.progressData)
+        : report.progressData;
+    if (Array.isArray(parsed) && Array.isArray(parsed[0]?.sheetMeta?.toolLoans)) {
+      return parsed[0].sheetMeta.toolLoans;
+    }
+  } catch {}
+  return [];
+}
+
 function formatProjectPayload(siteDef, job) {
   const latestReport = job?.projectReports?.[0] || null;
   const progressSections = normalizeProgressSections(latestReport?.progressData);
   const sheetMeta = progressSections?.[0]?.sheetMeta || {};
   const demands = normalizeDemandList(sheetMeta.demands, siteDef, job, latestReport, sheetMeta);
+  const toolLoans = Array.isArray(sheetMeta.toolLoans) ? sheetMeta.toolLoans : [];
 
   let pctTotal = 0;
   let pctCount = 0;
@@ -136,6 +152,7 @@ function formatProjectPayload(siteDef, job) {
     otherExpense: expenseBreakdown.otherExpense,
     expenseEntries: expenseBreakdown.entries,
     demands,
+    toolLoans,
     progressSections,
     reportDate:
       sheetMeta.reportDate ||
@@ -244,11 +261,34 @@ export async function GET(request) {
       )
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
+    const dbToolLoans = allProjects.flatMap((proj) =>
+      (proj.toolLoans || []).map((t) => ({
+        ...t,
+        site: t.site || proj.branchName || proj.label,
+        jobMetadataId: proj.jobMetadataId || t.jobMetadataId,
+        reportId: proj.reportId || t.reportId,
+      }))
+    );
+
+    const loanMap = new Map();
+    INITIAL_RETURNABLE_TOOL_LOANS.forEach((seed) => {
+      loanMap.set(seed.id, seed);
+    });
+    dbToolLoans.forEach((loan) => {
+      if (loan && loan.id) {
+        loanMap.set(loan.id, loan);
+      }
+    });
+    const allToolLoans = Array.from(loanMap.values()).sort(
+      (a, b) => new Date(b.createdAt || b.issueDate || 0) - new Date(a.createdAt || a.issueDate || 0)
+    );
+
     return NextResponse.json({
       projects: [...standardProjects, primaryOther],
       otherProjects,
       allProjects,
       allDemands,
+      allToolLoans,
       success: true,
     });
   } catch (error) {
@@ -385,8 +425,9 @@ export async function POST(request) {
       })
     );
     const existingDemands = extractDemandsFromReport(existingReport);
+    const existingToolLoans = extractToolLoansFromReport(existingReport);
 
-    // Prepare normalized Progress Sections + Sheet Metadata (preserving demands)
+    // Prepare normalized Progress Sections + Sheet Metadata (preserving demands & toolLoans)
     const normalizedProgress = normalizeProgressSections(progressSections);
     if (normalizedProgress.length > 0) {
       normalizedProgress[0].sheetMeta = {
@@ -397,6 +438,7 @@ export async function POST(request) {
         targetCompletion: targetCompletion || '',
         projectStatus,
         demands: existingDemands,
+        toolLoans: existingToolLoans,
       };
     }
 
@@ -809,6 +851,7 @@ export async function PATCH(request) {
       const normalizedProgress = normalizeProgressSections(existingReport?.progressData);
       const prevMeta = normalizedProgress?.[0]?.sheetMeta || {};
       const existingDemands = extractDemandsFromReport(existingReport);
+      const existingToolLoans = extractToolLoansFromReport(existingReport);
 
       const nowIso = new Date().toISOString();
       const newDemand = {
@@ -828,6 +871,31 @@ export async function PATCH(request) {
         updatedAt: nowIso,
       };
 
+      const autoReturnableLoans =
+        normalizedType === 'MATERIAL'
+          ? filledFormItems
+              .filter(
+                (it) =>
+                  (it.materialType || '').toLowerCase().includes('returnable') &&
+                  !(it.sourcingMode || '').toLowerCase().includes('self') &&
+                  (it.description || '').trim()
+              )
+              .map((it, idx) => ({
+                id: `RET-${Date.now().toString().slice(-4)}-${idx + 1}`,
+                toolName: `${it.description.trim()}${it.requiredQty ? ` (${it.requiredQty}${it.unit ? ' ' + it.unit : ''})` : ''}`,
+                issuedTo: requesterName,
+                site: cleanBranch,
+                issueDate: formData?.date || nowIso.split('T')[0],
+                dueDate:
+                  formData?.requiredDeliveryDate ||
+                  new Date(Date.now() + 4 * 24 * 3600 * 1000).toISOString().split('T')[0],
+                returnDate: null,
+                status: 'IN_FIELD',
+                condition: `Requested via Store Requisition ${formData?.requisitionNo || ''}`.trim(),
+                createdAt: nowIso,
+              }))
+          : [];
+
       if (normalizedProgress.length > 0) {
         normalizedProgress[0].sheetMeta = {
           projectKey: projectKey || prevMeta.projectKey || 'manawala',
@@ -837,6 +905,7 @@ export async function PATCH(request) {
           targetCompletion: prevMeta.targetCompletion || '',
           projectStatus: prevMeta.projectStatus || 'IN_PROGRESS',
           demands: [newDemand, ...existingDemands],
+          toolLoans: [...autoReturnableLoans, ...existingToolLoans],
         };
       }
 
@@ -1078,6 +1147,244 @@ export async function PATCH(request) {
         project: formatProjectPayload(matchedSite, refreshedJob),
         success: true,
       });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ACTION 3: CREATE_TOOL_LOAN (Issue Returnable Material / Tool to Employee)
+    // ─────────────────────────────────────────────────────────────────────────
+    if (action === 'CREATE_TOOL_LOAN') {
+      const {
+        toolName = '',
+        issuedTo = '',
+        site = 'Manawala',
+        dueDate = '',
+        condition = 'Issued from Ground Floor Store',
+      } = body;
+
+      if (!toolName.trim() || !issuedTo.trim()) {
+        return NextResponse.json(
+          { error: 'Tool name and recipient employee name are required.' },
+          { status: 400 }
+        );
+      }
+
+      const cleanSite = (site || 'Manawala').trim();
+      let employeeId = user?.id ? Number(user.id) : null;
+      if (!employeeId || Number.isNaN(employeeId)) {
+        const fallbackUser = await withDbRetry(() =>
+          prisma.user.findFirst({ where: { activeStatus: true }, orderBy: { id: 'asc' }, select: { id: true } })
+        );
+        employeeId = fallbackUser?.id || null;
+      }
+      if (!employeeId) {
+        const anyUser = await withDbRetry(() =>
+          prisma.user.findFirst({ orderBy: { id: 'asc' }, select: { id: true } })
+        );
+        employeeId = anyUser?.id || null;
+      }
+
+      let job = await withDbRetry(() =>
+        prisma.jobMetadata.findFirst({
+          where: {
+            workNature: 'PROJECT',
+            branchName: { equals: cleanSite, mode: 'insensitive' },
+          },
+          orderBy: { updatedAt: 'desc' },
+        })
+      );
+
+      if (!job) {
+        const serialNo = await nextTicketSerialNo();
+        const newTicket = await withDbRetry(() =>
+          prisma.ticket.create({
+            data: {
+              gmailMessageId: `field-proj-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              serialNo,
+              subject: `FES Site Project — ${cleanSite}`,
+              sender: issuedTo.trim(),
+              exactDate: new Date(),
+              time: new Date().toTimeString().slice(0, 5),
+              status: 'RELEVANT',
+              statusLastChangedBy: user?.employeeName || issuedTo.trim(),
+              createdById: employeeId,
+            },
+          })
+        );
+        job = await withDbRetry(() =>
+          prisma.jobMetadata.create({
+            data: {
+              ticketId: newTicket.id,
+              clientName: 'Fast Engineering Solutions',
+              branchName: cleanSite,
+              personOfContact: issuedTo.trim(),
+              workNature: 'PROJECT',
+              assignedEmployeeId: employeeId,
+              manualEnteredBy: user?.employeeName || issuedTo.trim(),
+              createdById: employeeId,
+            },
+          })
+        );
+      }
+
+      const existingReport = await withDbRetry(() =>
+        prisma.projectReportSubmission.findFirst({
+          where: { jobMetadataId: job.id },
+          orderBy: { updatedAt: 'desc' },
+        })
+      );
+
+      const normalizedProgress = normalizeProgressSections(existingReport?.progressData);
+      const prevMeta = normalizedProgress?.[0]?.sheetMeta || {};
+      const existingDemands = extractDemandsFromReport(existingReport);
+      const existingToolLoans = extractToolLoansFromReport(existingReport);
+      const nowIso = new Date().toISOString();
+
+      const newLoan = {
+        id: `RET-${Date.now().toString().slice(-5)}`,
+        toolName: toolName.trim(),
+        issuedTo: issuedTo.trim(),
+        site: cleanSite,
+        issueDate: nowIso.split('T')[0],
+        dueDate:
+          dueDate || new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString().split('T')[0],
+        returnDate: null,
+        status: 'IN_FIELD',
+        condition: condition || 'Issued from Ground Floor Store',
+        issuedBy: user?.employeeName || 'Store',
+        createdAt: nowIso,
+      };
+
+      if (normalizedProgress.length > 0) {
+        normalizedProgress[0].sheetMeta = {
+          ...prevMeta,
+          projectKey: prevMeta.projectKey || cleanSite.toLowerCase().replace(/\s+/g, '-'),
+          branchSite: cleanSite,
+          demands: existingDemands,
+          toolLoans: [newLoan, ...existingToolLoans],
+        };
+      }
+
+      const progressJson = JSON.stringify(normalizedProgress);
+      if (existingReport) {
+        await withDbRetry(() =>
+          prisma.projectReportSubmission.update({
+            where: { id: existingReport.id },
+            data: { progressData: progressJson, updatedAt: new Date() },
+          })
+        );
+      } else {
+        await withDbRetry(() =>
+          prisma.projectReportSubmission.create({
+            data: {
+              jobMetadataId: job.id,
+              employeeId,
+              status: 'IN_PROGRESS',
+              branchName: cleanSite,
+              reportDate: new Date(),
+              version: 1,
+              expenseData: JSON.stringify(buildExpenseSectionsFromEntries([])),
+              progressData: progressJson,
+              totalExpenseAmount: 0,
+              overallProgressPercent: 0,
+              attachments: '[]',
+              paidBy: 'FES',
+            },
+          })
+        );
+      }
+
+      return NextResponse.json({ toolLoan: newLoan, success: true });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ACTION 4: RETURN_TOOL_LOAN (Mark Returnable Tool as Returned to Store)
+    // ─────────────────────────────────────────────────────────────────────────
+    if (action === 'RETURN_TOOL_LOAN') {
+      const { loanId, conditionNote } = body;
+      if (!loanId) {
+        return NextResponse.json({ error: 'loanId is required.' }, { status: 400 });
+      }
+
+      const candidateReports = await withDbRetry(() =>
+        prisma.projectReportSubmission.findMany({
+          orderBy: { updatedAt: 'desc' },
+          take: 100,
+        })
+      );
+
+      let targetReport =
+        candidateReports.find((r) =>
+          extractToolLoansFromReport(r).some((t) => t.id === loanId)
+        ) || null;
+
+      const nowIso = new Date().toISOString();
+      const todayStr = nowIso.split('T')[0];
+      const verifier = user?.employeeName || 'Store Staff';
+
+      if (targetReport) {
+        const normalizedProgress = normalizeProgressSections(targetReport.progressData);
+        const prevMeta = normalizedProgress?.[0]?.sheetMeta || {};
+        const existingLoans = extractToolLoansFromReport(targetReport);
+        const nextLoans = existingLoans.map((item) =>
+          item.id === loanId
+            ? {
+                ...item,
+                status: 'RETURNED',
+                returnDate: todayStr,
+                condition: conditionNote || `Returned & Verified (${verifier})`,
+                updatedAt: nowIso,
+              }
+            : item
+        );
+        if (normalizedProgress.length > 0) {
+          normalizedProgress[0].sheetMeta = {
+            ...prevMeta,
+            toolLoans: nextLoans,
+          };
+        }
+        await withDbRetry(() =>
+          prisma.projectReportSubmission.update({
+            where: { id: targetReport.id },
+            data: { progressData: JSON.stringify(normalizedProgress), updatedAt: new Date() },
+          })
+        );
+        const updatedLoan = nextLoans.find((t) => t.id === loanId);
+        return NextResponse.json({ toolLoan: updatedLoan, success: true });
+      }
+
+      // If loanId came from INITIAL_RETURNABLE_TOOL_LOANS (seed loan), persist override in first available report
+      const seedMatch = INITIAL_RETURNABLE_TOOL_LOANS.find((s) => s.id === loanId);
+      if (seedMatch) {
+        const updatedSeedLoan = {
+          ...seedMatch,
+          status: 'RETURNED',
+          returnDate: todayStr,
+          condition: conditionNote || `Returned & Verified (${verifier})`,
+          updatedAt: nowIso,
+        };
+
+        let hostReport = candidateReports[0] || null;
+        if (hostReport) {
+          const normalizedProgress = normalizeProgressSections(hostReport.progressData);
+          const prevMeta = normalizedProgress?.[0]?.sheetMeta || {};
+          const existingLoans = extractToolLoansFromReport(hostReport);
+          if (normalizedProgress.length > 0) {
+            normalizedProgress[0].sheetMeta = {
+              ...prevMeta,
+              toolLoans: [updatedSeedLoan, ...existingLoans.filter((x) => x.id !== loanId)],
+            };
+          }
+          await withDbRetry(() =>
+            prisma.projectReportSubmission.update({
+              where: { id: hostReport.id },
+              data: { progressData: JSON.stringify(normalizedProgress), updatedAt: new Date() },
+            })
+          );
+        }
+        return NextResponse.json({ toolLoan: updatedSeedLoan, success: true });
+      }
+
+      return NextResponse.json({ error: 'Tool loan record not found.' }, { status: 404 });
     }
 
     return NextResponse.json({ error: 'Invalid PATCH action' }, { status: 400 });

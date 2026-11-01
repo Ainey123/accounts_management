@@ -46,6 +46,7 @@ import {
 } from '@/lib/projectPdfGenerator';
 import { buildExpenseSectionsFromEntries } from '@/lib/projectReportTemplates';
 import DemandFormSheet from '@/components/DemandFormSheet';
+import StoreMaterialsModule from '@/components/StoreMaterialsModule';
 
 export default function FieldPortalPage() {
   const { user, logout } = useAuth();
@@ -825,7 +826,7 @@ export default function FieldPortalPage() {
           </div>
         </div>
 
-        {/* Single Navigation Option: PROJECT (+ Logout) */}
+        {/* Navigation Options: PROJECT + STORE & MATERIALS (+ Logout) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             type="button"
@@ -840,22 +841,54 @@ export default function FieldPortalPage() {
               padding: '9px 18px',
               borderRadius: 10,
               border:
-                portalStep !== 'home'
+                portalStep === 'select-project' || portalStep === 'dashboard'
                   ? '1px solid rgba(52, 211, 153, 0.6)'
                   : '1px solid rgba(255,255,255,0.14)',
               background:
-                portalStep !== 'home'
+                portalStep === 'select-project' || portalStep === 'dashboard'
                   ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)'
                   : 'rgba(16, 185, 129, 0.14)',
               color: '#ffffff',
               fontWeight: 700,
               fontSize: 13,
               cursor: 'pointer',
-              boxShadow: portalStep !== 'home' ? '0 4px 14px rgba(16, 185, 129, 0.35)' : 'none',
+              boxShadow:
+                portalStep === 'select-project' || portalStep === 'dashboard'
+                  ? '0 4px 14px rgba(16, 185, 129, 0.35)'
+                  : 'none',
             }}
           >
             <FolderKanban size={16} />
             <span>Project</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPortalStep('materials')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '9px 18px',
+              borderRadius: 10,
+              border:
+                portalStep === 'materials'
+                  ? '1px solid rgba(56, 189, 248, 0.6)'
+                  : '1px solid rgba(255,255,255,0.14)',
+              background:
+                portalStep === 'materials'
+                  ? 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)'
+                  : 'rgba(56, 189, 248, 0.12)',
+              color: '#ffffff',
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: 'pointer',
+              boxShadow:
+                portalStep === 'materials' ? '0 4px 14px rgba(56, 189, 248, 0.35)' : 'none',
+            }}
+          >
+            <Package size={16} />
+            <span>Store &amp; Materials</span>
           </button>
 
           <button
@@ -927,50 +960,97 @@ export default function FieldPortalPage() {
                 Fast Engineering Solutions — Construction Site Monitoring &amp; Progress Portal
               </p>
 
-              {/* THE ONLY OPTION: PROJECT */}
-              <button
-                type="button"
-                onClick={() => setPortalStep('select-project')}
-                style={{
-                  width: '100%',
-                  padding: '22px 24px',
-                  borderRadius: 14,
-                  border: '1px solid rgba(52, 211, 153, 0.5)',
-                  background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
-                  color: '#ffffff',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  boxShadow: '0 10px 28px rgba(16, 185, 129, 0.35)',
-                  transition: 'transform 0.15s ease',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left' }}>
-                  <div
-                    style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 12,
-                      background: 'rgba(255,255,255,0.18)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <FolderKanban size={26} color="#ffffff" />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 0.3 }}>
-                      Project
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {/* OPTION 1: PROJECT DASHBOARD */}
+                <button
+                  type="button"
+                  onClick={() => setPortalStep('select-project')}
+                  style={{
+                    width: '100%',
+                    padding: '20px 22px',
+                    borderRadius: 14,
+                    border: '1px solid rgba(52, 211, 153, 0.5)',
+                    background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    boxShadow: '0 10px 28px rgba(16, 185, 129, 0.35)',
+                    transition: 'transform 0.15s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left' }}>
+                    <div
+                      style={{
+                        width: 46,
+                        height: 46,
+                        borderRadius: 12,
+                        background: 'rgba(255,255,255,0.18)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <FolderKanban size={24} color="#ffffff" />
                     </div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.88)', marginTop: 2 }}>
-                      Click to select site project &amp; open dashboard
+                    <div>
+                      <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: 0.3 }}>
+                        Project
+                      </div>
+                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.88)', marginTop: 2 }}>
+                        Click to select site project &amp; open dashboard
+                      </div>
                     </div>
                   </div>
-                </div>
-                <ChevronRight size={24} color="#ffffff" />
-              </button>
+                  <ChevronRight size={22} color="#ffffff" />
+                </button>
+
+                {/* OPTION 2: STORE & MATERIAL MANAGEMENT */}
+                <button
+                  type="button"
+                  onClick={() => setPortalStep('materials')}
+                  style={{
+                    width: '100%',
+                    padding: '20px 22px',
+                    borderRadius: 14,
+                    border: '1px solid rgba(56, 189, 248, 0.5)',
+                    background: 'linear-gradient(135deg, #0369a1 0%, #0284c7 100%)',
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    boxShadow: '0 10px 28px rgba(2, 132, 199, 0.35)',
+                    transition: 'transform 0.15s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left' }}>
+                    <div
+                      style={{
+                        width: 46,
+                        height: 46,
+                        borderRadius: 12,
+                        background: 'rgba(255,255,255,0.18)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Package size={24} color="#ffffff" />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: 0.3 }}>
+                        Store &amp; Material Management
+                      </div>
+                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.88)', marginTop: 2 }}>
+                        460+ Store Items, Buy from Store vs Self Buy, Borrow Tools
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight size={22} color="#ffffff" />
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1305,6 +1385,27 @@ export default function FieldPortalPage() {
                 >
                   <DollarSign size={14} />
                   <span>Demands ({demandsList.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPortalStep('materials')}
+                  className="nexus-btn"
+                  style={{
+                    padding: '8px 14px',
+                    fontSize: 12,
+                    background: 'rgba(56, 189, 248, 0.16)',
+                    border: '1px solid rgba(56, 189, 248, 0.45)',
+                    color: '#38bdf8',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Package size={14} />
+                  <span>Store &amp; Materials</span>
                 </button>
 
                 <button
@@ -3392,6 +3493,18 @@ export default function FieldPortalPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* STEP 4: FIELD STORE & MATERIAL MANAGEMENT (3 PILLARS + SOURCING)  */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {portalStep === 'materials' && (
+          <StoreMaterialsModule
+            defaultBranch={branchSite || 'Manawala'}
+            onBack={() => setPortalStep(branchSite ? 'dashboard' : 'home')}
+            backLabel={branchSite ? `Back to ${branchSite} Dashboard` : 'Back to Home'}
+            onDemandSubmitted={handleRefreshDemands}
+          />
         )}
       </div>
     </div>

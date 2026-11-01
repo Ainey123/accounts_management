@@ -372,15 +372,37 @@ export default function AdminFieldEmployeesModule() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => loadFieldData()}
-            className="nexus-btn nexus-btn-ghost"
-            style={{ padding: '8px 14px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            <span>Refresh Data</span>
-          </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <a
+              href="/materials"
+              className="nexus-btn"
+              style={{
+                padding: '8px 14px',
+                fontSize: 12,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                background: 'rgba(56, 189, 248, 0.15)',
+                border: '1px solid rgba(56, 189, 248, 0.4)',
+                color: '#38bdf8',
+                fontWeight: 700,
+                textDecoration: 'none',
+              }}
+            >
+              <Package size={14} />
+              <span>Store &amp; Materials Console</span>
+            </a>
+
+            <button
+              type="button"
+              onClick={() => loadFieldData()}
+              className="nexus-btn nexus-btn-ghost"
+              style={{ padding: '8px 14px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              <span>Refresh Data</span>
+            </button>
+          </div>
         </div>
 
         {/* Project Filter Pills */}

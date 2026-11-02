@@ -122,7 +122,7 @@ export default function LoginPage() {
             ? 'Select your batch and enter PIN to access office operations'
             : adminMode === 'SUB_ADMIN'
             ? 'Supervisor access: pending payment sheet, pending checklist & staff messages'
-            : 'Enter master admin PIN (123456) or Sub Admin PIN (444555)'}
+            : 'Enter admin security credentials to access console'}
         </p>
       </div>
 
@@ -184,11 +184,6 @@ export default function LoginPage() {
                 <Users size={14} style={{ display: 'inline', marginRight: 5 }} /> Sub Admin (Supervisor)
               </button>
             </div>
-            {adminMode === 'SUB_ADMIN' && (
-              <div style={{ marginTop: 8, fontSize: 11, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <AlertCircle size={13} /> Default Supervisor PIN is <strong>444555</strong>
-              </div>
-            )}
           </div>
         )}
 
@@ -302,8 +297,8 @@ export default function LoginPage() {
               placeholder={
                 activeTab === 'ADMIN'
                   ? adminMode === 'SUB_ADMIN'
-                    ? 'Enter supervisor PIN (444555)'
-                    : 'Enter master PIN or 444555 for Sub Admin'
+                    ? 'Enter supervisor PIN'
+                    : 'Enter admin PIN'
                   : 'Enter 4-6 digit PIN'
               }
               maxLength={6}

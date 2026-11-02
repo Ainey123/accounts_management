@@ -12,16 +12,17 @@ import { useAuth } from '@/components/AuthProvider';
 export default function DomainOverviewCardsPage() {
   const { user, isHydrated } = useAuth();
   const router = useRouter();
+  const isAuthorized = user?.role === 'ADMIN' || user?.role === 'SUB_ADMIN';
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (isHydrated && user && user.role !== 'ADMIN') {
+    if (isHydrated && user && !isAuthorized) {
       router.push('/dashboard');
     }
-  }, [user, isHydrated, router]);
+  }, [user, isHydrated, router, isAuthorized]);
 
   // Filters
   const [selectedTenure, setSelectedTenure] = useState('all');
@@ -62,10 +63,10 @@ export default function DomainOverviewCardsPage() {
   }, [selectedTenure, selectedBatch, fromDate, toDate]);
 
   useEffect(() => {
-    if (user?.role === 'ADMIN') {
+    if (isAuthorized) {
       fetchCardsData();
     }
-  }, [fetchCardsData, user]);
+  }, [fetchCardsData, isAuthorized]);
 
   const handleSaveNote = (batchName, text) => {
     const key = `${selectedTenure}_${batchName}`;
@@ -237,7 +238,7 @@ export default function DomainOverviewCardsPage() {
     );
   };
 
-  if (!isHydrated || !user || user.role !== 'ADMIN') {
+  if (!isHydrated || !user || !isAuthorized) {
     return null;
   }
 

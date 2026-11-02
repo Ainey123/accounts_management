@@ -15,8 +15,8 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!requester || requester.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Only admins can delete comments' }, { status: 403 });
+    if (!requester || (requester.role !== 'ADMIN' && requester.role !== 'SUB_ADMIN')) {
+      return NextResponse.json({ error: 'Only admins or supervisors can delete comments' }, { status: 403 });
     }
 
     const { id: rawId } = await params;

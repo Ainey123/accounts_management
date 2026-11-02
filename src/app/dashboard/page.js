@@ -1163,15 +1163,24 @@ export default function EmployeeRealTimeDashboard() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '420px', overflowY: 'auto', paddingRight: 6, marginBottom: 20 }}>
             {adminComments.map((c) => {
               const isMyReply = c.senderRole === 'EMPLOYEE';
+              const isSupervisor = c.senderRole === 'SUB_ADMIN';
               return (
                 <div
                   key={c.id}
                   style={{
-                    background: isMyReply ? 'rgba(16, 185, 129, 0.08)' : 'rgba(30, 41, 59, 0.6)',
+                    background: isMyReply
+                      ? 'rgba(16, 185, 129, 0.08)'
+                      : isSupervisor
+                      ? 'rgba(245, 158, 11, 0.08)'
+                      : 'rgba(30, 41, 59, 0.6)',
                     borderRadius: 12,
                     padding: '16px 20px',
                     border: '1px solid rgba(255, 255, 255, 0.08)',
-                    borderLeft: isMyReply ? '4px solid #10b981' : '4px solid #a78bfa',
+                    borderLeft: isMyReply
+                      ? '4px solid #10b981'
+                      : isSupervisor
+                      ? '4px solid #f59e0b'
+                      : '4px solid #a78bfa',
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -1186,13 +1195,23 @@ export default function EmployeeRealTimeDashboard() {
                           Your Reply
                         </span>
                       )}
+                      {isSupervisor && (
+                        <span className="status-pill active" style={{ fontSize: 10, background: 'rgba(245,158,11,0.2)', color: '#fbbf24', padding: '2px 8px' }}>
+                          Supervisor
+                        </span>
+                      )}
                     </span>
                   </div>
                   <div style={{ fontSize: 14, color: '#f1f5f9', whiteSpace: 'pre-wrap', lineHeight: 1.6, marginBottom: 8 }}>
                     {c.content}
                   </div>
-                  <div style={{ textAlign: 'right', fontSize: 13, fontWeight: 700, color: isMyReply ? '#34d399' : '#c084fc' }}>
-                    By {c.senderName || c.adminName || (isMyReply ? (user?.employeeName || 'You') : 'Fatma')}
+                  <div style={{
+                    textAlign: 'right',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: isMyReply ? '#34d399' : isSupervisor ? '#fbbf24' : '#c084fc',
+                  }}>
+                    By {c.senderName || c.adminName || (isMyReply ? (user?.employeeName || 'You') : isSupervisor ? 'Supervisor' : 'Fatma')}
                   </div>
                 </div>
               );

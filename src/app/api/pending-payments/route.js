@@ -50,8 +50,8 @@ export async function GET(request) {
 
     const sessionUser = getUserFromCookie(request);
 
-    if (sessionUser && sessionUser.role === 'EMPLOYEE') {
-      return NextResponse.json({ success: false, error: 'Unauthorized: Admin access required' }, { status: 403 });
+    if (sessionUser && sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUB_ADMIN') {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Admin or Supervisor access required' }, { status: 403 });
     }
 
     // Determine target month (default to current month, or August 2026 / current date)

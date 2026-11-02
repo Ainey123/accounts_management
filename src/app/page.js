@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, KeyRound, Briefcase, Settings, Layers, ChevronDown, HardHat, AlertCircle } from 'lucide-react';
+import { ShieldCheck, KeyRound, Briefcase, Settings, Layers, ChevronDown, HardHat, AlertCircle, Users, Lock } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { apiFetch } from '@/lib/api';
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState('EMPLOYEE');
+  const [adminMode, setAdminMode] = useState('MASTER'); // 'MASTER' | 'SUB_ADMIN'
   const [pin, setPin] = useState('');
   const [selectedBatchId, setSelectedBatchId] = useState('');
   const [selectedName, setSelectedName] = useState('');
@@ -58,11 +59,15 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const selectedOfficeBatch = officeEmployees.find((emp) => String(emp.id) === String(selectedBatchId));
+      const targetRole = activeTab === 'ADMIN'
+        ? (adminMode === 'SUB_ADMIN' || String(pin).trim() === '444555' ? 'SUB_ADMIN' : 'ADMIN')
+        : activeTab;
+
       const { user } = await apiFetch('/api/auth/pin-login', {
         method: 'POST',
         body: JSON.stringify({
           pin: String(pin).trim(),
-          role: activeTab,
+          role: targetRole,
           employeeId: activeTab === 'EMPLOYEE' ? Number(selectedBatchId) : undefined,
           batchLabel: activeTab === 'EMPLOYEE' ? selectedOfficeBatch?.batchLabel : undefined,
           employeeName: activeTab === 'FIELD_EMPLOYEE' ? selectedName : undefined,
@@ -92,20 +97,32 @@ export default function LoginPage() {
           {activeTab === 'FIELD_EMPLOYEE' ? (
             <HardHat size={32} color="#34d399" />
           ) : activeTab === 'ADMIN' ? (
-            <ShieldCheck size={32} color="#a78bfa" />
+            adminMode === 'SUB_ADMIN' ? (
+              <ShieldCheck size={32} color="#fbbf24" />
+            ) : (
+              <ShieldCheck size={32} color="#a78bfa" />
+            )
           ) : (
             <Briefcase size={32} color="#00f2fe" />
           )}
         </div>
         <h1 style={{ fontSize: 24, letterSpacing: 0.5 }}>
-          {activeTab === 'FIELD_EMPLOYEE' ? 'FIELD PORTAL' : activeTab === 'EMPLOYEE' ? 'OFFICE CONSOLE' : 'MASTER CONSOLE'}
+          {activeTab === 'FIELD_EMPLOYEE'
+            ? 'FIELD PORTAL'
+            : activeTab === 'EMPLOYEE'
+            ? 'OFFICE CONSOLE'
+            : adminMode === 'SUB_ADMIN'
+            ? 'SUB ADMIN PORTAL'
+            : 'MASTER CONSOLE'}
         </h1>
         <p style={{ fontSize: 13, color: '#64748b', marginTop: 8 }}>
           {activeTab === 'FIELD_EMPLOYEE'
             ? 'Field staff project dashboard & site progress sheet access'
             : activeTab === 'EMPLOYEE'
             ? 'Select your batch and enter PIN to access office operations'
-            : 'Enter master admin PIN to access command center'}
+            : adminMode === 'SUB_ADMIN'
+            ? 'Supervisor access: pending payment sheet, pending checklist & staff messages'
+            : 'Enter master admin PIN (123456) or Sub Admin PIN (444555)'}
         </p>
       </div>
 
@@ -136,6 +153,45 @@ export default function LoginPage() {
       {error && <div className="alert-error" style={{ marginBottom: 20 }}>{error}</div>}
 
       <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {/* SUB ADMIN / MASTER ADMIN SELECTOR IN ADMIN TAB */}
+        {activeTab === 'ADMIN' && (
+          <div>
+            <label className="field-label" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Lock size={13} color="#a78bfa" /> Administrative Role
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: 4, background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)' }}>
+              <button
+                type="button"
+                className={`tab-segment-btn ${adminMode === 'MASTER' ? 'active-admin' : ''}`}
+                onClick={() => { setAdminMode('MASTER'); setError(''); }}
+                style={{ fontSize: 12, padding: '9px 10px', textAlign: 'center', justifyContent: 'center' }}
+              >
+                <ShieldCheck size={14} style={{ display: 'inline', marginRight: 5 }} /> Master Admin
+              </button>
+              <button
+                type="button"
+                className={`tab-segment-btn ${adminMode === 'SUB_ADMIN' ? 'active-admin' : ''}`}
+                onClick={() => { setAdminMode('SUB_ADMIN'); setError(''); }}
+                style={{
+                  fontSize: 12,
+                  padding: '9px 10px',
+                  textAlign: 'center',
+                  justifyContent: 'center',
+                  background: adminMode === 'SUB_ADMIN' ? 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)' : undefined,
+                  color: adminMode === 'SUB_ADMIN' ? '#ffffff' : undefined,
+                }}
+              >
+                <Users size={14} style={{ display: 'inline', marginRight: 5 }} /> Sub Admin (Supervisor)
+              </button>
+            </div>
+            {adminMode === 'SUB_ADMIN' && (
+              <div style={{ marginTop: 8, fontSize: 11, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AlertCircle size={13} /> Default Supervisor PIN is <strong>444555</strong>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* OFFICE BATCH DROPDOWN (No Employee Personal Names) */}
         {activeTab === 'EMPLOYEE' && (
           <div>
@@ -243,7 +299,13 @@ export default function LoginPage() {
               value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
               required
-              placeholder={activeTab === 'ADMIN' ? 'Enter admin PIN' : 'Enter 4-6 digit PIN'}
+              placeholder={
+                activeTab === 'ADMIN'
+                  ? adminMode === 'SUB_ADMIN'
+                    ? 'Enter supervisor PIN (444555)'
+                    : 'Enter master PIN or 444555 for Sub Admin'
+                  : 'Enter 4-6 digit PIN'
+              }
               maxLength={6}
             />
           </div>
@@ -256,14 +318,21 @@ export default function LoginPage() {
             width: '100%',
             padding: '16px',
             fontSize: 16,
-            background: activeTab === 'FIELD_EMPLOYEE' ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : undefined,
+            background:
+              activeTab === 'FIELD_EMPLOYEE'
+                ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)'
+                : activeTab === 'ADMIN' && (adminMode === 'SUB_ADMIN' || pin === '444555')
+                ? 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)'
+                : undefined,
           }}
           disabled={loading || (activeTab === 'FIELD_EMPLOYEE' && fieldEmployees.length === 0)}
         >
           {loading
             ? 'Authenticating...'
             : activeTab === 'ADMIN'
-            ? 'Access Master Console'
+            ? adminMode === 'SUB_ADMIN' || pin === '444555'
+              ? 'Access Sub Admin Portal'
+              : 'Access Master Console'
             : activeTab === 'FIELD_EMPLOYEE'
             ? fieldEmployees.length === 0
               ? 'No Field Staff Registered'

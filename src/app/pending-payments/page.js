@@ -20,13 +20,14 @@ const MONTH_NAMES = [
 export default function PendingPaymentsPage() {
   const { user, isHydrated } = useAuth();
   const router = useRouter();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAuthorized = user?.role === 'ADMIN' || user?.role === 'SUB_ADMIN';
+  const isAdmin = isAuthorized;
 
   useEffect(() => {
-    if (isHydrated && user && user.role !== 'ADMIN') {
+    if (isHydrated && user && !isAuthorized) {
       router.push('/dashboard');
     }
-  }, [user, isHydrated, router]);
+  }, [user, isHydrated, router, isAuthorized]);
 
   // Current calendar month default
   const today = new Date();
@@ -81,10 +82,10 @@ export default function PendingPaymentsPage() {
   }, [selectedMonth, employeeFilter, searchQuery]);
 
   useEffect(() => {
-    if (user?.role === 'ADMIN') {
+    if (isAuthorized) {
       loadPendingPayments(selectedMonth);
     }
-  }, [selectedMonth, employeeFilter, loadPendingPayments, user]);
+  }, [selectedMonth, employeeFilter, loadPendingPayments, isAuthorized]);
 
   // Synchronize year with selected month
   useEffect(() => {
@@ -220,7 +221,7 @@ export default function PendingPaymentsPage() {
   const carryoverStats = stats.carryover || {};
   const hasStrictNotice = carryoverStats.hasStrictNotice && carryoverStats.totalOverdueInvoices > 0;
 
-  if (!isHydrated || !user || user.role !== 'ADMIN') {
+  if (!isHydrated || !user || !isAuthorized) {
     return null;
   }
 

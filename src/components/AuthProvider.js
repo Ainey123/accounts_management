@@ -59,6 +59,18 @@ export default function AuthProvider({ children }) {
         if (pathname !== '/field' && !pathname.startsWith('/field/')) {
           router.push('/field');
         }
+      } else if (user.role === 'SUB_ADMIN') {
+        // Supervisor (Sub Admin) limited access:
+        // 1. Pending Payments Sheet (/pending-payments)
+        // 2. Pending Checklist / All pending things of employees (/pending-checklist)
+        // 3. Messaging every employee and admin (/messages)
+        const allowedPaths = ['/pending-payments', '/pending-checklist', '/messages'];
+        const isAllowed = allowedPaths.some((p) => pathname === p || pathname.startsWith(p + '/'));
+        if (!isAllowed) {
+          router.push('/pending-payments');
+        } else if (pathname === '/') {
+          router.push('/pending-payments');
+        }
       } else {
         const isRestrictedForEmployee =
           user.role === 'EMPLOYEE' &&
@@ -68,7 +80,9 @@ export default function AuthProvider({ children }) {
             pathname === '/pending-checklist' ||
             pathname.startsWith('/pending-checklist/') ||
             pathname === '/pending-payments' ||
-            pathname.startsWith('/pending-payments/'));
+            pathname.startsWith('/pending-payments/') ||
+            pathname === '/messages' ||
+            pathname.startsWith('/messages/'));
 
         if (isRestrictedForEmployee) {
           router.push('/dashboard');
@@ -88,7 +102,14 @@ export default function AuthProvider({ children }) {
       setUser(authenticated);
       localStorage.setItem('nexus_user', JSON.stringify(authenticated));
       document.cookie = `nexus_user=${encodeURIComponent(JSON.stringify(authenticated))}; path=/; max-age=${7 * 24 * 60 * 60};`;
-      const targetRoute = role === 'ADMIN' ? '/admin/dashboard' : role === 'FIELD_EMPLOYEE' ? '/field' : '/dashboard';
+      const targetRoute =
+        role === 'ADMIN'
+          ? '/admin/dashboard'
+          : role === 'SUB_ADMIN'
+          ? '/pending-payments'
+          : role === 'FIELD_EMPLOYEE'
+          ? '/field'
+          : '/dashboard';
       router.push(targetRoute);
       return authenticated;
     }
@@ -98,7 +119,14 @@ export default function AuthProvider({ children }) {
     });
     setUser(authenticated);
     localStorage.setItem('nexus_user', JSON.stringify(authenticated));
-    const targetRoute = role === 'ADMIN' ? '/admin/dashboard' : role === 'FIELD_EMPLOYEE' ? '/field' : '/dashboard';
+    const targetRoute =
+      role === 'ADMIN'
+        ? '/admin/dashboard'
+        : role === 'SUB_ADMIN'
+        ? '/pending-payments'
+        : role === 'FIELD_EMPLOYEE'
+        ? '/field'
+        : '/dashboard';
     router.push(targetRoute);
     return authenticated;
   }, [router]);

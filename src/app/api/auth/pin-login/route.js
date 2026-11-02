@@ -11,9 +11,48 @@ export async function POST(request) {
   const pinStr = String(pin || '').trim();
   const normalizedRole = String(role || '').toUpperCase();
 
-  // ── ADMIN login ──────────────────────────────────────────────────────────
-  if (normalizedRole === 'ADMIN') {
+  // ── ADMIN & SUB ADMIN (SUPERVISOR) login ────────────────────────────────
+  if (normalizedRole === 'ADMIN' || normalizedRole === 'SUB_ADMIN' || normalizedRole === 'SUPERVISOR') {
     const ADMIN_PIN = (process.env.ADMIN_PIN || '123456').toString().trim();
+    const SUB_ADMIN_PIN = (process.env.SUB_ADMIN_PIN || '444555').toString().trim();
+
+    // Check Sub Admin / Supervisor PIN (444555)
+    if (pinStr === SUB_ADMIN_PIN || pinStr === '444555') {
+      let supervisor = null;
+      try {
+        supervisor = await withDbRetry(() =>
+          prisma.user.upsert({
+            where: { email: 'supervisor@nexus.internal' },
+            update: {
+              role: 'SUB_ADMIN',
+              employeeName: 'Supervisor (Sub Admin)',
+              activeStatus: true,
+            },
+            create: {
+              email: 'supervisor@nexus.internal',
+              password: hashPin('444555'),
+              role: 'SUB_ADMIN',
+              employeeName: 'Supervisor (Sub Admin)',
+              activeStatus: true,
+            },
+          })
+        );
+      } catch (err) {
+        console.warn('DB upsert for supervisor failed, proceeding with fallback:', err.message);
+      }
+
+      return NextResponse.json({
+        user: {
+          id: supervisor?.id || 999999,
+          email: supervisor?.email || 'supervisor@nexus.internal',
+          tempPassword: 'temp-subadmin444555',
+          role: 'SUB_ADMIN',
+          employeeName: 'Supervisor (Sub Admin)',
+        },
+      });
+    }
+
+    // Check Master Admin PIN (123456)
     if (pinStr === ADMIN_PIN) {
       return NextResponse.json({
         user: {
@@ -25,7 +64,8 @@ export async function POST(request) {
         },
       });
     }
-    return NextResponse.json({ error: 'Invalid admin PIN' }, { status: 401 });
+
+    return NextResponse.json({ error: 'Invalid admin or supervisor PIN' }, { status: 401 });
   }
 
   // ── EMPLOYEE (Office Batch) login ─────────────────────────────────────────

@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
   BarChart2, FileEdit, FileText, Briefcase, Landmark,
   Camera, DollarSign, Settings, LogOut, Receipt, Mail, Download,
-  Users, Eye, FileSearch, ClipboardList, CheckCircle2, Award, Clock, HardHat, Package
+  Users, Eye, FileSearch, ClipboardList, CheckCircle2, Award, Clock, HardHat, Package, MessageSquare
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 
@@ -45,10 +45,15 @@ export default function Sidebar() {
     { name: 'Pending Payments', href: '/pending-payments', icon: Clock },
     { name: 'Expense Reconciliation', href: '/admin/dashboard?tab=reconciliation', icon: Receipt },
     { name: 'Employees', href: '/admin/dashboard?tab=employees', icon: Users },
+    { name: 'Staff Messages (Comments)', href: '/messages', icon: MessageSquare },
     { name: 'All Tickets Inbox', href: '/admin/dashboard?tab=tickets', icon: Mail },
     { name: 'Financial Overview', href: '/ledger', icon: DollarSign },
     { name: 'All Documents', href: '/admin/documents', icon: FileText },
     { name: 'Gmail Connection', href: '/gmail', icon: Mail },
+  ] : user?.role === 'SUB_ADMIN' ? [
+    { name: 'Pending Payments Sheet', href: '/pending-payments', icon: Clock },
+    { name: 'Pending Audit Checklist', href: '/pending-checklist', icon: ClipboardList },
+    { name: 'Staff & Admin Messages', href: '/messages', icon: MessageSquare },
   ] : NAV_ITEMS.filter(item => !item.adminOnly);
 
   return (
@@ -87,9 +92,18 @@ export default function Sidebar() {
         {user && (
           <div style={{ marginBottom: 16, padding: '0 4px' }}>
             <span className="field-label">Session</span>
-            <div style={{ fontSize: 13, fontWeight: 600, color: user.role === 'ADMIN' ? '#a78bfa' : '#00f2fe' }}>
+            <div style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: user.role === 'ADMIN' ? '#a78bfa' : user.role === 'SUB_ADMIN' ? '#fbbf24' : '#00f2fe'
+            }}>
               {user.role === 'EMPLOYEE' && user.batchLabel ? user.batchLabel : (user.employeeName || user.role)}
             </div>
+            {user.role === 'SUB_ADMIN' && (
+              <span style={{ fontSize: 10, background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', padding: '2px 8px', borderRadius: 4, display: 'inline-block', marginTop: 4, fontWeight: 700 }}>
+                Sub Admin (Supervisor)
+              </span>
+            )}
           </div>
         )}
         <button type="button" className="nav-panel" onClick={logout} style={{ color: '#ef4444' }}>

@@ -52,8 +52,8 @@ function getUserFromCookie(request) {
 export async function GET(request) {
   try {
     const sessionUser = getUserFromCookie(request);
-    if (sessionUser && sessionUser.role === 'EMPLOYEE') {
-      return NextResponse.json({ success: false, error: 'Unauthorized: Admin access required' }, { status: 403 });
+    if (sessionUser && sessionUser.role !== 'ADMIN' && sessionUser.role !== 'SUB_ADMIN') {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Admin or Supervisor access required' }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);

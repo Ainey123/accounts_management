@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Users, Activity, UserPlus, Trash2, X, UserCheck, ShieldAlert,
   Settings, Mail, FileText, RefreshCw, Filter, Search,
@@ -1530,6 +1531,9 @@ export default function AdminCommandCenter() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <MessageSquare size={20} color="#a78bfa" />
               <h2 style={{ fontSize: 18, margin: 0 }}>Dedicated User Comments & Messages</h2>
+              <Link href="/messages" className="nexus-btn nexus-btn-ghost" style={{ fontSize: 12, gap: 6, marginLeft: 8 }}>
+                Open Messaging Hub <ArrowUpRight size={13} />
+              </Link>
             </div>
 
             {/* User Selector */}

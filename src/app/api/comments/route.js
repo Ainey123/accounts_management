@@ -21,6 +21,9 @@ export async function GET(request) {
     } else if (requester && requester.role === 'EMPLOYEE') {
       // Employees only see their own comments by default
       whereClause.userId = parseInt(requester.id, 10);
+    } else if (requester && requester.role === 'SUB_ADMIN' && requester.id) {
+      // Default supervisor view is their own direct thread with Admin
+      whereClause.userId = parseInt(requester.id, 10);
     }
 
     const comments = await prisma.comment.findMany({
@@ -64,7 +67,54 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { userId, content, adminName: customAdminName } = body;
+    const { userId, content, adminName: customAdminName, broadcastAll } = body;
+
+    if (!content || !content.trim()) {
+      return NextResponse.json({ error: 'Comment content is required' }, { status: 400 });
+    }
+
+    let senderRole = 'ADMIN';
+    let senderName = 'Fatma';
+
+    if (requester.role === 'ADMIN') {
+      senderRole = 'ADMIN';
+      senderName = (customAdminName && customAdminName.trim()) ? customAdminName.trim() : 'Fatma';
+    } else if (requester.role === 'SUB_ADMIN') {
+      senderRole = 'SUB_ADMIN';
+      senderName = (customAdminName && customAdminName.trim()) ? customAdminName.trim() : 'Supervisor (Sub Admin)';
+    } else {
+      senderRole = 'EMPLOYEE';
+      senderName = requester.employeeName || 'Employee';
+    }
+
+    // Support broadcasting to all employees at once
+    if (broadcastAll && (requester.role === 'ADMIN' || requester.role === 'SUB_ADMIN')) {
+      const activeEmployees = await prisma.user.findMany({
+        where: {
+          role: { in: ['EMPLOYEE', 'FIELD_EMPLOYEE'] },
+          activeStatus: true,
+        },
+        select: { id: true },
+      });
+
+      if (activeEmployees.length > 0) {
+        await Promise.all(
+          activeEmployees.map((emp) =>
+            prisma.comment.create({
+              data: {
+                userId: emp.id,
+                adminId: requester.id ? parseInt(requester.id, 10) : null,
+                senderRole,
+                senderName,
+                adminName: senderName,
+                content: content.trim(),
+              },
+            })
+          )
+        );
+      }
+      return NextResponse.json({ success: true, broadcastCount: activeEmployees.length }, { status: 201 });
+    }
 
     let targetUserId = parseInt(userId, 10);
     if (requester.role === 'EMPLOYEE') {
@@ -72,9 +122,9 @@ export async function POST(request) {
       targetUserId = parseInt(requester.id, 10);
     }
 
-    if (isNaN(targetUserId) || !content || !content.trim()) {
+    if (isNaN(targetUserId)) {
       return NextResponse.json(
-        { error: 'Target User ID and comment content are required' },
+        { error: 'Valid target User ID is required' },
         { status: 400 }
       );
     }
@@ -87,22 +137,10 @@ export async function POST(request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    let senderRole = 'ADMIN';
-    let senderName = 'Fatma';
-
-    if (requester.role === 'ADMIN') {
-      senderRole = 'ADMIN';
-      // Default to "Fatma" unless manually specified otherwise (e.g. Anie)
-      senderName = (customAdminName && customAdminName.trim()) ? customAdminName.trim() : 'Fatma';
-    } else {
-      senderRole = 'EMPLOYEE';
-      senderName = requester.employeeName || 'Employee';
-    }
-
     const comment = await prisma.comment.create({
       data: {
         userId: targetUserId,
-        adminId: requester.role === 'ADMIN' && requester.id ? parseInt(requester.id, 10) : null,
+        adminId: (requester.role === 'ADMIN' || requester.role === 'SUB_ADMIN') && requester.id ? parseInt(requester.id, 10) : null,
         senderRole,
         senderName,
         adminName: senderName,

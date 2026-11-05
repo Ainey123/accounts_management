@@ -44,9 +44,10 @@ function getUserFromCookie(request) {
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const monthParam = searchParams.get('month'); // YYYY-MM
+    const monthParam = searchParams.get('month'); // YYYY-MM or 'all'
     const employeeIdParam = searchParams.get('employeeId');
     const searchParam = searchParams.get('search')?.toLowerCase().trim() || '';
+    const searchField = searchParams.get('searchField') || 'all';
 
     const sessionUser = getUserFromCookie(request);
 
@@ -57,8 +58,11 @@ export async function GET(request) {
     // Determine target month (default to current month, or August 2026 / current date)
     const now = new Date();
     const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const selectedMonth = monthParam || currentYearMonth;
-    const [selYearStr, selMonthStr] = selectedMonth.split('-');
+    const isAllMonths = monthParam === 'all';
+    const selectedMonth = isAllMonths ? 'all' : (monthParam || currentYearMonth);
+    const [selYearStr, selMonthStr] = (!isAllMonths && selectedMonth.includes('-')) 
+      ? selectedMonth.split('-') 
+      : currentYearMonth.split('-');
     const selYear = parseInt(selYearStr, 10);
     const selMonthNum = parseInt(selMonthStr, 10); // 1-12
 
@@ -173,14 +177,14 @@ export async function GET(request) {
         id: `inv-${inv.id}`,
         invoiceId: inv.id,
         jobId: job?.id || null,
-        ticketId: job?.ticket?.id || null,
-        serialNo: job?.ticket?.serialNo || String(inv.id),
+        ticketId: job?.ticket?.id || job?.ticketId || null,
+        serialNo: job?.ticket?.serialNo || (job?.ticket?.id ? String(job.ticket.id) : String(inv.id)),
         invoiceRef: `I${job?.ticket?.serialNo || inv.id}`,
         clientName: job?.clientName || 'General Client',
         branchName: job?.branchName || 'Main Branch',
         personOfContact: job?.personOfContact || 'Site Contact',
         workNature: job?.workNature || 'Maintenance',
-        subject: job?.ticket?.subject || 'Site Work Invoice',
+        subject: job?.ticket?.subject || (job?.workNature ? `${job.workNature} Invoice` : 'Site Work Invoice'),
         assignedEmployee: job?.assignedEmployee ? {
           id: job.assignedEmployee.id,
           name: job.assignedEmployee.employeeName,
@@ -246,14 +250,14 @@ export async function GET(request) {
           id: `job-${job.id}`,
           invoiceId: null,
           jobId: job.id,
-          ticketId: job.ticket?.id || null,
+          ticketId: job.ticket?.id || job.ticketId || null,
           serialNo: job.ticket?.serialNo || String(job.id),
           invoiceRef: `I${job.ticket?.serialNo || job.id}`,
           clientName: job.clientName || 'General Client',
           branchName: job.branchName || 'Main Branch',
           personOfContact: job.personOfContact || 'Site Contact',
           workNature: job.workNature || 'Maintenance',
-          subject: job.ticket?.subject || 'Completed Work Order',
+          subject: job.ticket?.subject || `${job.workNature || 'Completed'} Work Order`,
           assignedEmployee: job.assignedEmployee ? {
             id: job.assignedEmployee.id,
             name: job.assignedEmployee.employeeName,
@@ -301,16 +305,112 @@ export async function GET(request) {
       }
     }
 
-    // Filter by Search Query
+    // Filter by Search Query (Subject, Ticket #, Serial #, Client, PO, etc.)
     if (searchParam) {
-      filteredItems = filteredItems.filter(item =>
-        item.clientName?.toLowerCase().includes(searchParam) ||
-        item.branchName?.toLowerCase().includes(searchParam) ||
-        item.invoiceRef?.toLowerCase().includes(searchParam) ||
-        item.serialNo?.toLowerCase().includes(searchParam) ||
-        item.subject?.toLowerCase().includes(searchParam) ||
-        item.assignedEmployee?.name?.toLowerCase().includes(searchParam)
-      );
+      const cleanNumeric = searchParam.replace(/^(ticket\s*#?|#|sr\s*#?|serial\s*#?|inv\s*#?|i)/i, '').trim();
+
+      filteredItems = filteredItems.filter(item => {
+        const itemSubject = (item.subject || '').toLowerCase();
+        const itemSerial = (item.serialNo || '').toLowerCase();
+        const itemTicketIdStr = item.ticketId != null ? String(item.ticketId) : '';
+        const itemClient = (item.clientName || '').toLowerCase();
+        const itemBranch = (item.branchName || '').toLowerCase();
+        const itemRef = (item.invoiceRef || '').toLowerCase();
+        const itemWorkNature = (item.workNature || '').toLowerCase();
+        const itemEmployee = (item.assignedEmployee?.name || '').toLowerCase();
+        const itemPo = (item.poNumber || '').toLowerCase();
+
+        // 1. Subject match
+        const matchSubject = itemSubject.includes(searchParam);
+
+        // 2. Ticket ID match (supports "123", "Ticket #123", "#123", etc.)
+        const matchTicket = Boolean(
+          itemTicketIdStr && (
+            itemTicketIdStr === searchParam ||
+            itemTicketIdStr.includes(searchParam) ||
+            (cleanNumeric && itemTicketIdStr === cleanNumeric) ||
+            `ticket #${itemTicketIdStr}`.toLowerCase().includes(searchParam) ||
+            `ticket ${itemTicketIdStr}`.toLowerCase().includes(searchParam) ||
+            `#${itemTicketIdStr}`.toLowerCase().includes(searchParam)
+          )
+        );
+
+        // 3. Serial Number match (supports exact or partial serial)
+        const matchSerial = Boolean(
+          itemSerial.includes(searchParam) ||
+          (cleanNumeric && itemSerial.includes(cleanNumeric)) ||
+          itemRef.includes(searchParam) ||
+          (cleanNumeric && itemRef.includes(cleanNumeric))
+        );
+
+        // 4. Client / Branch / Employee / PO / Work Nature match
+        const matchClient = itemClient.includes(searchParam) || itemBranch.includes(searchParam);
+        const matchOther = itemEmployee.includes(searchParam) || itemPo.includes(searchParam) || itemWorkNature.includes(searchParam);
+
+        if (searchField === 'subject') return matchSubject;
+        if (searchField === 'ticket') return matchTicket;
+        if (searchField === 'serial') return matchSerial;
+        if (searchField === 'client') return matchClient;
+
+        // Default 'all'
+        return matchSubject || matchTicket || matchSerial || matchClient || matchOther;
+      });
+    }
+
+    // Collect all available months for the month selector tabs
+    const availableMonthsSet = new Set();
+    // Include 2025, 2026, 2027 standard calendar months
+    for (const y of [2025, 2026, 2027]) {
+      for (let m = 1; m <= 12; m++) {
+        availableMonthsSet.add(`${y}-${String(m).padStart(2, '0')}`);
+      }
+    }
+    // Also include any months from real items
+    allBillableItems.forEach(it => {
+      if (it.originYearMonth) availableMonthsSet.add(it.originYearMonth);
+      if (it.clearedYearMonth) availableMonthsSet.add(it.clearedYearMonth);
+    });
+    const allAvailableMonths = Array.from(availableMonthsSet).sort();
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // IF 'ALL MONTHS' REQUESTED
+    // ──────────────────────────────────────────────────────────────────────────
+    if (isAllMonths) {
+      const allTotalBilled = filteredItems.reduce((s, it) => s + it.totalAmount, 0);
+      const allTotalReceived = filteredItems.reduce((s, it) => s + it.totalReceived, 0);
+      const allTotalPending = filteredItems.reduce((s, it) => s + it.pendingAmount, 0);
+      const allPendingCount = filteredItems.filter(it => it.pendingAmount > 0).length;
+      const allClearedCount = filteredItems.filter(it => it.isCleared).length;
+
+      return NextResponse.json({
+        success: true,
+        selectedMonth: 'all',
+        selectedMonthName: 'All Recorded Months',
+        currentYearMonth,
+        stats: {
+          currentMonth: {
+            totalBilled: allTotalBilled,
+            totalReceived: allTotalReceived,
+            totalPending: allTotalPending,
+            totalInvoices: filteredItems.length,
+            pendingInvoices: allPendingCount,
+            clearedInvoices: allClearedCount,
+            clearancePercent: allTotalBilled > 0
+              ? Math.round((allTotalReceived / allTotalBilled) * 100)
+              : 0,
+          },
+          carryover: {
+            totalOverduePending: 0,
+            totalOverdueInvoices: 0,
+            hasStrictNotice: false,
+            priorMonthsBreakdown: [],
+          },
+        },
+        currentMonthInvoices: filteredItems,
+        overdueCarryoverInvoices: [],
+        allAvailableMonths,
+        employees,
+      });
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -402,22 +502,6 @@ export async function GET(request) {
 
     const totalOverduePendingAmount = overdueCarryoverInvoices.reduce((s, it) => s + it.pendingAmount, 0);
     const totalOverdueInvoicesCount = overdueCarryoverInvoices.length;
-
-    // Collect all available months for the month selector tabs
-    const availableMonthsSet = new Set();
-    // Include 2025, 2026, 2027 standard calendar months
-    for (const y of [2025, 2026, 2027]) {
-      for (let m = 1; m <= 12; m++) {
-        availableMonthsSet.add(`${y}-${String(m).padStart(2, '0')}`);
-      }
-    }
-    // Also include any months from real items
-    allBillableItems.forEach(it => {
-      if (it.originYearMonth) availableMonthsSet.add(it.originYearMonth);
-      if (it.clearedYearMonth) availableMonthsSet.add(it.clearedYearMonth);
-    });
-
-    const allAvailableMonths = Array.from(availableMonthsSet).sort();
 
     return NextResponse.json({
       success: true,

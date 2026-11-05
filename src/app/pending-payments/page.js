@@ -21,7 +21,8 @@ export default function PendingPaymentsPage() {
   const { user, isHydrated } = useAuth();
   const router = useRouter();
   const isAuthorized = user?.role === 'ADMIN' || user?.role === 'SUB_ADMIN';
-  const isAdmin = isAuthorized;
+  const isAdmin = user?.role === 'ADMIN';
+  const isSubAdmin = user?.role === 'SUB_ADMIN';
 
   useEffect(() => {
     if (isHydrated && user && !isAuthorized) {
@@ -38,6 +39,7 @@ export default function PendingPaymentsPage() {
   const [employeeFilter, setEmployeeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'overdue', 'pending', 'cleared'
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchField, setSearchField] = useState('all'); // 'all', 'subject', 'ticket', 'serial', 'client'
   
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -58,16 +60,21 @@ export default function PendingPaymentsPage() {
   const [settling, setSettling] = useState(false);
 
   // Load Data
-  const loadPendingPayments = useCallback(async (monthToLoad) => {
+  const loadPendingPayments = useCallback(async (monthToLoad, queryToSearch, fieldToSearch) => {
     setLoading(true);
     try {
-      const month = monthToLoad || selectedMonth;
+      const month = monthToLoad !== undefined ? monthToLoad : selectedMonth;
       const params = new URLSearchParams({ month });
       if (employeeFilter && employeeFilter !== 'all') {
         params.set('employeeId', employeeFilter);
       }
-      if (searchQuery) {
-        params.set('search', searchQuery);
+      const q = queryToSearch !== undefined ? queryToSearch : searchQuery;
+      const f = fieldToSearch !== undefined ? fieldToSearch : searchField;
+      if (q) {
+        params.set('search', q);
+        if (f && f !== 'all') {
+          params.set('searchField', f);
+        }
       }
       const res = await apiFetch(`/api/pending-payments?${params.toString()}`);
       setData(res);
@@ -79,17 +86,20 @@ export default function PendingPaymentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedMonth, employeeFilter, searchQuery]);
+  }, [selectedMonth, employeeFilter, searchQuery, searchField]);
 
+  // Debounced load when search query, field, month, or employee filter changes
   useEffect(() => {
-    if (isAuthorized) {
-      loadPendingPayments(selectedMonth);
-    }
-  }, [selectedMonth, employeeFilter, loadPendingPayments, isAuthorized]);
+    if (!isAuthorized) return;
+    const timer = setTimeout(() => {
+      loadPendingPayments(selectedMonth, searchQuery, searchField);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery, searchField, selectedMonth, employeeFilter, isAuthorized, loadPendingPayments]);
 
   // Synchronize year with selected month
   useEffect(() => {
-    if (selectedMonth) {
+    if (selectedMonth && selectedMonth !== 'all' && selectedMonth.includes('-')) {
       const [y] = selectedMonth.split('-');
       setSelectedYear(parseInt(y, 10));
     }
@@ -97,6 +107,10 @@ export default function PendingPaymentsPage() {
 
   // Handle Month Navigation
   const handlePrevMonth = () => {
+    if (selectedMonth === 'all') {
+      setSelectedMonth(defaultYearMonth);
+      return;
+    }
     const [y, m] = selectedMonth.split('-').map(Number);
     let newY = y;
     let newM = m - 1;
@@ -109,6 +123,10 @@ export default function PendingPaymentsPage() {
   };
 
   const handleNextMonth = () => {
+    if (selectedMonth === 'all') {
+      setSelectedMonth(defaultYearMonth);
+      return;
+    }
     const [y, m] = selectedMonth.split('-').map(Number);
     let newY = y;
     let newM = m + 1;
@@ -130,7 +148,7 @@ export default function PendingPaymentsPage() {
   const openSettleModal = (item) => {
     setSelectedItemForSettle(item);
     setSettleForm({
-      settlementDate: selectedMonth ? `${selectedMonth}-15` : new Date().toISOString().slice(0, 10),
+      settlementDate: selectedMonth && selectedMonth !== 'all' ? `${selectedMonth}-15` : new Date().toISOString().slice(0, 10),
       amountPaid: item.pendingAmount || item.totalAmount || '',
       paymentMethod: 'Bank Transfer',
       notes: `Settlement for invoice ${item.invoiceRef} (${item.clientName})`,
@@ -195,6 +213,57 @@ export default function PendingPaymentsPage() {
     window.print();
   };
 
+  // Instant client-side search matcher for Subject, Ticket #, Serial #, Client, PO
+  const matchesSearch = useCallback((item, query, field) => {
+    if (!query) return true;
+    const q = query.toLowerCase().trim();
+    const cleanNum = q.replace(/^(ticket\s*#?|#|sr\s*#?|serial\s*#?|inv\s*#?|i)/i, '').trim();
+
+    const subjectStr = (item.subject || '').toLowerCase();
+    const serialStr = (item.serialNo || '').toLowerCase();
+    const ticketIdStr = item.ticketId != null ? String(item.ticketId) : '';
+    const refStr = (item.invoiceRef || '').toLowerCase();
+    const clientStr = (item.clientName || '').toLowerCase();
+    const branchStr = (item.branchName || '').toLowerCase();
+    const employeeStr = (item.assignedEmployee?.name || '').toLowerCase();
+    const poStr = (item.poNumber || '').toLowerCase();
+    const workStr = (item.workNature || '').toLowerCase();
+
+    // 1. Subject match
+    const matchSubject = subjectStr.includes(q);
+
+    // 2. Ticket ID match (supports "123", "Ticket #123", "#123", etc.)
+    const matchTicket = Boolean(
+      ticketIdStr && (
+        ticketIdStr === q ||
+        ticketIdStr.includes(q) ||
+        (cleanNum && ticketIdStr === cleanNum) ||
+        `ticket #${ticketIdStr}`.toLowerCase().includes(q) ||
+        `ticket ${ticketIdStr}`.toLowerCase().includes(q) ||
+        `#${ticketIdStr}`.toLowerCase().includes(q)
+      )
+    );
+
+    // 3. Serial Number match (supports exact or partial serial / invoiceRef)
+    const matchSerial = Boolean(
+      serialStr.includes(q) ||
+      (cleanNum && serialStr.includes(cleanNum)) ||
+      refStr.includes(q) ||
+      (cleanNum && refStr.includes(cleanNum))
+    );
+
+    // 4. Client / Branch / Employee / PO / Work Nature match
+    const matchClient = clientStr.includes(q) || branchStr.includes(q);
+    const matchOther = employeeStr.includes(q) || poStr.includes(q) || workStr.includes(q);
+
+    if (field === 'subject') return matchSubject;
+    if (field === 'ticket') return matchTicket;
+    if (field === 'serial') return matchSerial;
+    if (field === 'client') return matchClient;
+
+    return matchSubject || matchTicket || matchSerial || matchClient || matchOther;
+  }, []);
+
   // Filtered Current Month Invoices
   const displayCurrentMonthInvoices = useMemo(() => {
     if (!data?.currentMonthInvoices) return [];
@@ -206,15 +275,22 @@ export default function PendingPaymentsPage() {
     } else if (statusFilter === 'overdue') {
       return []; // Current month is not overdue carryover
     }
+    if (searchQuery) {
+      list = list.filter(i => matchesSearch(i, searchQuery, searchField));
+    }
     return list;
-  }, [data?.currentMonthInvoices, statusFilter]);
+  }, [data?.currentMonthInvoices, statusFilter, searchQuery, searchField, matchesSearch]);
 
   // Filtered Overdue Carryover Invoices
   const displayOverdueInvoices = useMemo(() => {
     if (!data?.overdueCarryoverInvoices) return [];
     if (statusFilter === 'cleared') return [];
-    return data.overdueCarryoverInvoices;
-  }, [data?.overdueCarryoverInvoices, statusFilter]);
+    let list = data.overdueCarryoverInvoices;
+    if (searchQuery) {
+      list = list.filter(i => matchesSearch(i, searchQuery, searchField));
+    }
+    return list;
+  }, [data?.overdueCarryoverInvoices, statusFilter, searchQuery, searchField, matchesSearch]);
 
   const stats = data?.stats || {};
   const currentStats = stats.currentMonth || {};
@@ -247,7 +323,7 @@ export default function PendingPaymentsPage() {
                 {data?.selectedMonthName || 'Monthly'} Pending Payments Sheet
               </h1>
               <p style={{ color: '#94a3b8', fontSize: 13, margin: 0 }}>
-                {isAdmin ? '🛡️ Admin Command View • Multi-Month Carryover Ledger' : `👤 Employee View • ${user?.employeeName || 'Staff'} Work Orders`}
+                {isAdmin ? '🛡️ Admin Command View • Multi-Month Carryover Ledger' : isSubAdmin ? '🛡️ Sub Admin Supervisor View • Multi-Month Carryover Ledger' : `👤 Employee View • ${user?.employeeName || 'Staff'} Work Orders`}
               </p>
             </div>
           </div>
@@ -291,6 +367,169 @@ export default function PendingPaymentsPage() {
           {message}
         </div>
       )}
+
+      {/* ───────────────────────────────────────────────────────────────────────── */}
+      {/* 🔍 SEARCH & FILTER BAR (SUBJECT, TICKET #, SERIAL #, CLIENT, PO) */}
+      {/* ───────────────────────────────────────────────────────────────────────── */}
+      <section className="glass-card" style={{
+        marginBottom: 20,
+        padding: '16px 20px',
+        border: '1px solid rgba(0, 242, 254, 0.28)',
+        background: 'rgba(10, 15, 29, 0.85)',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+      }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
+          {/* Search Input Box */}
+          <div style={{ flex: '1 1 340px', position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <Search size={16} style={{ position: 'absolute', left: 14, color: '#00f2fe', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              className="nexus-input"
+              placeholder="Search by Subject, Ticket #, Serial #, Client, PO..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                paddingLeft: 38,
+                paddingRight: searchQuery ? 38 : 14,
+                paddingTop: 10,
+                paddingBottom: 10,
+                fontSize: 13,
+                background: 'rgba(0,0,0,0.45)',
+                border: searchQuery ? '1px solid #00f2fe' : '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 8,
+                color: '#fff',
+              }}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: 4,
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title="Clear search"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+
+          {/* Search Field Scope Selector */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Filter By:</span>
+            {[
+              { id: 'all', label: 'All Fields' },
+              { id: 'subject', label: 'Subject' },
+              { id: 'ticket', label: 'Ticket #' },
+              { id: 'serial', label: 'Serial #' },
+              { id: 'client', label: 'Client / Branch' },
+            ].map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setSearchField(f.id)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  fontWeight: searchField === f.id ? 700 : 500,
+                  border: searchField === f.id ? '1px solid #00f2fe' : '1px solid rgba(255,255,255,0.08)',
+                  background: searchField === f.id ? 'rgba(0, 242, 254, 0.18)' : 'rgba(255,255,255,0.03)',
+                  color: searchField === f.id ? '#00f2fe' : '#94a3b8',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Employee Filter Dropdown */}
+          {(isAdmin || isSubAdmin) && data?.employees && data.employees.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Users size={14} color="#a78bfa" />
+              <select
+                className="nexus-select"
+                value={employeeFilter}
+                onChange={(e) => setEmployeeFilter(e.target.value)}
+                style={{ padding: '7px 12px', fontSize: 12, minWidth: 160 }}
+              >
+                <option value="all">All Employees</option>
+                {data.employees.map((emp) => (
+                  <option key={emp.id} value={emp.id}>{emp.employeeName}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        {/* Active Search Results Indicator */}
+        {searchQuery && (
+          <div style={{
+            marginTop: 12,
+            paddingTop: 10,
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: 12,
+            flexWrap: 'wrap',
+            gap: 8,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span style={{ color: '#00f2fe', fontWeight: 600 }}>
+                Found {displayOverdueInvoices.length + displayCurrentMonthInvoices.length} matching pending payment(s)
+              </span>
+              <span style={{ color: '#94a3b8' }}>
+                for &quot;<strong style={{ color: '#f8fafc' }}>{searchQuery}</strong>&quot; in {searchField === 'all' ? 'All Fields' : searchField.toUpperCase()}
+              </span>
+              {selectedMonth !== 'all' && (
+                <span style={{ color: '#64748b' }}>
+                  (in {data?.selectedMonthName || selectedMonth})
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {selectedMonth !== 'all' && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedMonth('all')}
+                  className="nexus-btn"
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: 11,
+                    background: 'rgba(0,242,254,0.12)',
+                    color: '#00f2fe',
+                    border: '1px solid rgba(0,242,254,0.35)',
+                    fontWeight: 600,
+                  }}
+                >
+                  🌐 Search in All Months
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="nexus-btn nexus-btn-ghost"
+                style={{ padding: '4px 10px', fontSize: 11 }}
+              >
+                Reset Search
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* ───────────────────────────────────────────────────────────────────────── */}
       {/* MONTH NAVIGATOR & DYNAMIC MONTH SHEET TABS BAR */}
@@ -343,51 +582,43 @@ export default function PendingPaymentsPage() {
                 type="button"
                 onClick={() => {
                   setSelectedYear(yr);
-                  const [, m] = selectedMonth.split('-');
+                  const m = selectedMonth === 'all' ? '01' : (selectedMonth.split('-')[1] || '01');
                   setSelectedMonth(`${yr}-${m}`);
                 }}
-                className={`nexus-btn ${selectedYear === yr ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
+                className={`nexus-btn ${selectedYear === yr && selectedMonth !== 'all' ? 'nexus-btn-primary' : 'nexus-btn-ghost'}`}
                 style={{ padding: '4px 10px', fontSize: 12 }}
               >
                 {yr}
               </button>
             ))}
           </div>
-
-          {/* Quick Jump / Search Filters */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            {isAdmin && data?.employees && data.employees.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Users size={14} color="#a78bfa" />
-                <select
-                  className="nexus-select"
-                  value={employeeFilter}
-                  onChange={(e) => setEmployeeFilter(e.target.value)}
-                  style={{ padding: '6px 12px', fontSize: 12, width: 170 }}
-                >
-                  <option value="all">All Employees</option>
-                  {data.employees.map((emp) => (
-                    <option key={emp.id} value={emp.id}>{emp.employeeName}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div style={{ position: 'relative' }}>
-              <Search size={14} style={{ position: 'absolute', left: 10, top: 10, color: '#64748b' }} />
-              <input
-                className="nexus-input"
-                placeholder="Search Client, Ref, PO..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ paddingLeft: 30, paddingRight: 10, paddingTop: 6, paddingBottom: 6, fontSize: 12, width: 180 }}
-              />
-            </div>
-          </div>
         </div>
 
-        {/* 12-Month Quick Tab Pills */}
+        {/* Quick Month Tabs Bar + ⭐ All Months Tab */}
         <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, paddingTop: 4 }}>
+          <button
+            type="button"
+            onClick={() => setSelectedMonth('all')}
+            style={{
+              flex: '1 0 auto',
+              padding: '8px 14px',
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: selectedMonth === 'all' ? 700 : 500,
+              cursor: 'pointer',
+              border: selectedMonth === 'all'
+                ? '1px solid #00f2fe'
+                : '1px solid rgba(255, 255, 255, 0.08)',
+              background: selectedMonth === 'all'
+                ? 'linear-gradient(135deg, rgba(0, 242, 254, 0.25), rgba(14, 165, 233, 0.15))'
+                : 'rgba(0, 0, 0, 0.3)',
+              color: selectedMonth === 'all' ? '#00f2fe' : '#94a3b8',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <span>⭐ All Months</span>
+          </button>
           {MONTH_NAMES.map((mName, idx) => {
             const mKey = `${selectedYear}-${String(idx + 1).padStart(2, '0')}`;
             const isCurrentActive = selectedMonth === mKey;
@@ -690,6 +921,8 @@ export default function PendingPaymentsPage() {
                 <tr>
                   <th style={{ color: '#fca5a5' }}>Notice</th>
                   <th style={{ color: '#fca5a5' }}>Origin Month</th>
+                  <th style={{ color: '#fca5a5' }}>Ticket & Serial #</th>
+                  <th style={{ color: '#fca5a5' }}>Subject</th>
                   <th style={{ color: '#fca5a5' }}>Invoice #</th>
                   <th style={{ color: '#fca5a5' }}>Client & Branch</th>
                   <th style={{ color: '#fca5a5' }}>Assigned Staff</th>
@@ -729,6 +962,54 @@ export default function PendingPaymentsPage() {
                       </div>
                       <div style={{ fontSize: 10, color: '#ef4444' }}>
                         {inv.monthsOverdue ? `${inv.monthsOverdue} month(s) overdue` : 'Overdue'}
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        {inv.ticketId ? (
+                          <span style={{
+                            fontFamily: 'monospace',
+                            background: 'rgba(239, 68, 68, 0.22)',
+                            color: '#fca5a5',
+                            border: '1px solid rgba(239, 68, 68, 0.45)',
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            width: 'fit-content',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            Ticket #{inv.ticketId}
+                          </span>
+                        ) : null}
+                        {inv.serialNo ? (
+                          <span style={{
+                            fontFamily: 'monospace',
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            color: '#cbd5e1',
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            width: 'fit-content',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            Sr #{inv.serialNo}
+                          </span>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ minWidth: 160, maxWidth: 260 }}>
+                        <div style={{
+                          fontWeight: 600,
+                          color: '#f8fafc',
+                          fontSize: 12.5,
+                          lineHeight: 1.35,
+                          wordBreak: 'break-word',
+                        }}>
+                          {inv.subject || 'Work Order'}
+                        </div>
                       </div>
                     </td>
                     <td>
@@ -827,11 +1108,24 @@ export default function PendingPaymentsPage() {
           <div style={{ padding: 48, textAlign: 'center', color: '#64748b' }}>
             <Receipt size={36} color="#334155" style={{ marginBottom: 12 }} />
             <p style={{ margin: 0, fontSize: 15, color: '#94a3b8' }}>
-              No invoices generated in {data?.selectedMonthName || selectedMonth}.
+              {searchQuery
+                ? `No pending payments match "${searchQuery}" in ${data?.selectedMonthName || selectedMonth}.`
+                : `No invoices generated in ${data?.selectedMonthName || selectedMonth}.`}
             </p>
-            <p style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
-              Click &quot;Create Invoice&quot; to generate an official invoice for any completed job order.
-            </p>
+            {searchQuery && selectedMonth !== 'all' ? (
+              <button
+                type="button"
+                onClick={() => setSelectedMonth('all')}
+                className="nexus-btn nexus-btn-primary"
+                style={{ marginTop: 14, fontSize: 12, padding: '8px 16px' }}
+              >
+                🌐 Search for &quot;{searchQuery}&quot; Across All Months
+              </button>
+            ) : (
+              <p style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                Click &quot;Create Invoice&quot; to generate an official invoice for any completed job order.
+              </p>
+            )}
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -839,6 +1133,8 @@ export default function PendingPaymentsPage() {
               <thead>
                 <tr>
                   <th>Status</th>
+                  <th>Ticket & Serial #</th>
+                  <th>Subject</th>
                   <th>Invoice Ref</th>
                   <th>Client & Branch</th>
                   <th>Work Nature</th>
@@ -901,6 +1197,55 @@ export default function PendingPaymentsPage() {
                             Pending
                           </span>
                         )}
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          {inv.ticketId ? (
+                            <span style={{
+                              fontFamily: 'monospace',
+                              background: 'rgba(167, 139, 250, 0.15)',
+                              color: '#c4b5fd',
+                              border: '1px solid rgba(167, 139, 250, 0.35)',
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              width: 'fit-content',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              Ticket #{inv.ticketId}
+                            </span>
+                          ) : null}
+                          {inv.serialNo ? (
+                            <span style={{
+                              fontFamily: 'monospace',
+                              background: 'rgba(0, 242, 254, 0.1)',
+                              color: '#00f2fe',
+                              border: '1px solid rgba(0, 242, 254, 0.25)',
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              fontSize: 11,
+                              fontWeight: 600,
+                              width: 'fit-content',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              Sr #{inv.serialNo}
+                            </span>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ minWidth: 160, maxWidth: 260 }}>
+                          <div style={{
+                            fontWeight: 600,
+                            color: '#f8fafc',
+                            fontSize: 12.5,
+                            lineHeight: 1.35,
+                            wordBreak: 'break-word',
+                          }}>
+                            {inv.subject || 'Work Order'}
+                          </div>
+                        </div>
                       </td>
                       <td>
                         <span style={{ fontFamily: 'monospace', color: '#00f2fe', fontWeight: 600 }}>
@@ -1035,6 +1380,21 @@ export default function PendingPaymentsPage() {
                 <span style={{ color: '#94a3b8' }}>Client:</span>
                 <strong style={{ color: '#fff' }}>{selectedItemForSettle.clientName} ({selectedItemForSettle.branchName})</strong>
               </div>
+              {selectedItemForSettle.subject && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ color: '#94a3b8' }}>Subject:</span>
+                  <span style={{ color: '#f8fafc', fontWeight: 600 }}>{selectedItemForSettle.subject}</span>
+                </div>
+              )}
+              {(selectedItemForSettle.ticketId || selectedItemForSettle.serialNo) && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ color: '#94a3b8' }}>Ticket / Serial #:</span>
+                  <span style={{ color: '#00f2fe', fontFamily: 'monospace' }}>
+                    {selectedItemForSettle.ticketId ? `Ticket #${selectedItemForSettle.ticketId} ` : ''}
+                    {selectedItemForSettle.serialNo ? `• Sr #${selectedItemForSettle.serialNo}` : ''}
+                  </span>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ color: '#94a3b8' }}>Billed Month:</span>
                 <span style={{ color: '#a78bfa' }}>{selectedItemForSettle.originMonthName}</span>

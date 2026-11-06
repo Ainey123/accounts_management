@@ -99,7 +99,7 @@ export async function GET(request) {
         }).catch(() => []);
       }
 
-      // 2. Fetch all jobs with work completion or payments to catch jobs billed without separate invoice model
+      // 2. Fetch all jobs with their quotations, completion, and payments
       let jobs = [];
       try {
         jobs = await prisma.jobMetadata.findMany({
@@ -107,13 +107,14 @@ export async function GET(request) {
             ticket: true,
             assignedEmployee: { select: { id: true, employeeName: true, email: true } },
             createdBy: { select: { id: true, employeeName: true, email: true } },
-            quotationInvoices: true,
+            quotationInvoices: { orderBy: { createdAt: 'desc' } },
             payments: { orderBy: { createdAt: 'asc' } },
             workCompletion: true,
           },
           orderBy: { createdAt: 'desc' },
         });
       } catch (err) {
+        console.warn('Jobs query failed:', err.message);
         jobs = [];
       }
 
@@ -127,10 +128,41 @@ export async function GET(request) {
         });
       } catch {}
 
-      return { invoices, jobs, employees };
+      // 4. If search query is provided, also fetch unlinked incoming tickets
+      let unlinkedTickets = [];
+      if (searchParam) {
+        try {
+          const cleanNumeric = searchParam.replace(/^(ticket\s*#?|#|sr\s*#?|serial\s*#?|inv\s*#?|i|q|j|t)/i, '').trim();
+          const orFilters = [
+            { subject: { contains: searchParam, mode: 'insensitive' } },
+            { sender: { contains: searchParam, mode: 'insensitive' } },
+            { serialNo: { contains: searchParam, mode: 'insensitive' } },
+          ];
+          if (cleanNumeric && !isNaN(Number(cleanNumeric))) {
+            orFilters.push({ id: Number(cleanNumeric) });
+          }
+          unlinkedTickets = await prisma.ticket.findMany({
+            where: {
+              jobMetadata: null,
+              NOT: { status: { in: ['IRRELEVANT', 'CANCELLED'] } },
+              OR: orFilters,
+            },
+            include: {
+              createdBy: { select: { id: true, employeeName: true, email: true } },
+              gmailAccount: { select: { id: true, gmailEmail: true } },
+            },
+            take: 50,
+            orderBy: { exactDate: 'desc' },
+          });
+        } catch (tErr) {
+          console.warn('Unlinked tickets query failed:', tErr.message);
+        }
+      }
+
+      return { invoices, jobs, employees, unlinkedTickets };
     });
 
-    const { invoices, jobs, employees } = result;
+    const { invoices, jobs, employees, unlinkedTickets = [] } = result;
 
     // Track invoice records by key
     const allBillableItems = [];
@@ -142,7 +174,7 @@ export async function GET(request) {
       if (job) processedJobIds.add(job.id);
 
       const items = parseLineItems(inv.lineItems);
-      const itemsSum = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+      const itemsSum = items.reduce((s, it) => s + (Number(it.amount) || ((Number(it.qty) || 0) * (Number(it.rate) || 0)) || 0), 0);
       const totalAmount = itemsSum > 0 ? itemsSum : (Number(job?.workCompletion?.amount) || 0);
 
       // Payments received for this job
@@ -150,10 +182,10 @@ export async function GET(request) {
       const totalReceived = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
       const pendingAmount = Math.max(0, totalAmount - totalReceived);
 
-      // Status resolution
+      // Status resolution (aligned with employee portal)
       const isJobFullyPaid = (job?.paymentProgress || 0) >= 100;
       const isExplicitCleared = inv.status === 'CLEARED' || inv.status === 'PAID' || job?.paymentStatus === 'CLEARED' || job?.paymentStatus === 'PAID';
-      const isAmountCleared = totalAmount > 0 && pendingAmount <= 0;
+      const isAmountCleared = totalAmount > 0 && pendingAmount <= 0 && totalReceived > 0;
       const isCleared = isJobFullyPaid || isExplicitCleared || isAmountCleared;
 
       // Determine date of creation / origin
@@ -180,6 +212,7 @@ export async function GET(request) {
         ticketId: job?.ticket?.id || job?.ticketId || null,
         serialNo: job?.ticket?.serialNo || (job?.ticket?.id ? String(job.ticket.id) : String(inv.id)),
         invoiceRef: `I${job?.ticket?.serialNo || inv.id}`,
+        docType: 'INVOICE',
         clientName: job?.clientName || 'General Client',
         branchName: job?.branchName || 'Main Branch',
         personOfContact: job?.personOfContact || 'Site Contact',
@@ -189,7 +222,7 @@ export async function GET(request) {
           id: job.assignedEmployee.id,
           name: job.assignedEmployee.employeeName,
           email: job.assignedEmployee.email,
-        } : null,
+        } : (job?.manualEnteredBy ? { id: null, name: job.manualEnteredBy } : null),
         createdBy: inv.createdBy ? {
           id: inv.createdBy.id,
           name: inv.createdBy.employeeName,
@@ -198,7 +231,7 @@ export async function GET(request) {
         totalReceived,
         pendingAmount,
         paymentProgress: job?.paymentProgress || (totalAmount > 0 ? Math.round((totalReceived / totalAmount) * 100) : 0),
-        status: isCleared ? 'CLEARED' : (totalReceived > 0 ? 'PARTIALLY_PAID' : 'PENDING'),
+        status: isCleared ? 'CLEARED' : (job?.paymentStatus === 'PARTIAL' || totalReceived > 0 ? 'PARTIALLY_PAID' : (job?.paymentStatus || 'PENDING')),
         isCleared,
         clearedDate: clearedDate ? clearedDate.toISOString() : null,
         clearedYearMonth,
@@ -216,78 +249,156 @@ export async function GET(request) {
       });
     }
 
-    // Process any remaining jobs that have workCompletion amount but no formal invoice record
+    // Process ALL remaining jobs (ensures every job in employee portal is visible to sub admin!)
     for (const job of jobs) {
       if (processedJobIds.has(job.id)) continue;
+
+      const quotations = (job.quotationInvoices || []).filter(q => q.documentType === 'QUOTATION');
       const wcAmount = Number(job.workCompletion?.amount) || 0;
       const payments = job.payments || [];
       const totalReceived = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
 
-      if (wcAmount > 0 || totalReceived > 0 || (job.paymentProgress || 0) > 0) {
-        const totalAmount = wcAmount > 0 ? wcAmount : totalReceived;
-        const pendingAmount = Math.max(0, totalAmount - totalReceived);
-        const isJobFullyPaid = (job.paymentProgress || 0) >= 100;
-        const isExplicitCleared = job.paymentStatus === 'CLEARED' || job.paymentStatus === 'PAID';
-        const isAmountCleared = totalAmount > 0 && pendingAmount <= 0;
-        const isCleared = isJobFullyPaid || isExplicitCleared || isAmountCleared;
+      let totalAmount = 0;
+      let docType = 'WORK_ORDER';
+      let invoiceRef = `J${job.ticket?.serialNo || job.id}`;
+      let poNumber = null;
+      let imageUrl = null;
 
-        const rawDate = job.ticket?.exactDate || job.createdAt || new Date();
-        const originDate = new Date(rawDate);
-        const originYearMonth = `${originDate.getFullYear()}-${String(originDate.getMonth() + 1).padStart(2, '0')}`;
-
-        let clearedDate = null;
-        let clearedYearMonth = null;
-        if (isCleared) {
-          if (payments.length > 0) {
-            clearedDate = new Date(payments[payments.length - 1].createdAt);
-          } else {
-            clearedDate = new Date(job.updatedAt || job.createdAt || new Date());
-          }
-          clearedYearMonth = `${clearedDate.getFullYear()}-${String(clearedDate.getMonth() + 1).padStart(2, '0')}`;
-        }
-
-        allBillableItems.push({
-          id: `job-${job.id}`,
-          invoiceId: null,
-          jobId: job.id,
-          ticketId: job.ticket?.id || job.ticketId || null,
-          serialNo: job.ticket?.serialNo || String(job.id),
-          invoiceRef: `I${job.ticket?.serialNo || job.id}`,
-          clientName: job.clientName || 'General Client',
-          branchName: job.branchName || 'Main Branch',
-          personOfContact: job.personOfContact || 'Site Contact',
-          workNature: job.workNature || 'Maintenance',
-          subject: job.ticket?.subject || `${job.workNature || 'Completed'} Work Order`,
-          assignedEmployee: job.assignedEmployee ? {
-            id: job.assignedEmployee.id,
-            name: job.assignedEmployee.employeeName,
-            email: job.assignedEmployee.email,
-          } : null,
-          createdBy: job.createdBy ? {
-            id: job.createdBy.id,
-            name: job.createdBy.employeeName,
-          } : null,
-          totalAmount,
-          totalReceived,
-          pendingAmount,
-          paymentProgress: job.paymentProgress || (totalAmount > 0 ? Math.round((totalReceived / totalAmount) * 100) : 0),
-          status: isCleared ? 'CLEARED' : (totalReceived > 0 ? 'PARTIALLY_PAID' : 'PENDING'),
-          isCleared,
-          clearedDate: clearedDate ? clearedDate.toISOString() : null,
-          clearedYearMonth,
-          originDate: originDate.toISOString(),
-          originYearMonth,
-          originMonthName: formatMonthName(originYearMonth),
-          poNumber: null,
-          imageUrl: null,
-          payments: payments.map(p => ({
-            id: p.id,
-            amount: p.amount,
-            notes: p.summaryNotes,
-            date: p.createdAt,
-          })),
-        });
+      if (quotations.length > 0) {
+        docType = 'QUOTATION';
+        invoiceRef = `Q${job.ticket?.serialNo || quotations[0].id}`;
+        poNumber = quotations[0].poNumber || null;
+        imageUrl = quotations[0].imageUrl || null;
+        const qItems = parseLineItems(quotations[0].lineItems);
+        totalAmount = qItems.reduce((s, it) => s + (Number(it.amount) || ((Number(it.qty) || 0) * (Number(it.rate) || 0)) || 0), 0);
       }
+      if (totalAmount === 0 && wcAmount > 0) {
+        totalAmount = wcAmount;
+        imageUrl = imageUrl || job.workCompletion?.imageUrl || null;
+      }
+      if (totalAmount === 0 && totalReceived > 0) {
+        totalAmount = totalReceived;
+      }
+
+      const pendingAmount = Math.max(0, totalAmount - totalReceived);
+
+      // Status resolution matching employee dashboard updatePaymentStatus
+      const isJobFullyPaid = (job.paymentProgress || 0) >= 100;
+      const isExplicitCleared = job.paymentStatus === 'CLEARED' || job.paymentStatus === 'PAID';
+      const isAmountCleared = totalAmount > 0 && pendingAmount <= 0 && totalReceived > 0;
+      const isCleared = isJobFullyPaid || isExplicitCleared || isAmountCleared;
+
+      let status = 'PENDING';
+      if (isCleared) {
+        status = 'CLEARED';
+      } else if (job.paymentStatus === 'PARTIAL' || job.paymentStatus === 'PARTIALLY_PAID' || totalReceived > 0 || (job.paymentProgress || 0) > 0) {
+        status = 'PARTIALLY_PAID';
+      } else {
+        status = job.paymentStatus || 'PENDING';
+      }
+
+      const rawDate = job.ticket?.exactDate || job.createdAt || new Date();
+      const originDate = new Date(rawDate);
+      const originYearMonth = `${originDate.getFullYear()}-${String(originDate.getMonth() + 1).padStart(2, '0')}`;
+
+      let clearedDate = null;
+      let clearedYearMonth = null;
+      if (isCleared) {
+        if (payments.length > 0) {
+          clearedDate = new Date(payments[payments.length - 1].createdAt);
+        } else {
+          clearedDate = new Date(job.updatedAt || job.createdAt || new Date());
+        }
+        clearedYearMonth = `${clearedDate.getFullYear()}-${String(clearedDate.getMonth() + 1).padStart(2, '0')}`;
+      }
+
+      allBillableItems.push({
+        id: `job-${job.id}`,
+        invoiceId: null,
+        jobId: job.id,
+        ticketId: job.ticket?.id || job.ticketId || null,
+        serialNo: job.ticket?.serialNo || String(job.id),
+        invoiceRef,
+        docType,
+        clientName: job.clientName || 'General Client',
+        branchName: job.branchName || 'Main Branch',
+        personOfContact: job.personOfContact || 'Site Contact',
+        workNature: job.workNature || 'Maintenance',
+        subject: job.ticket?.subject || `${job.workNature || 'Completed'} Work Order`,
+        assignedEmployee: job.assignedEmployee ? {
+          id: job.assignedEmployee.id,
+          name: job.assignedEmployee.employeeName,
+          email: job.assignedEmployee.email,
+        } : (job.manualEnteredBy ? { id: null, name: job.manualEnteredBy } : null),
+        createdBy: job.createdBy ? {
+          id: job.createdBy.id,
+          name: job.createdBy.employeeName,
+        } : null,
+        totalAmount,
+        totalReceived,
+        pendingAmount,
+        paymentProgress: job.paymentProgress || (totalAmount > 0 ? Math.round((totalReceived / totalAmount) * 100) : 0),
+        status,
+        isCleared,
+        clearedDate: clearedDate ? clearedDate.toISOString() : null,
+        clearedYearMonth,
+        originDate: originDate.toISOString(),
+        originYearMonth,
+        originMonthName: formatMonthName(originYearMonth),
+        poNumber,
+        imageUrl,
+        payments: payments.map(p => ({
+          id: p.id,
+          amount: p.amount,
+          notes: p.summaryNotes,
+          date: p.createdAt,
+        })),
+      });
+    }
+
+    // Process any unlinked tickets matching search query so Sub Admin can see pending intake tickets
+    for (const ticket of unlinkedTickets) {
+      const rawDate = ticket.exactDate || ticket.createdAt || new Date();
+      const originDate = new Date(rawDate);
+      const originYearMonth = `${originDate.getFullYear()}-${String(originDate.getMonth() + 1).padStart(2, '0')}`;
+
+      allBillableItems.push({
+        id: `ticket-${ticket.id}`,
+        invoiceId: null,
+        jobId: null,
+        ticketId: ticket.id,
+        serialNo: ticket.serialNo || String(ticket.id),
+        invoiceRef: `T${ticket.serialNo || ticket.id}`,
+        docType: 'TICKET',
+        clientName: ticket.sender || 'Direct Client Entry',
+        branchName: 'Pending Job Intake',
+        personOfContact: 'Pending POC',
+        workNature: 'Pending Intake',
+        subject: ticket.subject || 'Incoming Ticket',
+        assignedEmployee: ticket.createdBy ? {
+          id: ticket.createdBy.id,
+          name: ticket.createdBy.employeeName,
+          email: ticket.createdBy.email,
+        } : (ticket.statusLastChangedBy ? { id: null, name: ticket.statusLastChangedBy } : null),
+        createdBy: ticket.createdBy ? {
+          id: ticket.createdBy.id,
+          name: ticket.createdBy.employeeName,
+        } : null,
+        totalAmount: 0,
+        totalReceived: 0,
+        pendingAmount: 0,
+        paymentProgress: 0,
+        status: 'PENDING',
+        isCleared: false,
+        clearedDate: null,
+        clearedYearMonth: null,
+        originDate: originDate.toISOString(),
+        originYearMonth,
+        originMonthName: formatMonthName(originYearMonth),
+        poNumber: null,
+        imageUrl: null,
+        payments: [],
+      });
     }
 
     // Filter by Employee if specified (or if employee role without all-access)
@@ -416,15 +527,17 @@ export async function GET(request) {
     // ──────────────────────────────────────────────────────────────────────────
     // MONTHLY LOGIC IMPLEMENTATION (THE CORE REQUIREMENT)
     // ──────────────────────────────────────────────────────────────────────────
-    // 1. Current Month Invoices: Originated in selectedMonth
-    const currentMonthInvoices = filteredItems.filter(
-      item => item.originYearMonth === selectedMonth
-    );
+    const isSearching = Boolean(searchParam);
+
+    // 1. Current Month Invoices: Originated in selectedMonth (or ALL matches if searching)
+    const currentMonthInvoices = isSearching
+      ? filteredItems
+      : filteredItems.filter(item => item.originYearMonth === selectedMonth);
 
     const currentMonthTotalBilled = currentMonthInvoices.reduce((s, it) => s + it.totalAmount, 0);
     const currentMonthTotalReceived = currentMonthInvoices.reduce((s, it) => s + it.totalReceived, 0);
     const currentMonthTotalPending = currentMonthInvoices.reduce((s, it) => s + it.pendingAmount, 0);
-    const currentMonthPendingCount = currentMonthInvoices.filter(it => it.pendingAmount > 0).length;
+    const currentMonthPendingCount = currentMonthInvoices.filter(it => it.pendingAmount > 0 || !it.isCleared).length;
     const currentMonthClearedCount = currentMonthInvoices.filter(it => it.isCleared).length;
 
     // 2. Overdue Carryover Invoices: Originated strictly in months BEFORE selectedMonth
@@ -454,42 +567,44 @@ export async function GET(request) {
       }
     }
 
-    for (const item of filteredItems) {
-      if (item.originYearMonth < selectedMonth) {
-        // Did this item clear BEFORE the end of selectedMonth?
-        let isUnresolvedInSelectedMonth = false;
+    if (!isSearching) {
+      for (const item of filteredItems) {
+        if (item.originYearMonth < selectedMonth) {
+          // Did this item clear BEFORE the end of selectedMonth?
+          let isUnresolvedInSelectedMonth = false;
 
-        if (!item.isCleared) {
-          // Never cleared -> Unresolved and carried over!
-          isUnresolvedInSelectedMonth = true;
-        } else {
-          // It was cleared, but WHEN?
-          if (item.clearedYearMonth && item.clearedYearMonth > selectedMonth) {
-            // Cleared in a future month (e.g. December payment cleared in February, viewing January)
-            // So during selectedMonth (January), it was NOT yet cleared!
+          if (!item.isCleared) {
+            // Never cleared -> Unresolved and carried over!
             isUnresolvedInSelectedMonth = true;
+          } else {
+            // It was cleared, but WHEN?
+            if (item.clearedYearMonth && item.clearedYearMonth > selectedMonth) {
+              // Cleared in a future month (e.g. December payment cleared in February, viewing January)
+              // So during selectedMonth (January), it was NOT yet cleared!
+              isUnresolvedInSelectedMonth = true;
+            }
+            // If clearedYearMonth <= selectedMonth, then by selectedMonth it was already cleared,
+            // so it does NOT carry forward into selectedMonth!
           }
-          // If clearedYearMonth <= selectedMonth, then by selectedMonth it was already cleared,
-          // so it does NOT carry forward into selectedMonth!
-        }
 
-        if (isUnresolvedInSelectedMonth) {
-          // Compute months overdue
-          const [origY, origM] = item.originYearMonth.split('-').map(Number);
-          const diffMonths = (selYear - origY) * 12 + (selMonthNum - origM);
+          if (isUnresolvedInSelectedMonth) {
+            // Compute months overdue
+            const [origY, origM] = item.originYearMonth.split('-').map(Number);
+            const diffMonths = (selYear - origY) * 12 + (selMonthNum - origM);
 
-          overdueCarryoverInvoices.push({
-            ...item,
-            isOverdueCarryover: true,
-            monthsOverdue: diffMonths,
-            highlightRed: true,
-            strictNotice: `STRICT NOTICE: Overdue payment carried over from ${item.originMonthName}!`,
-          });
+            overdueCarryoverInvoices.push({
+              ...item,
+              isOverdueCarryover: true,
+              monthsOverdue: diffMonths,
+              highlightRed: true,
+              strictNotice: `STRICT NOTICE: Overdue payment carried over from ${item.originMonthName}!`,
+            });
 
-          // Accumulate into prior month stats
-          if (priorMonthsStatsMap[item.originYearMonth]) {
-            priorMonthsStatsMap[item.originYearMonth].totalPendingCarried += item.pendingAmount;
-            priorMonthsStatsMap[item.originYearMonth].pendingCountCarried += 1;
+            // Accumulate into prior month stats
+            if (priorMonthsStatsMap[item.originYearMonth]) {
+              priorMonthsStatsMap[item.originYearMonth].totalPendingCarried += item.pendingAmount;
+              priorMonthsStatsMap[item.originYearMonth].pendingCountCarried += 1;
+            }
           }
         }
       }
@@ -508,6 +623,8 @@ export async function GET(request) {
       selectedMonth,
       selectedMonthName: formatMonthName(selectedMonth),
       currentYearMonth,
+      isSearchActive: isSearching,
+      searchResults: isSearching ? filteredItems : [],
       stats: {
         currentMonth: {
           totalBilled: currentMonthTotalBilled,

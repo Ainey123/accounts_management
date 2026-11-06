@@ -213,11 +213,30 @@ export default function PendingPaymentsPage() {
     window.print();
   };
 
+  // Quick Payment Status Change (synced directly with employee portal)
+  const handleQuickStatusChange = async (item, newStatus) => {
+    if (!item.jobId) {
+      alert('This ticket has not had a job order created yet. Complete intake first.');
+      return;
+    }
+    try {
+      await apiFetch(`/api/jobs/${item.jobId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ paymentStatus: newStatus }),
+      });
+      setMessage(`Payment status for ${item.invoiceRef} (${item.clientName}) updated to ${newStatus}`);
+      setTimeout(() => setMessage(''), 3000);
+      await loadPendingPayments(selectedMonth);
+    } catch (err) {
+      alert(err.message || 'Failed to update payment status');
+    }
+  };
+
   // Instant client-side search matcher for Subject, Ticket #, Serial #, Client, PO
   const matchesSearch = useCallback((item, query, field) => {
     if (!query) return true;
     const q = query.toLowerCase().trim();
-    const cleanNum = q.replace(/^(ticket\s*#?|#|sr\s*#?|serial\s*#?|inv\s*#?|i)/i, '').trim();
+    const cleanNum = q.replace(/^(ticket\s*#?|#|sr\s*#?|serial\s*#?|inv\s*#?|i|q|j|t)/i, '').trim();
 
     const subjectStr = (item.subject || '').toLowerCase();
     const serialStr = (item.serialNo || '').toLowerCase();
@@ -228,6 +247,7 @@ export default function PendingPaymentsPage() {
     const employeeStr = (item.assignedEmployee?.name || '').toLowerCase();
     const poStr = (item.poNumber || '').toLowerCase();
     const workStr = (item.workNature || '').toLowerCase();
+    const docTypeStr = (item.docType || '').toLowerCase();
 
     // 1. Subject match
     const matchSubject = subjectStr.includes(q);
@@ -254,7 +274,7 @@ export default function PendingPaymentsPage() {
 
     // 4. Client / Branch / Employee / PO / Work Nature match
     const matchClient = clientStr.includes(q) || branchStr.includes(q);
-    const matchOther = employeeStr.includes(q) || poStr.includes(q) || workStr.includes(q);
+    const matchOther = employeeStr.includes(q) || poStr.includes(q) || workStr.includes(q) || docTypeStr.includes(q);
 
     if (field === 'subject') return matchSubject;
     if (field === 'ticket') return matchTicket;
@@ -269,9 +289,9 @@ export default function PendingPaymentsPage() {
     if (!data?.currentMonthInvoices) return [];
     let list = data.currentMonthInvoices;
     if (statusFilter === 'pending') {
-      list = list.filter(i => i.pendingAmount > 0);
+      list = list.filter(i => !i.isCleared || i.pendingAmount > 0 || i.status === 'PENDING' || i.status === 'PARTIALLY_PAID');
     } else if (statusFilter === 'cleared') {
-      list = list.filter(i => i.isCleared);
+      list = list.filter(i => i.isCleared || i.status === 'CLEARED' || i.status === 'PAID');
     } else if (statusFilter === 'overdue') {
       return []; // Current month is not overdue carryover
     }
@@ -1019,6 +1039,20 @@ export default function PendingPaymentsPage() {
                       {inv.poNumber && (
                         <div style={{ fontSize: 10, color: '#94a3b8' }}>PO: {inv.poNumber}</div>
                       )}
+                      {inv.docType && (
+                        <div style={{ marginTop: 2 }}>
+                          <span style={{
+                            fontSize: 9.5,
+                            background: inv.docType === 'INVOICE' ? 'rgba(56, 189, 248, 0.15)' : inv.docType === 'QUOTATION' ? 'rgba(167, 139, 250, 0.15)' : 'rgba(20, 184, 166, 0.15)',
+                            color: inv.docType === 'INVOICE' ? '#38bdf8' : inv.docType === 'QUOTATION' ? '#c4b5fd' : '#2dd4bf',
+                            padding: '1px 5px',
+                            borderRadius: 4,
+                            fontWeight: 600,
+                          }}>
+                            {inv.docType === 'INVOICE' ? '🧾 Invoice' : inv.docType === 'QUOTATION' ? '📋 Quotation' : '🛠️ Work Order'}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td>
                       <div style={{ fontWeight: 600, color: '#f8fafc' }}>{inv.clientName}</div>
@@ -1030,9 +1064,20 @@ export default function PendingPaymentsPage() {
                       </span>
                     </td>
                     <td>
-                      <span style={{ color: '#e2e8f0', fontWeight: 600 }}>
-                        Rs. {inv.totalAmount.toLocaleString()}
-                      </span>
+                      {inv.totalAmount > 0 ? (
+                        <div>
+                          <span style={{ color: '#e2e8f0', fontWeight: 600 }}>
+                            Rs. {inv.totalAmount.toLocaleString()}
+                          </span>
+                          <div style={{ fontSize: 10, color: '#94a3b8' }}>
+                            {inv.docType === 'QUOTATION' ? 'Quoted' : inv.docType === 'INVOICE' ? 'Invoiced' : 'Billed'}
+                          </div>
+                        </div>
+                      ) : (
+                        <span style={{ color: '#fca5a5', fontSize: 11, fontStyle: 'italic' }}>
+                          Pending Quote / Bill
+                        </span>
+                      )}
                     </td>
                     <td>
                       <span style={{ color: '#34d399', fontWeight: 600 }}>
@@ -1048,22 +1093,45 @@ export default function PendingPaymentsPage() {
                       </div>
                     </td>
                     <td>
-                      <button
-                        type="button"
-                        onClick={() => openSettleModal(inv)}
-                        className="nexus-btn"
-                        style={{
-                          background: 'linear-gradient(135deg, #10b981, #059669)',
-                          color: '#fff',
-                          padding: '6px 12px',
-                          fontSize: 11,
-                          fontWeight: 700,
-                          borderRadius: 6,
-                          border: 'none',
-                        }}
-                      >
-                        <Check size={13} /> Settle / Clear
-                      </button>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                        {inv.jobId ? (
+                          <select
+                            value={inv.isCleared ? 'PAID' : inv.status === 'PARTIALLY_PAID' ? 'PARTIAL' : 'PENDING'}
+                            onChange={(e) => handleQuickStatusChange(inv, e.target.value)}
+                            style={{
+                              background: 'rgba(0,0,0,0.6)',
+                              color: inv.isCleared ? '#10b981' : inv.status === 'PARTIALLY_PAID' ? '#f59e0b' : '#ef4444',
+                              border: '1px solid rgba(255,255,255,0.18)',
+                              borderRadius: 6,
+                              fontSize: 11,
+                              padding: '4px 6px',
+                              cursor: 'pointer',
+                              fontWeight: 600,
+                            }}
+                            title="Update payment status"
+                          >
+                            <option value="PENDING" style={{ background: '#0f172a', color: '#ef4444' }}>Pending</option>
+                            <option value="PARTIAL" style={{ background: '#0f172a', color: '#f59e0b' }}>Partial</option>
+                            <option value="PAID" style={{ background: '#0f172a', color: '#10b981' }}>Fully Paid</option>
+                          </select>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => openSettleModal(inv)}
+                          className="nexus-btn"
+                          style={{
+                            background: 'linear-gradient(135deg, #10b981, #059669)',
+                            color: '#fff',
+                            padding: '6px 12px',
+                            fontSize: 11,
+                            fontWeight: 700,
+                            borderRadius: 6,
+                            border: 'none',
+                          }}
+                        >
+                          <Check size={13} /> Settle
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1157,46 +1225,67 @@ export default function PendingPaymentsPage() {
                       }}
                     >
                       <td>
-                        {isCleared ? (
-                          <span style={{
-                            background: 'rgba(16,185,129,0.15)',
-                            color: '#10b981',
-                            border: '1px solid rgba(16,185,129,0.3)',
-                            padding: '3px 8px',
-                            borderRadius: 999,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 4,
-                          }}>
-                            <Check size={11} /> Cleared
-                          </span>
-                        ) : inv.totalReceived > 0 ? (
-                          <span style={{
-                            background: 'rgba(245,158,11,0.15)',
-                            color: '#f59e0b',
-                            border: '1px solid rgba(245,158,11,0.3)',
-                            padding: '3px 8px',
-                            borderRadius: 999,
-                            fontSize: 11,
-                            fontWeight: 700,
-                          }}>
-                            Partial
-                          </span>
-                        ) : (
-                          <span style={{
-                            background: 'rgba(239,68,68,0.15)',
-                            color: '#ef4444',
-                            border: '1px solid rgba(239,68,68,0.3)',
-                            padding: '3px 8px',
-                            borderRadius: 999,
-                            fontSize: 11,
-                            fontWeight: 700,
-                          }}>
-                            Pending
-                          </span>
-                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                          {isCleared ? (
+                            <span style={{
+                              background: 'rgba(16,185,129,0.15)',
+                              color: '#10b981',
+                              border: '1px solid rgba(16,185,129,0.3)',
+                              padding: '3px 8px',
+                              borderRadius: 999,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                            }}>
+                              <Check size={11} /> Fully Paid
+                            </span>
+                          ) : inv.status === 'PARTIALLY_PAID' || inv.totalReceived > 0 ? (
+                            <span style={{
+                              background: 'rgba(245,158,11,0.15)',
+                              color: '#f59e0b',
+                              border: '1px solid rgba(245,158,11,0.3)',
+                              padding: '3px 8px',
+                              borderRadius: 999,
+                              fontSize: 11,
+                              fontWeight: 700,
+                            }}>
+                              Partial Payment
+                            </span>
+                          ) : (
+                            <span style={{
+                              background: 'rgba(239,68,68,0.15)',
+                              color: '#ef4444',
+                              border: '1px solid rgba(239,68,68,0.3)',
+                              padding: '3px 8px',
+                              borderRadius: 999,
+                              fontSize: 11,
+                              fontWeight: 700,
+                            }}>
+                              Payment: Pending
+                            </span>
+                          )}
+
+                          {/* Order / Document Type Pill */}
+                          {inv.docType === 'INVOICE' ? (
+                            <span style={{ fontSize: 10, background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>
+                              🧾 Invoice
+                            </span>
+                          ) : inv.docType === 'QUOTATION' ? (
+                            <span style={{ fontSize: 10, background: 'rgba(167, 139, 250, 0.15)', color: '#c4b5fd', border: '1px solid rgba(167, 139, 250, 0.3)', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>
+                              📋 Quotation
+                            </span>
+                          ) : inv.docType === 'TICKET' ? (
+                            <span style={{ fontSize: 10, background: 'rgba(148, 163, 184, 0.15)', color: '#cbd5e1', border: '1px solid rgba(148, 163, 184, 0.3)', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>
+                              📩 Intake Ticket
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 10, background: 'rgba(20, 184, 166, 0.15)', color: '#2dd4bf', border: '1px solid rgba(20, 184, 166, 0.3)', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>
+                              🛠️ Work Order
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -1232,10 +1321,15 @@ export default function PendingPaymentsPage() {
                               Sr #{inv.serialNo}
                             </span>
                           ) : null}
+                          {(searchQuery || selectedMonth === 'all') && inv.originMonthName ? (
+                            <span style={{ fontSize: 10, color: '#94a3b8', fontStyle: 'italic' }}>
+                              🗓️ {inv.originMonthName}
+                            </span>
+                          ) : null}
                         </div>
                       </td>
                       <td>
-                        <div style={{ minWidth: 160, maxWidth: 260 }}>
+                        <div style={{ minWidth: 160, maxWidth: 280 }}>
                           <div style={{
                             fontWeight: 600,
                             color: '#f8fafc',
@@ -1266,9 +1360,20 @@ export default function PendingPaymentsPage() {
                         </span>
                       </td>
                       <td>
-                        <span style={{ fontWeight: 600, color: '#f8fafc' }}>
-                          Rs. {inv.totalAmount.toLocaleString()}
-                        </span>
+                        {inv.totalAmount > 0 ? (
+                          <div>
+                            <span style={{ fontWeight: 600, color: '#f8fafc' }}>
+                              Rs. {inv.totalAmount.toLocaleString()}
+                            </span>
+                            <div style={{ fontSize: 10, color: inv.docType === 'QUOTATION' ? '#c4b5fd' : '#94a3b8' }}>
+                              {inv.docType === 'QUOTATION' ? 'Quoted' : inv.docType === 'INVOICE' ? 'Invoiced' : 'Billed'}
+                            </div>
+                          </div>
+                        ) : (
+                          <span style={{ color: '#f59e0b', fontSize: 11, fontStyle: 'italic' }}>
+                            {inv.docType === 'TICKET' ? 'Pending Intake' : 'Pending Quote / Bill'}
+                          </span>
+                        )}
                       </td>
                       <td>
                         <span style={{ color: '#10b981', fontWeight: 600 }}>
@@ -1277,13 +1382,14 @@ export default function PendingPaymentsPage() {
                       </td>
                       <td>
                         <span style={{
-                          color: inv.pendingAmount > 0 ? '#f59e0b' : '#10b981',
+                          color: inv.pendingAmount > 0 ? '#ef4444' : '#10b981',
                           fontWeight: 700,
+                          fontSize: 13,
                         }}>
                           Rs. {inv.pendingAmount.toLocaleString()}
                         </span>
                       </td>
-                      <td style={{ minWidth: 100 }}>
+                      <td style={{ minWidth: 90 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
                             <div
@@ -1301,15 +1407,38 @@ export default function PendingPaymentsPage() {
                         </div>
                       </td>
                       <td>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                          {inv.jobId ? (
+                            <select
+                              value={inv.isCleared ? 'PAID' : inv.status === 'PARTIALLY_PAID' ? 'PARTIAL' : 'PENDING'}
+                              onChange={(e) => handleQuickStatusChange(inv, e.target.value)}
+                              style={{
+                                background: 'rgba(0,0,0,0.6)',
+                                color: inv.isCleared ? '#10b981' : inv.status === 'PARTIALLY_PAID' ? '#f59e0b' : '#ef4444',
+                                border: '1px solid rgba(255,255,255,0.18)',
+                                borderRadius: 6,
+                                fontSize: 11,
+                                padding: '4px 6px',
+                                cursor: 'pointer',
+                                fontWeight: 600,
+                              }}
+                              title="Update payment status (synced with employee portal)"
+                            >
+                              <option value="PENDING" style={{ background: '#0f172a', color: '#ef4444' }}>Pending</option>
+                              <option value="PARTIAL" style={{ background: '#0f172a', color: '#f59e0b' }}>Partial</option>
+                              <option value="PAID" style={{ background: '#0f172a', color: '#10b981' }}>Fully Paid</option>
+                            </select>
+                          ) : null}
+
                           {!isCleared ? (
                             <button
                               type="button"
                               onClick={() => openSettleModal(inv)}
                               className="nexus-btn nexus-btn-primary"
                               style={{ padding: '4px 10px', fontSize: 11 }}
+                              title="Record payment or settlement details"
                             >
-                              Settle / Clear
+                              Settle
                             </button>
                           ) : (
                             <button
@@ -1321,6 +1450,17 @@ export default function PendingPaymentsPage() {
                             >
                               Reopen
                             </button>
+                          )}
+
+                          {inv.docType === 'TICKET' && (
+                            <Link
+                              href="/intake"
+                              className="nexus-btn nexus-btn-ghost"
+                              style={{ padding: '4px 8px', fontSize: 11, textDecoration: 'none', color: '#00f2fe' }}
+                              title="Open Job Intake to assign this ticket"
+                            >
+                              Intake →
+                            </Link>
                           )}
                         </div>
                       </td>
